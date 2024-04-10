@@ -14,7 +14,7 @@ env = suite.make(
     horizon=100
 )
 
-state_dim = 7
+state_dim = 3
 action_dim = env.action_dim
 gamma = 0.99 
 lr_actor = 0.0003 
@@ -44,7 +44,8 @@ for ep in range(1000):
     done = False 
     cur_ep_reward = 0
     while not done: 
-        state = np.concatenate([state['cube_pos'], state['cube_quat']]) 
+        # state = np.concatenate([state['cube_pos'], state['cube_quat']]) 
+        state = state['cube_pos']
         action = ppo_agent.select_action(state) 
         action[3:] = 0
         action[0] = np.clip(action[0], -1, 1) 
