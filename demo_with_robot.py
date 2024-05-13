@@ -6,7 +6,7 @@ import numpy as np
 
 def initialize_robot_position(env, desired_position):
     obs, reward, done, _ = env.step(np.zeros(env.action_dim))
-    print(obs["gripper_pos"])
+    # print(obs["gripper_pos"])
     while np.square(obs["gripper_pos"]*10 - desired_position*10).sum() > 0.1:
         action = -(obs["gripper_pos"] - desired_position) * 1
         action = np.concatenate([action, np.zeros(4)])
@@ -69,7 +69,7 @@ while not done and steps < horizon:
     action[1] = np.clip(action[1], -1, 1)
     action[2] = 0
     action = action / np.sqrt((action**2).sum()) * 0.5
-    print(action)   
+    # print(action)   
     action = np.concatenate([action, [0]])
     # obs, reward, done, _ = env.step(action if steps % 3 == 0 else np.zeros(action_dim))
     obs, reward, done, _ = env.step(action)

@@ -13,6 +13,9 @@ from robosuite.utils.transform_utils import convert_quat
 
 import copy
 
+import os 
+os.environ['MUJOCO_GL'] = 'osmesa'
+
 class RobotCubeMove(SingleArmEnv):
 
     def __init__(
@@ -180,6 +183,8 @@ class RobotCubeMove(SingleArmEnv):
             name="cube",
             size_min=[0.020, 0.020, 0.020],  # [0.015, 0.015, 0.015],
             size_max=[0.022, 0.022, 0.022],  # [0.018, 0.018, 0.018])
+            # size_min=[0.05, 0.05, 0.05],
+            # size_max=[0.05, 0.05, 0.05],
             rgba=[1, 0, 0, 1],
             material=redwood,
         )
@@ -192,8 +197,10 @@ class RobotCubeMove(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.cube,
-                x_range=[-0.35, -0.31],
-                y_range=[0.35, 0.31],
+                # x_range=[-0.35, -0.31],
+                # y_range=[0.35, 0.31],
+                x_range=[-0.035, -0.031],
+                y_range=[0.035, 0.031],
                 rotation=None,
                 ensure_object_boundary_in_range=False,
                 ensure_valid_placement=True,

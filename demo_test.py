@@ -60,6 +60,6 @@ for ep in range(10):
         state = state_
         env.render() 
     ppo_agent.update() 
-    print(f"Episode: {ep}, Reward: {cur_ep_reward}") 
+    # print(f"Episode: {ep}, Reward: {cur_ep_reward}") 
 
 # ppo_agent.save('model.pth')

@@ -1,4 +1,7 @@
 import numpy as np
+
+import os 
+os.environ['MUJOCO_GL'] = 'osmesa'
 from copy import deepcopy
 
 import robosuite as suite
@@ -163,6 +166,8 @@ class MoveBoxEnv(MujocoEnv):
             name="cube",
             size_min=[0.020, 0.020, 0.020],  # [0.015, 0.015, 0.015],
             size_max=[0.022, 0.022, 0.022],  # [0.018, 0.018, 0.018])
+            # size_min=[0.20, 0.20, 0.20],  # [0.015, 0.015, 0.015],
+            # size_max=[0.22, 0.22, 0.22],
             rgba=[1, 0, 0, 1],
             material=redwood,
         )
