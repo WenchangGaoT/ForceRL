@@ -34,14 +34,23 @@ if __name__ == "__main__":
     # rgb_image = obs['agentview_image']
     seg_image = obs["agentview_segmentation_element"]
     depth_image = obs['agentview_depth']
+    depth_image = filp_image(depth_image)
     depth_image = camera_utils.get_real_depth_map(env.sim, depth_image)
     rgb_image = obs['agentview_image']
     # element_id = env.sim.model.geom_name2id('table_visual')
     # element_id = env.sim.model.geom_name2id('Door_handle_visual')
+    print(env.sim.model.geom_names)
+    # robot_geom_id = [env.sim.model.geom_name2id(robot_geo) for robot_geo in env.sim.model.geom_names if 'robot' in robot_geo or 'gripper' in robot_geo or 'mount' in robot_geo]
+    pc_geom_id = [env.sim.model.geom_name2id(pc_geo) for pc_geo in env.sim.model.geom_names if 'cube' in pc_geo or 'table' in pc_geo]
+    print(pc_geom_id)
     element_id = env.sim.model.geom_name2id('cube_g0_vis')
-    masked_segmentation = np.where(seg_image == int(element_id), 1.0, 0.0)
-    print("max depth",np.max(depth_image))
-    print(depth_image.shape )
+    masked_segmentation = np.isin(seg_image, pc_geom_id)
+    masked_segmentation = filp_image(masked_segmentation)
+    print(masked_segmentation.shape)
+    # masked_segmentation = np.where(seg_image == int(element_id), 1.0, 0.0)
+    # masked_segmentation = np.multiply(seg_image, robot_mask)
+    # print("max depth",np.max(depth_image))
+    # print(masked_segmentation.shape )
 
     masked_rgb = np.multiply(rgb_image, masked_segmentation)
     # to int image
@@ -89,7 +98,7 @@ if __name__ == "__main__":
     masked_pcd.estimate_normals()
         #orientation normals to camera
     masked_pcd.orient_normals_towards_camera_location(extrinsic_cam_parameters[:3,3])
-    o3d.visualization.draw_geometries([masked_pcd]) 
+    # o3d.visualization.draw_geometries([masked_pcd]) 
 
     o3d.io.write_point_cloud('point_clouds/test.pcd', masked_pcd)
 

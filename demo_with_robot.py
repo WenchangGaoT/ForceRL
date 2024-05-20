@@ -26,6 +26,7 @@ env = suite.make(
     robots="Panda",
     has_renderer=True,
     use_camera_obs=False,
+    has_offscreen_renderer=False,
     controller_configs=controller_configs,
     control_freq = 20
 )
