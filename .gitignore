@@ -2,4 +2,4 @@
 env/__pycache__
 agent/__pycache__
 MUJOCO_LOG*
-gpd/build
+gpd/build/
