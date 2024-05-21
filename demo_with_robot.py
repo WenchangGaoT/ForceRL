@@ -61,9 +61,9 @@ env.reset()
 obs = initialize_robot_position(env, np.zeros(3) + gripper_offset)
 done = False
 while not done and steps < horizon:
-    # state = env._get_observation()
-    # state = obs["gripper_pos"] - gripper_offset
-    state = obs["cube_pos"]
+    state = env._get_observation()
+    state = obs["gripper_pos"] - gripper_offset
+    # state = obs["cube_pos"]
     state[2] = 0.3
     action = trained_agent.select_action(state)
     action[3:] = 0
