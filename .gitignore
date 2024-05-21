@@ -1,4 +1,4 @@
-*.pth 
+# *.pth 
 env/__pycache__
 agent/__pycache__
 MUJOCO_LOG*
