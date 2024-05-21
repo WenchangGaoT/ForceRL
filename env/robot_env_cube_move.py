@@ -199,10 +199,12 @@ class RobotCubeMove(SingleArmEnv):
                 mujoco_objects=self.cube,
                 # x_range=[-0.35, -0.31],
                 # y_range=[0.35, 0.31],
-                x_range=[-0.035, -0.031],
-                y_range=[0.035, 0.031],
+                # x_range=[-0.035, -0.031],
+                # y_range=[0.035, 0.031],
                 # x_range=[-0.1, -0.095],
                 # y_range=[0.035, 0.031],
+                x_range=[-0.035, -0.031],
+                y_range=[-0.2,0.2],
                 rotation=None,
                 ensure_object_boundary_in_range=False,
                 ensure_valid_placement=True,
@@ -322,10 +324,11 @@ class RobotCubeMove(SingleArmEnv):
         eef_pos = copy.deepcopy(eef_pos)
         eef_pos[2] = 0.3
         dist = np.linalg.norm(eef_pos - np.array([-0.3,0.3,0.3]))
-        print("dist", dist) 
-        return dist < 0.1
+        # print("dist", dist) 
+        # return dist < 0.1
         # cube_height = self.sim.data.body_xpos[self.cube_body_id][2]
         # table_height = self.model.mujoco_arena.table_offset[2]
 
         # # cube is higher than the table top above a margin
         # return cube_height > table_height + 0.04
+        return 0
