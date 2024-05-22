@@ -1,6 +1,7 @@
 import numpy as np
 import open3d as o3d
 import robosuite.utils.camera_utils as camera_utils
+import os
 
 def filp_image(image):
     return np.flip(image, 0)
@@ -81,4 +82,10 @@ def close_gripper(env):
     for i in range(15):
         obs, reward, done, _ = env.step(np.concatenate([np.zeros(env.action_dim - 1),[1]]))
         env.render()
-    return obs
+    return obs 
+
+# object utils
+def fill_custom_xml_path(xml_path):
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    abs_xml_path = os.path.join(base_dir, "sim_models", xml_path)
+    return abs_xml_path
