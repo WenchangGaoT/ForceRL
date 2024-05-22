@@ -1,7 +1,9 @@
 # *.pth 
 env/__pycache__
 agent/__pycache__
+objects/__pycache__
 MUJOCO_LOG*
 gpd/build/
 *egg-info
 test*
+*/__pycache__
