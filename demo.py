@@ -6,7 +6,7 @@ from env.move_box_env import MoveBoxEnv
 
 env = suite.make(
     "MoveBoxEnv",
-    has_renderer=False,
+    has_renderer=True,
     has_offscreen_renderer=False,
     use_camera_obs=False,
     # reward_shaping=True,
@@ -55,7 +55,7 @@ for ep in range(1000):
         ppo_agent.buffer.rewards.append(reward)
         ppo_agent.buffer.is_terminals.append(done)
         state = state_
-        # env.render() 
+        env.render() 
     ppo_agent.update() 
     print(f"Episode: {ep}, Reward: {cur_ep_reward}") 
 
