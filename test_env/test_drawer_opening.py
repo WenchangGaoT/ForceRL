@@ -191,6 +191,8 @@ class DrawerOpeningEnvTest(MujocoEnv):
         self.drawer_handle_site_id = self.sim.model.site_name2id(self.drawer.important_sites["handle"])
         self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.drawer.joints[0])
         self.handle_geom_name = "drawer_handle"
+        self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
+
 
     def _setup_observables(self):
         observables = super()._setup_observables() 
@@ -281,9 +283,10 @@ class DrawerOpeningEnvTest(MujocoEnv):
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
                 
     def _pre_action(self, action, policy_step=False):
-         
+         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name)) + np.array(action)
          assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
             self.action_dim, len(action)
         )
@@ -314,7 +317,8 @@ class DrawerOpeningEnvTest(MujocoEnv):
         rgba = np.array([0.5, 0.5, 0.5, 1.0])
         # point1 = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
         point1 = self.sim.data.get_geom_xpos(self.handle_geom_name)
-        point2 = np.array([1.0, 1.0, 1.0])
+        # point2 = np.array([1.0, 1.0, 1.0])
+        point2 = self.render_arrow_end
         radius = 0.05
         if scene.ngeom >= scene.maxgeom:
             return

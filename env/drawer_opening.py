@@ -7,21 +7,21 @@ from copy import deepcopy
 import robosuite as suite
 from robosuite.utils.mjcf_utils import IMAGE_CONVENTION_MAPPING
 import robosuite.macros as macros
-from robosuite.models.arenas import TableArena
-from robosuite.models.objects import BoxObject
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.placement_samplers import UniformRandomSampler
-from robosuite.utils.mjcf_utils import CustomMaterial
 from robosuite.utils.observables import Observable, sensor
-from robosuite.utils.transform_utils import convert_quat
 from robosuite.models.arenas import EmptyArena
 from objects.custom_objects import DrawerObject
+from robosuite.utils import OpenCVRenderer
+from robosuite.utils.binding_utils import MjRenderContextOffscreen
+from utils.renderer_modified import MjRendererForceVisualization
+
 
 from robosuite.environments.base import MujocoEnv
 import mujoco
 import cv2
 
-class DrawerOpeningEnv(MujocoEnv):
+class DrawerOpeningEnvTest(MujocoEnv):
     def __init__(self, 
                  table_full_size=(0.8, 0.3, 0.05),
                  table_friction=(1.0, 5e-3, 1e-4),
@@ -190,6 +190,9 @@ class DrawerOpeningEnv(MujocoEnv):
         self.object_body_ids['drawer_handle_body'] = self.sim.model.body_name2id('drawer_handle_body')
         self.drawer_handle_site_id = self.sim.model.site_name2id(self.drawer.important_sites["handle"])
         self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.drawer.joints[0])
+        self.handle_geom_name = "drawer_handle"
+        self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
+
 
     def _setup_observables(self):
         observables = super()._setup_observables() 
@@ -245,23 +248,53 @@ class DrawerOpeningEnv(MujocoEnv):
         """
         Resets simulation internal configurations.
         """
-        super()._reset_internal()
+        # create visualization screen or renderer
+        if self.has_renderer and self.viewer is None:
+            self.viewer = OpenCVRenderer(self.sim)
+
+            # Set the camera angle for viewing
+            if self.render_camera is not None:
+                camera_id = self.sim.model.camera_name2id(self.render_camera)
+                self.viewer.set_camera(camera_id)
+
+        if self.has_offscreen_renderer:
+            if self.sim._render_context_offscreen is None:
+                render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
+                # render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
+            self.sim._render_context_offscreen.vopt.geomgroup[0] = 1 if self.render_collision_mesh else 0
+            self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0
+
+        # additional housekeeping
+        self.sim_state_initial = self.sim.get_state()
+        self._setup_references()
+        self.cur_time = 0
+        self.timestep = 0
+        self.done = False
+
+        # Empty observation cache and reset all observables
+        self._obs_cache = {}
+        for observable in self._observables.values():
+            observable.reset()
+
+        
         object_placements = self.placement_initializer.sample() 
         drawer_pos, drawer_quat, _ = object_placements[self.drawer.name]
         drawer_body_id = self.sim.model.body_name2id(self.drawer.root_body)
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
                 
     def _pre_action(self, action, policy_step=False):
-         
+         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name)) + np.array(action)
          assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
             self.action_dim, len(action)
         )
         #  TODO: check action format
         #  self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
          self.sim.data._data.qfrc_applied = [0]
-         point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+        #  point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+         point = self.sim.data.get_geom_xpos(self.handle_geom_name)
          mujoco.mj_applyFT(self.sim.model._model, self.sim.data._data, action, np.zeros(3), point, self.object_body_ids['drawer_handle_body'], self.sim.data._data.qfrc_applied)
          
 
@@ -280,12 +313,13 @@ class DrawerOpeningEnv(MujocoEnv):
         # return 1-np.linalg.norm(pos - np.array([0.3, 0.3, 0.3]))
         # return None
 
-    def modify_scene(self):
-        scene = self.sim._render_context_offscreen.scn
+    def modify_scene(self, scene):
         rgba = np.array([0.5, 0.5, 0.5, 1.0])
-        point1 = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
-        point2 = np.array([10.0, 10.0, 10.0])
-        radius = 0.1
+        # point1 = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+        point1 = self.sim.data.get_geom_xpos(self.handle_geom_name)
+        # point2 = np.array([1.0, 1.0, 1.0])
+        point2 = self.render_arrow_end
+        radius = 0.05
         if scene.ngeom >= scene.maxgeom:
             return
         scene.ngeom += 1
@@ -297,23 +331,4 @@ class DrawerOpeningEnv(MujocoEnv):
                            point1, point2)
         
     def render(self):
-        # self.backup_renderer.update_scene(self.sim.data._data)
-        # scene = self.backup_renderer.scene
-        # print(scene.ngeom)
-        # print(self.sim._render_context_offscreen)
-        self.modify_scene()
-        camera_id = self.sim.model.camera_name2id(self.camera_names[0])
-
-        print(self.sim._render_context_offscreen.scn.ngeom)
-        self.sim._render_context_offscreen.render(256,256,camera_id,False)
-        im = self.sim._render_context_offscreen.read_pixels(256, 256, depth=False, segmentation=False)
-        # print(im.shape)
-        # pixels = self.backup_renderer.render()
-        # print(pixels.shape)
-        cv2.imshow("test", im)
-        cv2.waitKey(1)
-
         super().render()
-
-
-
