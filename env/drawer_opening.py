@@ -21,7 +21,7 @@ from robosuite.environments.base import MujocoEnv
 import mujoco
 import cv2
 
-class DrawerOpeningEnvTest(MujocoEnv):
+class DrawerOpeningEnv(MujocoEnv):
     def __init__(self, 
                  table_full_size=(0.8, 0.3, 0.05),
                  table_friction=(1.0, 5e-3, 1e-4),
