@@ -272,4 +272,9 @@ class DrawerOpeningEnv(MujocoEnv):
         # return 1-np.linalg.norm(pos - np.array([0.3, 0.3, 0.3]))
         # return None
 
+    def modify_scene(self):
+        scn = self.sim._render_context_offscreen.scn
+        print(scn.ngeom)
+
+
 
