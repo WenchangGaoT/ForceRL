@@ -306,4 +306,8 @@ class MoveBoxEnv(MujocoEnv):
         return 1-np.linalg.norm(pos - np.array([0.3, 0.3, 0.3]))
         # return None
 
+    def visualize_force(self, force, point, torque):
+        # visualize force using mujoco
+        pass
+
 
