@@ -5,5 +5,4 @@ objects/__pycache__
 MUJOCO_LOG*
 gpd/build/
 *egg-info
-test*
 */__pycache__
