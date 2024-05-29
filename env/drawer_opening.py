@@ -18,6 +18,7 @@ from robosuite.models.arenas import EmptyArena
 from objects.custom_objects import DrawerObject
 
 from robosuite.environments.base import MujocoEnv
+import mujoco
 
 class DrawerOpeningEnv(MujocoEnv):
     def __init__(self, 
@@ -67,7 +68,7 @@ class DrawerOpeningEnv(MujocoEnv):
         )
 
         self.horizon = horizon 
-        self._action_dim = 6
+        self._action_dim = 3
         self.camera_names =  (
             list(camera_names) if type(camera_names) is list or type(camera_names) is tuple else [camera_names]
         )
@@ -255,7 +256,10 @@ class DrawerOpeningEnv(MujocoEnv):
             self.action_dim, len(action)
         )
         #  TODO: check action format
-         self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
+        #  self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
+         self.sim.data._data.qfrc_applied = [0]
+         point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+         mujoco.mj_applyFT(self.sim.model._model, self.sim.data._data, action, np.zeros(3), point, self.object_body_ids['drawer_handle_body'], self.sim.data._data.qfrc_applied)
 
     def _check_success(self):
         """
