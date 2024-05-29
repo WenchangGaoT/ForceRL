@@ -19,6 +19,7 @@ from objects.custom_objects import DrawerObject
 
 from robosuite.environments.base import MujocoEnv
 import mujoco
+import cv2
 
 class DrawerOpeningEnv(MujocoEnv):
     def __init__(self, 
@@ -91,6 +92,8 @@ class DrawerOpeningEnv(MujocoEnv):
             raise ValueError("Error: Camera observations require an offscreen renderer!")
         if self.use_camera_obs and self.camera_names is None:
             raise ValueError("Must specify at least one camera name when using camera obs")
+        
+        self.backup_renderer = mujoco.Renderer(self.sim.model._model)
 
 
     def visualize(self, vis_settings):
@@ -260,6 +263,7 @@ class DrawerOpeningEnv(MujocoEnv):
          self.sim.data._data.qfrc_applied = [0]
          point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
          mujoco.mj_applyFT(self.sim.model._model, self.sim.data._data, action, np.zeros(3), point, self.object_body_ids['drawer_handle_body'], self.sim.data._data.qfrc_applied)
+         
 
     def _check_success(self):
         """
@@ -267,7 +271,7 @@ class DrawerOpeningEnv(MujocoEnv):
         """
         # TODO: do success check
         slider_qpos = self.sim.data.qpos[self.slider_qpos_addr]
-        print(slider_qpos > 0.3)
+        # print(slider_qpos > 0.3)
         return slider_qpos > 0.3
 
     def reward(self, action=None):
@@ -277,8 +281,39 @@ class DrawerOpeningEnv(MujocoEnv):
         # return None
 
     def modify_scene(self):
-        scn = self.sim._render_context_offscreen.scn
-        print(scn.ngeom)
+        scene = self.sim._render_context_offscreen.scn
+        rgba = np.array([0.5, 0.5, 0.5, 1.0])
+        point1 = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+        point2 = np.array([10.0, 10.0, 10.0])
+        radius = 0.1
+        if scene.ngeom >= scene.maxgeom:
+            return
+        scene.ngeom += 1
+        mujoco.mjv_initGeom(scene.geoms[scene.ngeom-1],
+                      mujoco.mjtGeom.mjGEOM_ARROW, np.zeros(3),
+                      np.zeros(3), np.zeros(9), rgba.astype(np.float32))
+        mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
+                           int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
+                           point1, point2)
+        
+    def render(self):
+        # self.backup_renderer.update_scene(self.sim.data._data)
+        # scene = self.backup_renderer.scene
+        # print(scene.ngeom)
+        # print(self.sim._render_context_offscreen)
+        self.modify_scene()
+        camera_id = self.sim.model.camera_name2id(self.camera_names[0])
+
+        print(self.sim._render_context_offscreen.scn.ngeom)
+        self.sim._render_context_offscreen.render(256,256,camera_id,False)
+        im = self.sim._render_context_offscreen.read_pixels(256, 256, depth=False, segmentation=False)
+        # print(im.shape)
+        # pixels = self.backup_renderer.render()
+        # print(pixels.shape)
+        cv2.imshow("test", im)
+        cv2.waitKey(1)
+
+        super().render()
 
 
 
