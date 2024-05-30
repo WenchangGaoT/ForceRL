@@ -50,7 +50,7 @@ depth_image = obs['{}_depth'.format(camera_name)]
 depth_image = flip_image(depth_image)
 # plt.imshow(depth_image)
 # plt.show()
-pointcloud = get_pointcloud(env, obs, ["agentview", "frontview","sideview"], [256,512,1024], [1024,1024,1024], ["handle", "drawer"])
+pointcloud = get_pointcloud(env, obs, ["agentview", "frontview","sideview"], [256,512,1024], [1024,1024,1024], ["handle", "foo"])
 o3d.visualization.draw_geometries([pointcloud])
 o3d.io.write_point_cloud("point_clouds/drawer_pointcloud.pcd", pointcloud)
 x = gpd_get_grasp_pose('drawer_pointcloud.pcd',cfg_file_name='experiment_grasp.cfg')
