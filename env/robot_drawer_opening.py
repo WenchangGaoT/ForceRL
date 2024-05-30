@@ -94,6 +94,13 @@ class RobotDrawerOpening(SingleArmEnv):
         # set empty arena
         mujoco_arena = EmptyArena()
 
+        # set camera pose
+        mujoco_arena.set_camera(
+            camera_name="agentview",
+            pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423],
+            quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
+        )
+
         # get the drawer object
         self.drawer = DrawerObject(
             name="drawer" 
