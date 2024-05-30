@@ -4,5 +4,7 @@
         "string": "cpp",
         "string_view": "cpp"
     },
-    "ros.distro": "noetic"
+    
+    "python.analysis.extraPaths": ["/home/frank/frl/robosuite"],
+    "ros.distro": "noetic",
 }

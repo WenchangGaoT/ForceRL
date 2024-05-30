@@ -6,4 +6,5 @@ MUJOCO_LOG*
 gpd/build/
 *egg-info
 */__pycache__
-test*
+.vscode
+test.py

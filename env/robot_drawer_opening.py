@@ -143,6 +143,7 @@ class RobotDrawerOpening(SingleArmEnv):
         self.object_body_ids["drawer"] = self.sim.model.body_name2id(self.drawer.drawer_body)
         self.drawer_handle_site_id = self.sim.model.site_name2id(self.drawer.important_sites["handle"])
         self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.drawer.joints[0])
+        self.handle_geom_name = "drawer_handle"
 
     def _setup_observables(self):
         """
