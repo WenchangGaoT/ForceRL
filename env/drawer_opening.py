@@ -15,6 +15,7 @@ from objects.custom_objects import DrawerObject
 from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
+from robosuite.utils.transform_utils import convert_quat
 
 
 from robosuite.environments.base import MujocoEnv
@@ -43,7 +44,9 @@ class DrawerOpeningEnv(MujocoEnv):
                  camera_depths=False,
                  camera_segmentations=None,
                  renderer="mujoco",
-                 renderer_config=None):
+                 action_scale=2,
+                 renderer_config=None): 
+        self.action_scale = action_scale
         self.has_renderer = has_renderer
         self.has_offscreen_renderer = has_offscreen_renderer
         self.use_camera_obs = use_camera_obs
@@ -198,8 +201,7 @@ class DrawerOpeningEnv(MujocoEnv):
         observables = super()._setup_observables() 
         modality = "object"
         return observables
-
-        
+      
     def _create_camera_sensors(self, cam_name, cam_w, cam_h, cam_d, cam_segs, modality="image"):
         convention = IMAGE_CONVENTION_MAPPING[macros.IMAGE_CONVENTION]
 
@@ -285,19 +287,20 @@ class DrawerOpeningEnv(MujocoEnv):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
                 
-    def _pre_action(self, action, policy_step=False):
-         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name)) + np.array(action)
-         assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
+    def _pre_action(self, action, policy_step=False): 
+        self.last_handle_pos = self.sim.data.qpos[self.slider_qpos_addr]
+        action = action/(np.linalg.norm(action)+1e-6) * self.action_scale
+        self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name)) + np.array(action)
+        assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
             self.action_dim, len(action)
         )
         #  TODO: check action format
         #  self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
-         self.sim.data._data.qfrc_applied = [0]
+        self.sim.data._data.qfrc_applied = [0]
         #  point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
-         point = self.sim.data.get_geom_xpos(self.handle_geom_name)
-         mujoco.mj_applyFT(self.sim.model._model, self.sim.data._data, action, np.zeros(3), point, self.object_body_ids['drawer_handle_body'], self.sim.data._data.qfrc_applied)
+        point = self.sim.data.get_geom_xpos(self.handle_geom_name)
+        mujoco.mj_applyFT(self.sim.model._model, self.sim.data._data, action, np.zeros(3), point, self.object_body_ids['drawer_handle_body'], self.sim.data._data.qfrc_applied)
          
-
     def _check_success(self):
         """
         Runs superclass method by default
@@ -308,9 +311,13 @@ class DrawerOpeningEnv(MujocoEnv):
         return slider_qpos > 0.3
 
     def reward(self, action=None):
-        # pos = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
-        return float(self._check_success())
-        # return 1-np.linalg.norm(pos - np.array([0.3, 0.3, 0.3]))
+        pos = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
+        # return float(self._check_success())
+        if self._check_success(): 
+            return 1 
+        else:
+            return 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
+        # return 1-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3) if not self._check_success() else 1.0
         # return None
 
     def modify_scene(self, scene):
@@ -331,4 +338,36 @@ class DrawerOpeningEnv(MujocoEnv):
                            point1, point2)
         
     def render(self):
-        super().render()
+        super().render() 
+    
+    def _setup_observables(self):
+        observables = super()._setup_observables() 
+        if self.use_camera_obs:
+            raise NotImplementedError("Camera observations are not supported for this environment")
+        # setup cube pose as observable
+        modality = "object"
+        # @sensor(modality=modality)
+        # def cube_pos(obs_cache):
+        #     return np.array(self.sim.data.body_xpos[self.cube_body_id])
+
+        @sensor(modality=modality)
+        def handle_pos(obs_cache):
+            return np.array(self.sim.data.body_xpos[self.drawer_handle_site_id])
+
+        # @sensor(modality=modality)
+        # def cube_quat(obs_cache):
+        #     return convert_quat(np.array(self.sim.data.body_xquat[self.cube_body_id]), to="xyzw")
+        
+        @sensor(modality=modality) 
+        def handle_quat(obs_cache):
+            return convert_quat(np.array(self.sim.data.body_xquat[self.drawer_handle_site_id]), to="xyzw")
+        
+        sensors = [handle_pos, handle_quat]
+        names = [s.__name__ for s in sensors]
+        for name, s in zip(names, sensors):
+                observables[name] = Observable(
+                    name=name,
+                    sensor=s,
+                    sampling_rate=self.control_freq,
+                )
+        return observables

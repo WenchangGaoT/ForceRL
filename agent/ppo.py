@@ -93,7 +93,8 @@ class ActorCritic(nn.Module):
             action_probs = self.actor(state)
             dist = Categorical(action_probs)
 
-        action = dist.sample()
+        # action = dist.sample() 
+        action = dist.mode
         action_logprob = dist.log_prob(action)
         state_val = self.critic(state)
 
