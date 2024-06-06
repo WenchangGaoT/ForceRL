@@ -36,34 +36,49 @@ class RolloutBuffer:
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, state_dim, action_dim, has_continuous_action_space, action_std_init):
+    def __init__(self, state_dim, action_dim, has_continuous_action_space, action_std_init, max_val=4):
         super(ActorCritic, self).__init__()
 
         self.has_continuous_action_space = has_continuous_action_space
         self._train = True
+        self.max_val = max_val
         
         if has_continuous_action_space:
             self.action_dim = action_dim
             self.action_var = torch.full((action_dim,), action_std_init * action_std_init).to(device)
         # actor
         if has_continuous_action_space :
-            self.actor = nn.Sequential(
+            self.actor_feat = nn.Sequential(
                             nn.Linear(state_dim, 64),
                             nn.Tanh(),
                             nn.Linear(64, 64),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
+                            nn.Linear(64, 64),
                             nn.Tanh()
                         )
+            self.actor_dir_head = nn.Sequential(
+                nn.Linear(64, action_dim),
+                nn.Tanh()
+            )
+            self.actor_mag_head = nn.Sequential( 
+                nn.Tanh(), 
+                nn.Linear(64, 1)
+            )
         else:
-            self.actor = nn.Sequential(
+            self.actor_feat = nn.Sequential(
                             nn.Linear(state_dim, 64),
                             nn.Tanh(),
                             nn.Linear(64, 64),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
-                            nn.Softmax(dim=-1)
+                            nn.Linear(64, 64),
+                            nn.Tanh()
+                            # nn.Softmax(dim=-1)
                         )
+            self.actor_dir_head = nn.Sequential(
+                nn.Linear(64, action_dim),
+                nn.Softmax(dim=-1)
+            ) 
+            self.actor_mag_head = nn.Linear(64, 1)
         # critic
         self.critic = nn.Sequential(
                         nn.Linear(state_dim, 64), 
@@ -72,6 +87,7 @@ class ActorCritic(nn.Module):
                         nn.Tanh(), 
                         nn.Linear(64, 1) 
                     )
+        # self.critic_dir_head = 
     
     def train(self):
         self._train = True 
@@ -91,14 +107,18 @@ class ActorCritic(nn.Module):
         raise NotImplementedError
     
     def act(self, state):
-
+        feat = self.actor_feat(state)
         if self.has_continuous_action_space:
-            action_mean = self.actor(state)
+            dir_mean = self.actor_dir_head(feat)
+            dir_mean = torch.nn.functional.normalize(dir_mean, dim=-1)
+            mag = torch.abs(self.actor_mag_head(feat))
+            mag = torch.clip(mag, 0, self.max_val)
             cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
-            dist = MultivariateNormal(action_mean, cov_mat)
+            dist = MultivariateNormal(dir_mean * mag, cov_mat)
         else:
-            action_probs = self.actor(state)
-            dist = Categorical(action_probs)
+            dir_probs = self.actor_dir_head(feat) 
+            # mag = self.actor_mag_head(feat)
+            dist = Categorical(dir_probs)
         if self._train:
             action = dist.sample() 
         else:
@@ -109,19 +129,22 @@ class ActorCritic(nn.Module):
         return action.detach(), action_logprob.detach(), state_val.detach()
     
     def evaluate(self, state, action):
-
+        feat = self.actor_feat(state)
         if self.has_continuous_action_space:
-            action_mean = self.actor(state)
+            # action_mean = self.actor(state)
+            dir_mean = torch.nn.functional.normalize(self.actor_dir_head(feat))
+            mag = torch.abs(self.actor_mag_head(feat)) 
+            mag = torch.clip(mag, 0, self.max_val)
             
-            action_var = self.action_var.expand_as(action_mean)
+            action_var = self.action_var.expand_as(dir_mean)
             cov_mat = torch.diag_embed(action_var).to(device)
-            dist = MultivariateNormal(action_mean, cov_mat)
+            dist = MultivariateNormal(dir_mean*mag, cov_mat)
             
             # For Single Action Environments.
             if self.action_dim == 1:
                 action = action.reshape(-1, self.action_dim)
         else:
-            action_probs = self.actor(state)
+            action_probs = self.actor_dir_head(feat)
             dist = Categorical(action_probs)
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
@@ -130,8 +153,8 @@ class ActorCritic(nn.Module):
         return action_logprobs, state_values, dist_entropy
 
 
-class PPO:
-    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6, max_val=None):
+class SingleheadPPO:
+    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6, max_val=4):
 
         self.has_continuous_action_space = has_continuous_action_space
         self.max_val = max_val
@@ -145,9 +168,10 @@ class PPO:
         
         self.buffer = RolloutBuffer()
 
-        self.policy = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
+        self.policy = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init, max_val=max_val).to(device)
         self.optimizer = torch.optim.Adam([
-                        {'params': self.policy.actor.parameters(), 'lr': lr_actor},
+                        {'params': list(self.policy.actor_feat.parameters()) + list(self.policy.actor_dir_head.parameters()) + list(self.policy.actor_mag_head.parameters()), 
+                         'lr': lr_actor},
                         {'params': self.policy.critic.parameters(), 'lr': lr_critic}
                     ])
 

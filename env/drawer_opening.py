@@ -16,6 +16,7 @@ from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
 from robosuite.utils.transform_utils import convert_quat
+import copy
 
 
 from robosuite.environments.base import MujocoEnv
@@ -197,10 +198,10 @@ class DrawerOpeningEnv(MujocoEnv):
         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
 
 
-    def _setup_observables(self):
-        observables = super()._setup_observables() 
-        modality = "object"
-        return observables
+    # def _setup_observables(self):
+    #     observables = super()._setup_observables() 
+    #     modality = "object"
+    #     return observables
       
     def _create_camera_sensors(self, cam_name, cam_w, cam_h, cam_d, cam_segs, modality="image"):
         convention = IMAGE_CONVENTION_MAPPING[macros.IMAGE_CONVENTION]
@@ -286,10 +287,12 @@ class DrawerOpeningEnv(MujocoEnv):
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name))
+        self.last_handle_xpos = self.sim.data.get_geom_xpos(self.handle_geom_name)
+
                 
     def _pre_action(self, action, policy_step=False): 
         self.last_handle_pos = self.sim.data.qpos[self.slider_qpos_addr]
-        action = action/(np.linalg.norm(action)+1e-6) * self.action_scale
+        # action = action/(np.linalg.norm(action)+1e-6) * self.action_scale
         self.render_arrow_end = np.array(self.sim.data.get_geom_xpos(self.handle_geom_name)) + np.array(action)
         assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
             self.action_dim, len(action)
@@ -314,9 +317,28 @@ class DrawerOpeningEnv(MujocoEnv):
         pos = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
         # return float(self._check_success())
         if self._check_success(): 
-            return 1 
+            return 10
         else:
-            return 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
+            progress_reward = 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
+            current_handle_xpos = copy.deepcopy(self.sim.data.get_geom_xpos(self.handle_geom_name))
+            # print("current_handle_xpos: ", current_handle_xpos)
+            # print("self.last_handle_xpos: ", self.last_handle_xpos)
+            # print()
+            delta_handle_xpos = 1000* (current_handle_xpos - self.last_handle_xpos) 
+            # print('delta_handle_xpos: ', delta_handle_xpos)
+            self.last_handle_xpos = current_handle_xpos
+            # delta_handle_pos = delta_handle_pos / (np.linalg.norm(delta_handle_pos) + 1e-7)
+            valid_force_reward = np.dot(action, delta_handle_xpos) / (np.linalg.norm(action) + 1e-7)
+            valid_force_reward  = valid_force_reward * np.sign(progress_reward)
+            # print(action)
+
+            # self.last_handle_xpos = current_handle_xpos
+            # print(np.dot(action, delta_handle_xpos))
+            reward = valid_force_reward + progress_reward
+
+            # print(reward)
+            return reward
+            # return 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
         # return 1-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3) if not self._check_success() else 1.0
         # return None
 

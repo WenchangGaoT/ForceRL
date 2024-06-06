@@ -7,7 +7,8 @@ typedef struct HandPose{
         float pos_x[100];
         float pos_y[100];
         float pos_z[100];
-        float rotation_matrix_list[100][3];
+        float grasp_vector_list[100][3];
+        float rotation_matrix_list[100][9];
     }HandPose;
 
 namespace gpd{
@@ -103,11 +104,25 @@ namespace grasp_cips_space{
         res.pos_y[i] = clusters[i]->getPosition().data()[1];
         res.pos_z[i] = clusters[i]->getPosition().data()[2];
         for (int j = 0; j < 3; j++){
-                res.rotation_matrix_list[i][j] = clusters[i]->getApproach().data()[j];
+                res.grasp_vector_list[i][j] = clusters[i]->getApproach().data()[j];
         }
+
+        // for (int j = 0; j < 3; j++)
+        // {
+        //     for (int k = 0; k < 9; k++){
+        //         res.rotation_matrix_list[i][j][k] = float(clusters[i]->getOrientation().data()[j]);
+        //     }
+        // }
+        for (int j = 0; j < 9; j++)
+        {
+            res.rotation_matrix_list[i][j] = clusters[i]->getOrientation().data()[j];
+        }
+        // Eigen::Map<Eigen::Matrix3d>(&res.rotation_matrix_list[i][0][0], 3, 3) = clusters[i]->getOrientation();
         std::cout << "hand positions" << clusters[i]->getPosition() << endl;
         std::cout << "array" << result[3*i]  <<  result[3*i+1]  <<result[3*i+2] << endl;
+        std::cout << "rotation matrix" << res.rotation_matrix_list[i] << endl;
     }
+    res.size = clusters.size();
     std::cout << "check1" << endl;
     // std::cout << result << endl;
     return res;

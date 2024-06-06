@@ -65,19 +65,19 @@
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-21" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-7"  group="0"/>
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-4"  group="0"/>
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-23" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-24" group="0" />
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-23" group="0" name="bar-23"/>
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-24" group="0" name="bar-24"/>
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-53" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-19" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-13" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-20" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-17" group="0" />
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-51" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-46" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-47" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-45" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-48" group="0" />
-                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-50" group="0" />
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-46" group="0" name="bar-46"/>
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-47" group="0" name="bar-47"/>
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-45" group="0" name="bar-45"/>
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-48" group="0" name="bar-48"/>
+                <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-50" group="0" name="bar-50"/>
                 <geom quat="0.7073883 0 0 0.7068252" type="mesh" mesh="convex-52" group="0" />     
                 <body name="link_1" pos="0.01 0 0" quat="0.7073883 0 0 0.7068252">
                     <inertial pos="-0.370823 -0.140063 0.443522" quat="0.503577 0.496329 -0.496172 0.503867" mass="11.7813" diaginertia="1.14787 0.80664 0.394266" />
@@ -89,12 +89,12 @@
                         <geom type="mesh" mesh="convex-36" group="0" name="foo-36"/>
                         <geom type="mesh" mesh="convex-37" group="0" name="foo-37"/>
                         <geom type="mesh" mesh="convex-41" group="0" name="foo-41"/>
-                        <geom type="mesh" mesh="convex-28" group="0" name="foo-28"/>
-                        <geom type="mesh" mesh="convex-27" group="0" name="foo-27"/>
-                        <geom type="mesh" mesh="convex-32" group="0" name="foo-32"/>
-                        <geom type="mesh" mesh="convex-34" group="0" name="foo-34"/>
-                        <geom type="mesh" mesh="convex-33" group="0" name="foo-33"/>
-                        <geom type="mesh" mesh="convex-31" group="0" name="foo-31"/>
+                        <geom type="mesh" mesh="convex-28" group="0" name="fo-28"/>
+                        <geom type="mesh" mesh="convex-27" group="0" name="fo-27"/>
+                        <geom type="mesh" mesh="convex-32" group="0" name="fo-32"/>
+                        <geom type="mesh" mesh="convex-34" group="0" name="fo-34"/>
+                        <geom type="mesh" mesh="convex-33" group="0" name="fo-33"/>
+                        <geom type="mesh" mesh="convex-31" group="0" name="fo-31"/>
                         <!--<geom type="mesh" mesh="convex-30" group="0"/>
                         <geom pos="0.375 0.4 -0.46" type="mesh" mesh="convex-43" group="0"/> -->
                         <!-- <site name="handle" pos="-0.370823 -0.465 0.443522" size="0.02" rgba="0 0 1 1" /> -->

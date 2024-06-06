@@ -153,8 +153,38 @@ class RobotDrawerOpening(SingleArmEnv):
             OrderedDict: Dictionary mapping observable names to its corresponding Observable object
         """
         observables = super()._setup_observables()
+        modality = "object"
+        pf = self.robots[0].robot_model.naming_prefix
+        @sensor(modality=modality)
+        def gripper_pos(obs_cache):
+            return obs_cache[f"{pf}eef_pos"] if f"{pf}eef_pos" in obs_cache else np.zeros(3)
+        @sensor(modality=modality)
+        def gripper_quat(obs_cache):
+            return obs_cache[f"{pf}eef_quat"] if f"{pf}eef_quat" in obs_cache else np.zeros(3)
+        @sensor(modality=modality)
+        def handle_pos(obs_cache):
+            return np.array(self.sim.data.body_xpos[self.drawer_handle_site_id])
+
+        # @sensor(modality=modality)
+        # def cube_quat(obs_cache):
+        #     return convert_quat(np.array(self.sim.data.body_xquat[self.cube_body_id]), to="xyzw")
+        
+        @sensor(modality=modality) 
+        def handle_quat(obs_cache):
+            return convert_quat(np.array(self.sim.data.body_xquat[self.drawer_handle_site_id]), to="xyzw")
+        sensors = [gripper_pos, gripper_quat,handle_pos,handle_quat]
+        names = [s.__name__ for s in sensors]
+
+        # Create observables
+        for name, s in zip(names, sensors):
+            observables[name] = Observable(
+                name=name,
+                sensor=s,
+                sampling_rate=self.control_freq,
+            )
+
         return observables
-    
+
     def _reset_internal(self):
         super()._reset_internal()
         object_placements = self.placement_initializer.sample()
@@ -168,5 +198,8 @@ class RobotDrawerOpening(SingleArmEnv):
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
+        return 0
+    
+    def reward(self, action):
         return 0
     

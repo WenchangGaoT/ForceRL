@@ -11,7 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class HandPose(ctypes.Structure):
     _fields_=[("size", ctypes.c_int), ("pos_x", ctypes.c_float*100),
               ("pos_y", ctypes.c_float*100), ("pos_z", ctypes.c_float*100), 
-              ("rotation_matrix_list", (ctypes.c_float*3)*100)] 
+              ("grasp_vector_list", (ctypes.c_float*3)*100),
+              ("rotation_matrix_list", (ctypes.c_float*9)*100),] 
     
     # def __str__(self) -> str:
     #     return 'size: ' + 

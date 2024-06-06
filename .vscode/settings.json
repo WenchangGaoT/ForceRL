@@ -2,7 +2,10 @@
     "files.associations": {
         "array": "cpp",
         "string": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "core": "cpp",
+        "numericaldiff": "cpp",
+        "iostream": "cpp"
     },
     
     "python.analysis.extraPaths": ["/home/frank/frl/robosuite"],
