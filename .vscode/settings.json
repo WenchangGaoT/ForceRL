@@ -2,7 +2,12 @@
     "files.associations": {
         "array": "cpp",
         "string": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "core": "cpp",
+        "numericaldiff": "cpp",
+        "iostream": "cpp"
     },
-    "ros.distro": "noetic"
+    
+    "python.analysis.extraPaths": ["/home/frank/frl/robosuite"],
+    "ros.distro": "noetic",
 }

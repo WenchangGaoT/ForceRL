@@ -35,16 +35,18 @@ class RolloutBuffer:
         del self.is_terminals[:]
 
 
-class ActorCritic(nn.Module):
+class MultiheadActorCritic(nn.Module):
     def __init__(self, state_dim, action_dim, has_continuous_action_space, action_std_init):
-        super(ActorCritic, self).__init__()
+        super(MultiheadActorCritic, self).__init__()
 
-        self.has_continuous_action_space = has_continuous_action_space
-        self._train = True
+        self.has_continuous_action_space = has_continuous_action_space 
+        self._train = False
         
         if has_continuous_action_space:
             self.action_dim = action_dim
-            self.action_var = torch.full((action_dim,), action_std_init * action_std_init).to(device)
+            self.action_var = {
+                torch.full((action_dim,), action_std_init * action_std_init).to(device)
+            }
         # actor
         if has_continuous_action_space :
             self.actor = nn.Sequential(
@@ -52,27 +54,56 @@ class ActorCritic(nn.Module):
                             nn.Tanh(),
                             nn.Linear(64, 64),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
+                            nn.Linear(64, 64),
                             nn.Tanh()
                         )
+            self.actor_head = {
+                'strength': nn.Sequential(
+                    nn.Linear(64, action_dim), 
+                    nn.Tanh()
+                ), 
+                'direction': nn.Sequential(
+                    nn.Linear(64, action_dim), 
+                    nn.Tanh()
+                )
+            }
         else:
             self.actor = nn.Sequential(
                             nn.Linear(state_dim, 64),
                             nn.Tanh(),
                             nn.Linear(64, 64),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
-                            nn.Softmax(dim=-1)
+                            nn.Linear(64, 64),
+                            nn.Tanh()
                         )
+            self.actor_head = {
+                'magnitude': nn.Sequential(
+                    nn.Linear(64, action_dim), 
+                    nn.Softmax(dim=-1)
+                ), 
+                'direction': nn.Sequential(
+                    nn.Linear(64, action_dim), 
+                    nn.Softmax(dim=-1)
+                )
+            }
         # critic
         self.critic = nn.Sequential(
                         nn.Linear(state_dim, 64), 
                         nn.Tanh(), 
                         nn.Linear(64, 64), 
                         nn.Tanh(), 
-                        nn.Linear(64, 1) 
-                    )
-    
+                        nn.Linear(64, 64) 
+                    ) 
+        self.critic_head = {
+                'magnitude': nn.Sequential(
+                    nn.Linear(64, 1), 
+                    nn.Tanh()
+                ), 
+                'direction': nn.Sequential(
+                    nn.Linear(64, 1), 
+                    nn.Tanh()
+                )
+            }
     def train(self):
         self._train = True 
 
@@ -92,49 +123,93 @@ class ActorCritic(nn.Module):
     
     def act(self, state):
 
-        if self.has_continuous_action_space:
-            action_mean = self.actor(state)
-            cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
-            dist = MultivariateNormal(action_mean, cov_mat)
-        else:
-            action_probs = self.actor(state)
-            dist = Categorical(action_probs)
-        if self._train:
-            action = dist.sample() 
-        else:
-            action = dist.mode
-        action_logprob = dist.log_prob(action)
-        state_val = self.critic(state)
+        actor_feat = self.actor(state)
+        critic_feat = self.critic(state)
 
-        return action.detach(), action_logprob.detach(), state_val.detach()
+        if self.has_continuous_action_space:
+            action_mean = {
+                k: self.actor_head[k](actor_feat) for k in self.actor_head.keys()
+            }
+            cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
+            dist = {
+                k: MultivariateNormal(action_mean[k], cov_mat) for k in action_mean.keys()
+            }
+        else:
+            action_probs = {
+                k: self.actor_head[k](actor_feat) for k in self.actor_head.keys()
+            }
+            dist = {
+                k: Categorical(action_probs[k]) for k in action_probs.keys()
+            }
+        if self._train:
+            action = {
+                k: dist[k].sample().detach() for k in dist.keys()
+            } 
+        else:
+            action = {
+                k: dist[k].mode for k in dist.keys()
+            }
+        # action = dist.sample() 
+        # action = dist.mode
+        action_logprob = {
+            k: dist[k].log_prob(v).detach() for k, v in action.items()
+        }
+        state_val = {
+            k: self.critic_head[k](critic_feat).detach() for k in self.critic_head.keys()
+        }
+
+        # real_force = action['direction'] / nn.functional.normalize(action['direction']) * action['magnitude']
+
+        return action, action_logprob, state_val
     
     def evaluate(self, state, action):
+        
+        action_feat = self.actor(state)
+        critic_feat = self.critic(state)
 
         if self.has_continuous_action_space:
-            action_mean = self.actor(state)
+            action_mean = {
+                k: self.actor_head[k](action_feat) for k in self.actor_head.keys()
+            }
             
-            action_var = self.action_var.expand_as(action_mean)
-            cov_mat = torch.diag_embed(action_var).to(device)
-            dist = MultivariateNormal(action_mean, cov_mat)
+            action_var = {
+                k: self.action_var.expand_as(action_mean) for k in self.actor_head.keys()
+            }
+            cov_mat = {
+                k: torch.diag_embed(action_var[k]).to(device) for k in action_var.keys()
+            }
+            dist = {
+                k: MultivariateNormal(action_mean[k], cov_mat) for k in action_mean.keys()
+            }
             
             # For Single Action Environments.
             if self.action_dim == 1:
-                action = action.reshape(-1, self.action_dim)
+                for k, v in action.items():
+                    v = v.reshape(-1, self.action_dim)
         else:
-            action_probs = self.actor(state)
-            dist = Categorical(action_probs)
-        action_logprobs = dist.log_prob(action)
-        dist_entropy = dist.entropy()
-        state_values = self.critic(state)
+            action_probs = {
+                k: self.actor_head[k](action_feat) for k in self.actor_head.keys()
+            }
+            dist = {
+                k: Categorical(action_probs[k]) for k in action_probs.keys()
+            }
+        action_logprobs = {
+            k: dist[k].log_prob(v) for k, v in action.items()
+        }
+        dist_entropy = {
+            k: v.entropy() for k, v in dist.items()
+        }
+        state_values = {
+            k: self.critic_head[k](critic_feat) for k in self.critic_head.keys()
+        }
         
         return action_logprobs, state_values, dist_entropy
 
 
-class PPO:
-    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6, max_val=None):
+class MultiheadPPO:
+    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6):
 
         self.has_continuous_action_space = has_continuous_action_space
-        self.max_val = max_val
 
         if has_continuous_action_space:
             self.action_std = action_std_init
@@ -145,13 +220,13 @@ class PPO:
         
         self.buffer = RolloutBuffer()
 
-        self.policy = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
+        self.policy = MultiheadActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
         self.optimizer = torch.optim.Adam([
                         {'params': self.policy.actor.parameters(), 'lr': lr_actor},
                         {'params': self.policy.critic.parameters(), 'lr': lr_critic}
                     ])
 
-        self.policy_old = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
+        self.policy_old = MultiheadActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
         
         self.MseLoss = nn.MSELoss()
@@ -187,8 +262,7 @@ class PPO:
         if self.has_continuous_action_space:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(device)
-                action, action_logprob, state_val = self.policy_old.act(state) 
-                action = torch.clip(action, 0, self.max_val) if self.max_val != None else action
+                action, action_logprob, state_val = self.policy_old.act(state)
 
             self.buffer.states.append(state)
             self.buffer.actions.append(action)
@@ -199,8 +273,7 @@ class PPO:
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(device)
-                action, action_logprob, state_val = self.policy_old.act(state) 
-                action = torch.clip(action, 0, self.max_val) if self.max_val != None else action
+                action, action_logprob, state_val = self.policy_old.act(state)
             
             self.buffer.states.append(state)
             self.buffer.actions.append(action)
@@ -226,11 +299,17 @@ class PPO:
         # convert list to tensor
         old_states = torch.squeeze(torch.stack(self.buffer.states, dim=0)).detach().to(device)
         old_actions = torch.squeeze(torch.stack(self.buffer.actions, dim=0)).detach().to(device)
-        old_logprobs = torch.squeeze(torch.stack(self.buffer.logprobs, dim=0)).detach().to(device)
-        old_state_values = torch.squeeze(torch.stack(self.buffer.state_values, dim=0)).detach().to(device)
+        old_logprobs = {
+            k: torch.squeeze(torch.stack(self.buffer.logprobs[k], dim=0)).detach().to(device) for k in self.buffer.logprobs.keys()
+        }
+        old_state_values = {
+            k: torch.squeeze(torch.stack(self.buffer.state_values[k], dim=0)).detach().to(device) for k in self.buffer.state_values.keys()
+        }
 
         # calculate advantages
-        advantages = rewards.detach() - old_state_values.detach()
+        advantages = {
+            k: rewards.detach() - old_state_values[k].detach() for k in old_state_values.keys()
+        }
 
         # Optimize policy for K epochs
         for _ in range(self.K_epochs):
@@ -239,17 +318,27 @@ class PPO:
             logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
 
             # match state_values tensor dimensions with rewards tensor
-            state_values = torch.squeeze(state_values)
+            state_values = {
+                k: torch.squeeze(v) for k, v in state_values.items()
+            }
             
             # Finding the ratio (pi_theta / pi_theta__old)
-            ratios = torch.exp(logprobs - old_logprobs.detach())
+            ratios = {
+                k: torch.exp(logprobs[k] - old_logprobs[k].detach()) for k in logprobs.keys()
+            }
 
             # Finding Surrogate Loss  
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
+            surr1 = {
+                k: ratios[k] * advantages[k] for k in ratios.keys()
+            }
+            surr2 = {
+                k: torch.clamp(ratios[k], 1-self.eps_clip, 1+self.eps_clip) * advantages[k] for k in ratios.keys()
+            }
 
             # final loss of clipped objective PPO
-            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
+            loss = 0
+            for k in surr1.keys():
+                loss += -torch.min(surr1[k], surr2[k]) + 0.5 * self.MseLoss(state_values[k], rewards) - 0.01 * dist_entropy[k]
             
             # take gradient step
             self.optimizer.zero_grad()
@@ -269,12 +358,6 @@ class PPO:
         self.policy_old.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
         self.policy.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
         
-    def train(self):
-        self.policy.train()
-        self.policy_old.train()
-    
-    def eval(self):
-        self.policy.eval() 
-        self.policy_old.eval()
+        
        
 
