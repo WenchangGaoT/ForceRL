@@ -9,3 +9,4 @@ gpd/build/
 .vscode
 test.py
 *.pth
+*.json

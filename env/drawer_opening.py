@@ -317,7 +317,7 @@ class DrawerOpeningEnv(MujocoEnv):
         pos = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
         # return float(self._check_success())
         if self._check_success(): 
-            return 10
+            return 1
         else:
             progress_reward = 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
             current_handle_xpos = copy.deepcopy(self.sim.data.get_geom_xpos(self.handle_geom_name))
@@ -334,9 +334,9 @@ class DrawerOpeningEnv(MujocoEnv):
 
             # self.last_handle_xpos = current_handle_xpos
             # print(np.dot(action, delta_handle_xpos))
-            reward = valid_force_reward + progress_reward
-
-            # print(reward)
+            reward = 10 * valid_force_reward
+            if np.isnan(reward):
+                print(reward)
             return reward
             # return 1000 * (np.linalg.norm(self.last_handle_pos-0.3)-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3))
         # return 1-np.linalg.norm(self.sim.data.qpos[self.slider_qpos_addr]-0.3) if not self._check_success() else 1.0
