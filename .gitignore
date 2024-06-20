@@ -8,5 +8,5 @@ gpd/build/
 */__pycache__
 .vscode
 test.py
-*.pth
+# *.pth
 *.json
