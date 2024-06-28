@@ -136,4 +136,4 @@ dependencies:
       - werkzeug==3.0.2
       - widgetsnbextension==4.0.10
       - zipp==3.18.1
-prefix: /home/wenchang/miniconda3/envs/frl
+# prefix: /home/wenchang/miniconda3/envs/frl
