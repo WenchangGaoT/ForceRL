@@ -13,7 +13,6 @@ controller_configs = suite.load_controller_config(default_controller=controller_
 env = suite.make(
     "RobotCubeMove",
     robots="Panda",
-    randomize_drawer=False,
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
