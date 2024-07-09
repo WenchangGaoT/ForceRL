@@ -115,7 +115,7 @@ class DrawerOpeningEnv(MujocoEnv):
         return vis_settings
     @property
     def action_spec(self):
-
+        # TODO:check if this is correct
         low, high = np.concatenate(np.ones(3),np.zeros(3)).astype(float) , np.concatenate(np.ones(3),np.zeros(3)).astype(float)
         return low, high
     
