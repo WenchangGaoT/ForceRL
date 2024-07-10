@@ -299,6 +299,8 @@ class DrawerOpeningEnv(MujocoEnv):
         )
         #  TODO: check action format
         #  self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
+
+        # need to manually set qfrc_applied to 0 to prevent accumulation
         self.sim.data._data.qfrc_applied = [0]
         #  point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
         point = self.sim.data.get_geom_xpos(self.handle_geom_name)
