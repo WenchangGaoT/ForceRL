@@ -61,7 +61,7 @@ def train(run_id):
             cur_ep_reward += reward 
             cur_ep_rwds.append(reward)
             replay_buffer.add((state, action, reward, next_state, float(done)))
-            # state = next_state
+            state = next_state
             
             # if episode is done then update policy:
             if done or t==(max_timesteps-1):

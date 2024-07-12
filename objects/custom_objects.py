@@ -123,4 +123,8 @@ class OriginalDoorObject(MujocoXMLObject):
             str: hinge direction
         '''
         hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
-        return hinge.get("axis")
+        hinge_direction_text = hinge.get("axis")
+        hinge_direction = hinge_direction_text.split(" ")
+        hinge_direction = [float(x) for x in hinge_direction]
+        return hinge_direction
+    

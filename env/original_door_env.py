@@ -169,7 +169,7 @@ class OriginalDoorEnv(MujocoEnv):
         self.door = DoorObject(
             name=self.door_name_prefix,
             friction=0.0,
-            damping=0.1,
+            damping=0.0,
             lock=False, # we are not handling lathches for now
         )
 
@@ -183,8 +183,8 @@ class OriginalDoorEnv(MujocoEnv):
                 mujoco_objects=self.door,
                 x_range=[0.07, 0.09],
                 y_range=[-0.01, 0.01],
-                # rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
-                rotation = (-np.pi, -np.pi),
+                rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
+                # rotation = (-np.pi, -np.pi),
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False,
                 ensure_valid_placement=True,
@@ -217,7 +217,8 @@ class OriginalDoorEnv(MujocoEnv):
         self.panel_geom_name = self.door_name_prefix + "_panel"
         self.hinge_site_id = self.sim.model.site_name2id(self.door.important_sites["hinge"])
         self.hinge_position = self.sim.data.site_xpos[self.hinge_site_id]
-        self.hinge_direction = self.door.hinge_direction
+        # hinge direction is normalized
+        self.hinge_direction = self.door.hinge_direction / np.linalg.norm(self.door.hinge_direction)
 
     def _create_camera_sensors(self, cam_name, cam_w, cam_h, cam_d, cam_segs, modality="image"):
             convention = IMAGE_CONVENTION_MAPPING[macros.IMAGE_CONVENTION]
@@ -292,9 +293,18 @@ class OriginalDoorEnv(MujocoEnv):
 
             @sensor(modality=modality)
             def hinge_position(obs_cache):
-                pass
+                return self.hinge_position
+            
+            @sensor(modality=modality)
+            def hinge_direction(obs_cache):
+                return self.hinge_direction
 
-            sensors = [door_pos, handle_pos, hinge_qpos]
+            @sensor(modality=modality)
+            def force_point(obs_cache):
+                return self.relative_force_point_to_world(self.force_point)
+
+
+            sensors = [door_pos, handle_pos, hinge_qpos, hinge_position, force_point, hinge_direction]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -321,7 +331,7 @@ class OriginalDoorEnv(MujocoEnv):
         panel_pos = self.sim.data.get_geom_xpos(self.panel_geom_name)
         panel_rot = self.sim.data.get_geom_xmat(self.panel_geom_name)
         
-        return panel_pos + np.dot(panel_rot, relative_force_point)
+        return deepcopy(panel_pos + np.dot(panel_rot, relative_force_point))
 
 
     def _reset_internal(self):
@@ -377,11 +387,11 @@ class OriginalDoorEnv(MujocoEnv):
         # get the initial hinge qpos
         self.last_hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         self.last_force_point_xpos = deepcopy(self.force_point_world)
-        print("initial force point: ", self.force_point_world)
+        # print("initial force point: ", self.force_point_world)
 
     def _pre_action(self, action, policy_step=False):
         
-        self.last_hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
+        self.last_hinge_qpos = deepcopy(self.sim.data.qpos[self.hinge_qpos_addr])
         # get the arrow end position
         self.force_point_world = self.relative_force_point_to_world(self.force_point)
         self.render_arrow_end = self.force_point_world + action * self.action_scale
@@ -401,29 +411,36 @@ class OriginalDoorEnv(MujocoEnv):
         # TODO:implement this
         hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         # open 30 degrees
-        return hinge_qpos > 0.5
+        return hinge_qpos > 0.45
     
     def reward(self, action = None):
         # TODO:implement this
         if self._check_success():
+            # print("success")
             return 1
         else:
+            
             current_force_point_xpos = deepcopy(self.relative_force_point_to_world(self.force_point))
-            print("current force point: ", current_force_point_xpos)
+            # print("current force point: ", current_force_point_xpos)
+            # print("last force point: ", self.last_force_point_xpos)
             delta_force_point = current_force_point_xpos - self.last_force_point_xpos
-            self.last_force_point_xpos = current_force_point_xpos
-
+            self.last_force_point_xpos = deepcopy(current_force_point_xpos)
+            # print("delta force point: ", delta_force_point)
+            delta_force_point *= 1000
             valid_force_reward = np.dot(action, delta_force_point) / (np.linalg.norm(action) + 1e-7)
+            valid_force_reward = np.abs(valid_force_reward)
             
             progress = self.sim.data.qpos[self.hinge_qpos_addr] - self.last_hinge_qpos
-            print("delta force point: ", delta_force_point)
-            print("raw force reward: ", valid_force_reward)
+            
+            # print("progress: ", progress)
             valid_force_reward = valid_force_reward * np.sign(progress)
+
+            if np.abs(progress) < 1e-6:
+                valid_force_reward = 0
 
             if np.isnan(valid_force_reward):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)
-            print("progress: ", progress)
             return valid_force_reward * self.reward_scale
 
     
