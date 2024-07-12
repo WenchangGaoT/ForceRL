@@ -20,7 +20,7 @@
               <geom size="0.03 0.3" pos="0.045 0 0" type="cylinder" rgba="1 1 1 1" group="1" name="l_frame"/>
               <body name="door" pos="0.3 0 0">
                   <inertial pos="0.0296816 -0.00152345 0" quat="0.701072 0 0 0.713091" mass="2.43455" diaginertia="0.0913751 0.0521615 0.043714" />
-                  <joint name="hinge" pos="0.255 0 0" axis="0 0 1" range="0.0 0.5" damping="1" frictionloss="1" limited="true"/>
+                  <joint name="hinge" pos="0.255 0 0" axis="0 0 1" range="0.0 1.0" damping="1" frictionloss="1" limited="true"/>
                   <site name="hinge_site" pos="0.255 0 0" rgba="0 0 0 0" size="0.005"/>
                   <geom size="0.22 0.02 .29" type="box" friction="1 1 1" group="1" name="panel" material="MatDarkWood"/>
                   <body name="latch" pos="-0.175 0 -0.025">

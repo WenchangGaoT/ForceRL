@@ -26,6 +26,7 @@ class OriginalDoorEnv(MujocoEnv):
     def __init__(self, 
                  use_camera_obs=False, 
                  placement_initializer=None,
+                 random_force_point = False,
                  has_renderer=True, 
                  has_offscreen_renderer=False,
                  render_camera="frontview",
@@ -44,16 +45,18 @@ class OriginalDoorEnv(MujocoEnv):
                  renderer="mujoco",
                  action_scale=1,
                  reward_scale=10,
-                 renderer_config=None): 
+                 renderer_config=None, 
+                 debug_mode=False): 
         
         self.action_scale = action_scale
         self.has_renderer = has_renderer
         self.has_offscreen_renderer = has_offscreen_renderer
         self.use_camera_obs = use_camera_obs
         self.placement_initializer = placement_initializer
+        self.debug_mode = debug_mode 
 
         self.use_object_obs = True # always use low-level object obs for this environment
-
+        self.random_force_point = random_force_point
         super().__init__(
             has_renderer=self.has_renderer,
             has_offscreen_renderer=self.has_offscreen_renderer,
@@ -72,6 +75,7 @@ class OriginalDoorEnv(MujocoEnv):
         self.horizon = horizon 
         self._action_dim = 3
         self.reward_scale = reward_scale
+        
 
         # Set camera attributes
         self.camera_names =  (
@@ -183,7 +187,10 @@ class OriginalDoorEnv(MujocoEnv):
                 mujoco_objects=self.door,
                 x_range=[0.07, 0.09],
                 y_range=[-0.01, 0.01],
-                rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
+                # rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
+                rotation=(-np.pi / 2.0 - 0.25, 0),
+
+                # rotation=(-np.pi , np.pi),
                 # rotation = (-np.pi, -np.pi),
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False,
@@ -321,8 +328,15 @@ class OriginalDoorEnv(MujocoEnv):
         '''
         sample a point on the door to apply force, the point is relative to the door frame
         '''
-        panel_size = self.door.door_panel_size
-        return np.array([-0.2, 0, 0])
+        if not self.random_force_point:
+            return np.array([-0.2,0,0])
+        else:
+            panel_size = self.door.door_panel_size
+            # random sample a point on the door panel
+            x = np.random.uniform(-panel_size[0], panel_size[0] - 0.1)
+            y = 0
+            z = np.random.uniform(-panel_size[2], panel_size[2])
+            return np.array([x,y,z])
     
     def relative_force_point_to_world(self, relative_force_point):
         '''
@@ -438,6 +452,10 @@ class OriginalDoorEnv(MujocoEnv):
             if np.abs(progress) < 1e-6:
                 valid_force_reward = 0
 
+            if self.debug_mode:
+                # print the angle between the delta force point and the action
+                print("angle between action and delta force point: ", np.arccos(np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))) * 180 / np.pi)
+            
             if np.isnan(valid_force_reward):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)

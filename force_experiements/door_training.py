@@ -19,7 +19,7 @@ def train(run_id):
     policy_noise = 0.2          # target policy smoothing noise
     noise_clip = 0.5
     policy_delay = 2            # delayed policy updates parameter
-    max_episodes = 30         # max num of episodes
+    max_episodes = 100         # max num of episodes
     max_timesteps = 200       # max timesteps in one episode
     rollouts = 5
 
@@ -32,11 +32,13 @@ def train(run_id):
         use_camera_obs=False,
         control_freq=20,
         horizon=max_timesteps, 
+        reward_scale=1.0,
         )
     
     env = ActionRepeatWrapperNew(raw_env, action_repeat)
 
-    state_dim = 9
+    # state_dim = 9
+    state_dim = 6
     action_dim = 3
     max_action = float(5)
 
@@ -49,13 +51,15 @@ def train(run_id):
         state = env.reset()
 
         # get the needed state information:
-        state = np.concatenate([state['force_point'], state['hinge_position'], state["hinge_direction"]])
+        # state = np.concatenate([state['force_point'],state['hinge_position'],  state["hinge_direction"]])
+        state = np.concatenate([state['hinge_position'] - state['force_point'], state["hinge_direction"]])
         done = False
         for t in range(max_timesteps):
             action = policy.select_action(state)
             next_state, reward, done, _ = env.step(action)  
             # env.render()
-            next_state = np.concatenate([next_state['force_point'], next_state['hinge_position'], next_state["hinge_direction"]])
+            # next_state = np.concatenate([next_state['force_point'], next_state['hinge_position'], next_state["hinge_direction"]])
+            next_state = np.concatenate([next_state['hinge_position'] - next_state['force_point'], next_state["hinge_direction"]])
             cur_ep_rwds.append(reward)
 
             replay_buffer.add((state, action, reward, next_state, float(done)))
@@ -70,12 +74,15 @@ def train(run_id):
     
     for ep in range(rollouts):
         state = env.reset()
-        state = np.concatenate([state['force_point'], state['hinge_position'], state["hinge_direction"]])
+        # state = np.concatenate([state['force_point'],state['hinge_position'] , state["hinge_direction"]])
+
+        state = np.concatenate([state['hinge_position'] - state['force_point'], state["hinge_direction"]])
         done = False
         while not done:
             action = policy.select_action(state)
             next_state, reward, done, _ = env.step(action)
-            next_state = np.concatenate([next_state['force_point'], next_state['hinge_position'], next_state["hinge_direction"]])
+            # next_state = np.concatenate([next_state['force_point'], next_state['hinge_position'], next_state["hinge_direction"]])
+            next_state = np.concatenate([next_state['hinge_position'] - next_state['force_point'], next_state["hinge_direction"]])
             state = next_state
             env.render()
 
