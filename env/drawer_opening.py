@@ -115,7 +115,7 @@ class DrawerOpeningEnv(MujocoEnv):
         return vis_settings
     @property
     def action_spec(self):
-
+        # TODO:check if this is correct
         low, high = np.concatenate(np.ones(3),np.zeros(3)).astype(float) , np.concatenate(np.ones(3),np.zeros(3)).astype(float)
         return low, high
     
@@ -299,6 +299,8 @@ class DrawerOpeningEnv(MujocoEnv):
         )
         #  TODO: check action format
         #  self.sim.data.xfrc_applied[self.object_body_ids['drawer_handle_body']] = action
+
+        # need to manually set qfrc_applied to 0 to prevent accumulation
         self.sim.data._data.qfrc_applied = [0]
         #  point = self.sim.data.body_xpos[self.object_body_ids['drawer_handle_body']]
         point = self.sim.data.get_geom_xpos(self.handle_geom_name)
