@@ -5,6 +5,7 @@ import yaml
 import json
 
 from agent.td3 import TD3, ReplayBuffer
+from agent.ppo import PPO, RolloutBuffer
 from env.original_door_env import OriginalDoorEnv 
 from env.curri_door_env import CurriculumDoorEnv
 from env.wrappers import ActionRepeatWrapperNew
@@ -36,6 +37,7 @@ def train(run_id):
     curriculas = [
         (0, 0),
         (-np.pi / 2.0, 0), 
+        (-np.pi / 4.0, np.pi / 2.0),
         (-np.pi / 2.0, np.pi / 2.0)
     ]
 
@@ -70,7 +72,7 @@ def train(run_id):
                                              ])
             done = False
             for t in range(max_timesteps):
-                env.render()
+                # env.render()
                 action = policy.select_action(state)
                 next_state, reward, done, _ = env.step(action)  
                 h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
@@ -95,7 +97,7 @@ def train(run_id):
             
             print(f'Curriculum {c_idx} average reward becomes: {np.mean(cur_curriculum_rewards[max(-10, -episodes)])}')
             print(f'Curriculum {c_idx} success rate becomes {np.mean(cur_curriculum_successes)}')
-            if episodes > 40 and np.mean(cur_curriculum_successes[max(-20, -episodes)]) > 0.7:
+            if episodes > 25 and np.mean(cur_curriculum_successes[max(-20, -episodes)]) > 0.7:
                 print(f'Curriculum {c_idx} is finished. Proceed to next task.')
                 env.env.debug_mode = True
                 for ep in range(rollouts):

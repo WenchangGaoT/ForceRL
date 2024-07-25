@@ -385,6 +385,7 @@ class CurriculumDoorEnv(MujocoEnv):
         self.cur_time = 0
         self.timestep = 0
         self.done = False
+        self.first_success = True
 
         # Empty observation cache and reset all observables
         self._obs_cache = {}
@@ -439,12 +440,15 @@ class CurriculumDoorEnv(MujocoEnv):
         return hinge_qpos > 0.8
     
     def reward(self, action = None):
-        # TODO:implement this
-        if self._check_success():
+        if self._check_success() and self.first_success == True:
             # print("success")
+            self.first_success = False
+            return 5
+        elif self._check_success() and self.first_success == False:
             return 1
+        elif self.first_success == False and not self._check_success():
+            return -10
         else:
-            
             current_force_point_xpos = deepcopy(self.relative_force_point_to_world(self.force_point))
             # print("current force point: ", current_force_point_xpos)
             # print("last force point: ", self.last_force_point_xpos)
@@ -461,7 +465,7 @@ class CurriculumDoorEnv(MujocoEnv):
             valid_force_reward = valid_force_reward * np.sign(progress)
 
             if np.abs(progress) < 7e-6:
-                valid_force_reward = -0.01
+                valid_force_reward = -0.1
                 progress = -0.01
 
             if self.debug_mode:
@@ -474,7 +478,9 @@ class CurriculumDoorEnv(MujocoEnv):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)
 
-            return valid_force_reward * self.reward_scale + self.progress_scale * progress
+            # return valid_force_reward * self.reward_scale + self.progress_scale * progress
+            return valid_force_reward * self.reward_scale
+
 
     
     def modify_scene(self, scene):
