@@ -113,7 +113,7 @@ class OriginalDoorObject(MujocoXMLObject):
             tuple: size of the door panel
         '''
 
-        # TODO: hard-coded value for now, is there a way to extract this from the XML?
+        # TODO: hard-coded value for now, is there a way to extract this from the XML? 
         return (0.22, 0.02, .29)
     
     @property
@@ -128,3 +128,11 @@ class OriginalDoorObject(MujocoXMLObject):
         hinge_direction = [float(x) for x in hinge_direction]
         return hinge_direction
     
+
+if __name__ == '__main__':
+    door = OriginalDoorObject("door") 
+    door_methods = [method for method in dir(door) if callable(getattr(door, method))]
+    print(door_methods)
+    print(door.get_model())
+    # print(door.door_panel_size)
+    # print(door.hinge_direction)

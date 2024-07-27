@@ -18,4 +18,18 @@ To permenantly get rid of this issue, add the above line to your ```.bashrc``` f
 
 `curri_door_env.py` contains the door environment for curricula of door pose initialized in increasing range. It extends original door env.
 
-`door_random_point_env.py` contains the door environment that generates random force point each episodes. It extends curriclum door env.
+`door_random_point_env.py` contains the door environment that generates random force point each episodes. It extends curriclum door env. 
+
+
+
+# Findings
+
+Curriculum learning with 
+
+```
+fixed initial pose -> wider initial pose -> random point
+```
+
+works good.
+
+Do we need discretization if so?

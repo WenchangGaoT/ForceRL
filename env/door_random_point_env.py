@@ -21,8 +21,9 @@ import mujoco
 from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
+import imageio
 
-class RandomPointCurriDoorEnv(MujocoEnv):
+class RandomPointCurriculumDoorEnv(MujocoEnv):
     def __init__(self, 
                  init_door_angle=(-np.pi / 2.0 - 0.25, 0),
                  use_camera_obs=False, 
@@ -48,7 +49,13 @@ class RandomPointCurriDoorEnv(MujocoEnv):
                  reward_scale=10, 
                  progress_scale=1e3, 
                  renderer_config=None, 
-                 debug_mode=False): 
+                 debug_mode=False, 
+
+                 # Save video stuff 
+                 save_video=False,
+                 video_width=256,
+                 video_height=256,
+                 ): 
         '''
         Door environment with new parameters for curriculum learning.
 
@@ -64,6 +71,12 @@ class RandomPointCurriDoorEnv(MujocoEnv):
         self.debug_mode = debug_mode 
         self.init_door_angle = init_door_angle 
         self.progress_scale = progress_scale
+
+        self.frames = []
+        self.video_width = video_width 
+        self.video_height = video_height 
+        self.cache_video = save_video
+        # self.
         
 
         self.use_object_obs = True # always use low-level object obs for this environment
@@ -344,9 +357,10 @@ class RandomPointCurriDoorEnv(MujocoEnv):
         else:
             panel_size = self.door.door_panel_size
             # random sample a point on the door panel
-            x = np.random.uniform(-panel_size[0], panel_size[0] - 0.1)
+            x = np.random.uniform(-panel_size[0], 0)
             y = 0
             z = np.random.uniform(-panel_size[2], panel_size[2])
+            print("sampled force point: ", np.array([x,y,z*0.7]))
             return np.array([x,y,z])
     
     def relative_force_point_to_world(self, relative_force_point):
@@ -378,6 +392,8 @@ class RandomPointCurriDoorEnv(MujocoEnv):
                 # render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
             self.sim._render_context_offscreen.vopt.geomgroup[0] = 1 if self.render_collision_mesh else 0
             self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0
+
+        self.frames = []
     
         # additional housekeeping
         self.sim_state_initial = self.sim.get_state()
@@ -416,6 +432,10 @@ class RandomPointCurriDoorEnv(MujocoEnv):
         # print("initial force point: ", self.force_point_world)
 
     def _pre_action(self, action, policy_step=False):
+
+        if self.cache_video and self.has_offscreen_renderer:
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
+                self.frames.append(frame)
         
         self.last_hinge_qpos = deepcopy(self.sim.data.qpos[self.hinge_qpos_addr])
         # get the arrow end position
@@ -521,4 +541,16 @@ class RandomPointCurriDoorEnv(MujocoEnv):
         Returns:
             np.array: Door handle (x,y,z)
         """
-        return self.sim.data.site_xpos[self.door_handle_site_id]
+        return self.sim.data.site_xpos[self.door_handle_site_id] 
+
+    def save_video(self, path): 
+        if not self.cache_video:
+            print("No video to save")
+            return
+        imageio.mimsave(path, self.frames, fps=30)
+
+    def step(self, action):
+        next_state, reward, done, info = super().step(action) 
+        if self.check_success():
+            done = True
+        return next_state, reward, done, info

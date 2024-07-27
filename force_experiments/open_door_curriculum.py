@@ -66,7 +66,7 @@ def train(run_id, json_dir, algo_name):
         200, 
         200, 
         300, 
-        1000
+        300
     ]
 
 
@@ -75,12 +75,13 @@ def train(run_id, json_dir, algo_name):
         raw_env = suite.make(
             "CurriculumDoorEnv", 
             init_door_angle=c, 
-            has_renderer=True,
-            has_offscreen_renderer=False,
+            has_renderer=False,
+            has_offscreen_renderer=True,
             use_camera_obs=False,
             control_freq=20,
             horizon=max_timesteps, 
-            reward_scale=1.0,
+            reward_scale=1.0, 
+            random_force_point=False
             )
         
         env = ActionRepeatWrapperNew(raw_env, action_repeat) 
@@ -134,6 +135,7 @@ def train(run_id, json_dir, algo_name):
                     break
                 replay_buffer.add((state, action, reward, next_state, float(done)))
                 state = next_state
+            # env.save_video(f'videos/{algo_name}_run_{run_id}_curriculum_{c_idx}_episode_{episodes}.gif')
 
             print(f'Curriculum {c_idx} average reward becomes: {np.mean(cur_curriculum_rewards[max(-10, -episodes):])}')
             print(f'Curriculum {c_idx} success rate becomes {np.mean(cur_curriculum_successes)}')
@@ -163,11 +165,12 @@ def train(run_id, json_dir, algo_name):
                         cur_ep_eval_ep_rwds.append(reward)
                         cur_ep_eval_projections.append(action_projection)                      
                         state = next_state
-                        env.render()
+                        # env.render()
                     cur_run_eval_rwds.append(np.sum(cur_ep_eval_ep_rwds)) 
                     cur_run_eval_projections.append(np.mean(cur_ep_eval_projections))
                 
                 break
+
         cur_run_rewards.extend(cur_curriculum_rewards)
         cur_run_projections.extend(cur_curriculum_projections)
         with open(f'{json_dir}/{algo_name}_reward_train_{run_id}.json', 'w') as f:
@@ -178,6 +181,53 @@ def train(run_id, json_dir, algo_name):
             json.dump(cur_run_eval_rwds, f) 
         with open(f'{json_dir}/{algo_name}_projection_eval_{run_id}.json', 'w') as f:
             json.dump(cur_run_eval_projections, f)
+
+    print('----------------------------------------------')
+    print('Switching to random force point environment') 
+    env.random_force_point = True
+    for ep in range(1000):
+        env.env.debug_mode = False
+        cur_ep_rwds = [] 
+        cur_ep_projections = []
+        state = env.reset()
+        # state = np.concatenate([state['hinge_position'] - state['force_point'], state["hinge_direction"]])
+        h_point, f_point, h_direction = state['hinge_position'], state['force_point'], state['hinge_direction']
+        state = np.concatenate([h_direction, 
+                                            f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
+                                            ])
+        done = False 
+        if episodes % 20 == 0:
+            cur_noise_idx = min(cur_noise_idx + 1, len(policy_noise_schedule)-1)
+        for t in range(max_timesteps):
+            # env.render()
+            action = policy.select_action(state)
+            next_state, reward, done, _ = env.step(action)  
+            # if c_idx == 1:
+            #     print("reward: ", reward)
+            action_projection = env.current_action_projection
+            h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
+            next_state = np.concatenate([h_direction, 
+                                            f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
+                                            ])
+            
+            cur_ep_rwds.append(reward)
+            cur_ep_projections.append(action_projection)
+
+            replay_buffer.add((state, action, reward, next_state, float(done)))
+            state = next_state
+
+            # if episode is done then update policy:
+            if done or t==(max_timesteps-1): 
+                policy.update(replay_buffer, t, batch_size, gamma, polyak, policy_noise_schedule[cur_noise_idx], noise_clip, policy_delay)
+                print(f'Episode {episodes}: rwd: {np.sum(cur_ep_rwds)}') 
+                cur_curriculum_rewards.append(np.sum(cur_ep_rwds))
+                cur_curriculum_successes.append(cur_curriculum_rewards[-1] >= 800) # The task is considered success if reward >= 800.
+                cur_curriculum_projections.append(np.mean(cur_ep_projections))
+                cur_ep_rwds = [] 
+                cur_ep_projections = []
+                break
+            replay_buffer.add((state, action, reward, next_state, float(done)))
+            state = next_state
 
 
 
