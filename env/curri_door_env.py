@@ -22,8 +22,9 @@ from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
 
-class OriginalDoorEnv(MujocoEnv):
+class CurriculumDoorEnv(MujocoEnv):
     def __init__(self, 
+                 init_door_angle=(-np.pi / 2.0 - 0.25, 0),
                  use_camera_obs=False, 
                  placement_initializer=None,
                  random_force_point = False,
@@ -44,9 +45,16 @@ class OriginalDoorEnv(MujocoEnv):
                  camera_segmentations=None,
                  renderer="mujoco",
                  action_scale=1,
-                 reward_scale=10,
+                 reward_scale=10, 
+                 progress_scale=1e3, 
                  renderer_config=None, 
                  debug_mode=False): 
+        '''
+        Door environment with new parameters for curriculum learning.
+
+        New parameters:
+            - init_door_angle: tuple, the initial rotation angle of the door. Increase the range as the curricula proceeds.
+        '''
         
         self.action_scale = action_scale
         self.has_renderer = has_renderer
@@ -54,6 +62,9 @@ class OriginalDoorEnv(MujocoEnv):
         self.use_camera_obs = use_camera_obs
         self.placement_initializer = placement_initializer
         self.debug_mode = debug_mode 
+        self.init_door_angle = init_door_angle 
+        self.progress_scale = progress_scale
+        
 
         self.use_object_obs = True # always use low-level object obs for this environment
         self.random_force_point = random_force_point
@@ -188,7 +199,7 @@ class OriginalDoorEnv(MujocoEnv):
                 x_range=[0.07, 0.09],
                 y_range=[-0.01, 0.01],
                 # rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
-                rotation=(-np.pi / 2.0 - 0.25, 0),
+                rotation=self.init_door_angle,
 
                 # rotation=(-np.pi , np.pi),
                 # rotation = (-np.pi, -np.pi),
@@ -374,6 +385,7 @@ class OriginalDoorEnv(MujocoEnv):
         self.cur_time = 0
         self.timestep = 0
         self.done = False
+        self.first_success = True
 
         # Empty observation cache and reset all observables
         self._obs_cache = {}
@@ -401,9 +413,6 @@ class OriginalDoorEnv(MujocoEnv):
         # get the initial hinge qpos
         self.last_hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         self.last_force_point_xpos = deepcopy(self.force_point_world)
-
-        # reset force projection value
-        self.current_step_force_projection = 0
         # print("initial force point: ", self.force_point_world)
 
     def _pre_action(self, action, policy_step=False):
@@ -428,22 +437,24 @@ class OriginalDoorEnv(MujocoEnv):
         # TODO:implement this
         hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         # open 30 degrees
-        return hinge_qpos > 0.45
+        return hinge_qpos > 0.8
     
     def reward(self, action = None):
-        # TODO:implement this
-        if self._check_success():
+        if self._check_success() and self.first_success == True:
             # print("success")
+            self.first_success = False
+            return 5
+        elif self._check_success() and self.first_success == False:
             return 1
+        elif self.first_success == False and not self._check_success():
+            return -10
         else:
-            
             current_force_point_xpos = deepcopy(self.relative_force_point_to_world(self.force_point))
             # print("current force point: ", current_force_point_xpos)
             # print("last force point: ", self.last_force_point_xpos)
             delta_force_point = current_force_point_xpos - self.last_force_point_xpos
             self.last_force_point_xpos = deepcopy(current_force_point_xpos)
-
-            self.current_step_force_projection = np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))
+            
             # print("delta force point: ", delta_force_point)
             delta_force_point *= 1000
             valid_force_reward = np.dot(action, delta_force_point) / (np.linalg.norm(action) + 1e-7)
@@ -454,22 +465,29 @@ class OriginalDoorEnv(MujocoEnv):
             # print("progress: ", progress)
             valid_force_reward = valid_force_reward * np.sign(progress)
 
-            if np.abs(progress) < 1e-6:
-                valid_force_reward = 0
+            if np.abs(progress) < 7e-6:
+                valid_force_reward = -0.1
+                progress = -0.01
+                self.current_step_force_projection = 0
+            else:
+                self.current_step_force_projection = np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))
 
             if self.debug_mode:
+                print(f'valid force reward: {valid_force_reward}') 
+                print(f'progress reward: {progress}')
                 # print the angle between the delta force point and the action
                 print("angle between action and delta force point: ", np.arccos(np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))) * 180 / np.pi)
             
             if np.isnan(valid_force_reward):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)
-            return valid_force_reward * self.reward_scale
+
+            return valid_force_reward * self.reward_scale + self.progress_scale * progress
+            # return valid_force_reward * self.reward_scale
     
     @property
     def current_action_projection(self):
         return self.current_step_force_projection
-
 
     
     def modify_scene(self, scene):
