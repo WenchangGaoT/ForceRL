@@ -46,7 +46,7 @@ class CurriculumDoorEnv(MujocoEnv):
                  renderer="mujoco",
                  action_scale=1,
                  reward_scale=10, 
-                 progress_scale=1e4, 
+                 progress_scale=1e3, 
                  renderer_config=None, 
                  debug_mode=False): 
         '''
@@ -454,6 +454,7 @@ class CurriculumDoorEnv(MujocoEnv):
             # print("last force point: ", self.last_force_point_xpos)
             delta_force_point = current_force_point_xpos - self.last_force_point_xpos
             self.last_force_point_xpos = deepcopy(current_force_point_xpos)
+            
             # print("delta force point: ", delta_force_point)
             delta_force_point *= 1000
             valid_force_reward = np.dot(action, delta_force_point) / (np.linalg.norm(action) + 1e-7)
@@ -467,6 +468,9 @@ class CurriculumDoorEnv(MujocoEnv):
             if np.abs(progress) < 7e-6:
                 valid_force_reward = -0.1
                 progress = -0.01
+                self.current_step_force_projection = 0
+            else:
+                self.current_step_force_projection = np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))
 
             if self.debug_mode:
                 print(f'valid force reward: {valid_force_reward}') 
@@ -478,9 +482,12 @@ class CurriculumDoorEnv(MujocoEnv):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)
 
-            # return valid_force_reward * self.reward_scale + self.progress_scale * progress
-            return valid_force_reward * self.reward_scale
-
+            return valid_force_reward * self.reward_scale + self.progress_scale * progress
+            # return valid_force_reward * self.reward_scale
+    
+    @property
+    def current_action_projection(self):
+        return self.current_step_force_projection
 
     
     def modify_scene(self, scene):

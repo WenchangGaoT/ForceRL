@@ -401,6 +401,9 @@ class OriginalDoorEnv(MujocoEnv):
         # get the initial hinge qpos
         self.last_hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         self.last_force_point_xpos = deepcopy(self.force_point_world)
+
+        # reset force projection value
+        self.current_step_force_projection = 0
         # print("initial force point: ", self.force_point_world)
 
     def _pre_action(self, action, policy_step=False):
@@ -439,6 +442,8 @@ class OriginalDoorEnv(MujocoEnv):
             # print("last force point: ", self.last_force_point_xpos)
             delta_force_point = current_force_point_xpos - self.last_force_point_xpos
             self.last_force_point_xpos = deepcopy(current_force_point_xpos)
+
+            self.current_step_force_projection = np.dot(action, delta_force_point) / (np.linalg.norm(action) * np.linalg.norm(delta_force_point))
             # print("delta force point: ", delta_force_point)
             delta_force_point *= 1000
             valid_force_reward = np.dot(action, delta_force_point) / (np.linalg.norm(action) + 1e-7)
@@ -460,6 +465,11 @@ class OriginalDoorEnv(MujocoEnv):
                 print("nan reward")
             # print("valid force reward: ", valid_force_reward)
             return valid_force_reward * self.reward_scale
+    
+    @property
+    def current_action_projection(self):
+        return self.current_step_force_projection
+
 
     
     def modify_scene(self, scene):

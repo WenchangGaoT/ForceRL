@@ -1,21 +1,22 @@
 import matplotlib.pyplot as plt 
 import json 
 import numpy as np
+import os
 
 
-def plot(algorithm, n_runs): 
+def plot(algorithm, log_dir, n_runs): 
     train_rwds = []
     eval_rwds = [] 
     train_projections = [] 
     eval_projections = []
     for r in range(n_runs):
-        with open(f'{algorithm}_reward_train_{r}.json', 'r') as f:
+        with open(f'{log_dir}/{algorithm}_reward_train_{r}.json', 'r') as f:
             train_rwds.append(np.array(json.load(f))) 
-        with open(f'{algorithm}_reward_eval_{r}.json', 'r') as f:
+        with open(f'{log_dir}/{algorithm}_reward_eval_{r}.json', 'r') as f:
             eval_rwds.append(json.load(f)) 
-        with open(f'{algorithm}_projection_train_{r}.json', 'r') as f:
+        with open(f'{log_dir}/{algorithm}_projection_train_{r}.json', 'r') as f:
             train_projections.append(json.load(f)) 
-        with open(f'{algorithm}_projection_eval_{r}.json', 'r') as f:
+        with open(f'{log_dir}/{algorithm}_projection_eval_{r}.json', 'r') as f:
             eval_projections.append(json.load(f)) 
     # plt.plot() 
     # print(train_rwds[0])
@@ -74,5 +75,8 @@ def plot(algorithm, n_runs):
     plt.show()
 
 if __name__ == '__main__':
-    plot('ppo_singlehead', 10)
+    name = "door_increasing_random_td3"
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = os.path.join(project_dir,"force_experiments/outputs")
+    plot(name, log_dir ,1)
     # plot('td3', 10)
