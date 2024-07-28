@@ -128,11 +128,23 @@ class OriginalDoorObject(MujocoXMLObject):
         hinge_direction = [float(x) for x in hinge_direction]
         return hinge_direction
     
+class SelectedMicrowaveObject(MujocoXMLObject):
+    """
+    Microwave with door (used in Microwave)
 
-if __name__ == '__main__':
-    door = OriginalDoorObject("door") 
-    door_methods = [method for method in dir(door) if callable(getattr(door, method))]
-    print(door_methods)
-    print(door.get_model())
-    # print(door.door_panel_size)
-    # print(door.hinge_direction)
+    Args:
+    """
+
+    def __init__(self, name, microwave_number):
+
+        available_numbers = [1]
+        assert microwave_number in available_numbers, "Microwave number must be one of {}".format(available_numbers)
+
+        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml"
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
+        )
+
+        # Set relevant body names
+        self.revolute_body = self.naming_prefix + "link_0"
+        self.hinge_joint = self.naming_prefix + "joint_0"
