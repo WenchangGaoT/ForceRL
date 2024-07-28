@@ -73,7 +73,7 @@ def train(run_id, json_dir, algo_name):
             "CurriculumDoorEnv", 
             init_door_angle=c, 
             has_renderer=False,
-            has_offscreen_renderer=True,
+            has_offscreen_renderer=False,
             use_camera_obs=False,
             control_freq=20,
             horizon=max_timesteps, 
@@ -135,7 +135,7 @@ def train(run_id, json_dir, algo_name):
                 state = next_state
 
             cur_curriculum_latest_rwd = np.mean(cur_curriculum_rewards[max(-20, -episodes):]) 
-            cur_curriculum_latest_sr = np.mean(cur_curriculum_successes[max(-20, -episodes)])
+            cur_curriculum_latest_sr = np.mean(cur_curriculum_successes[max(-20, -episodes):])
             print(f'Curriculum {c_idx} average reward becomes: {cur_curriculum_latest_rwd}')
             print(f'Curriculum {c_idx} success rate becomes {cur_curriculum_latest_sr}')
             cur_curriculum_success_rates.append(cur_curriculum_latest_sr)
@@ -146,7 +146,7 @@ def train(run_id, json_dir, algo_name):
                 # Evaluate the policy 
                 cur_curriculum_eval_rewards = [] 
                 cur_curriculum_eval_projections = [] 
-                cur_curriculum_eval_sr = 0
+                cur_curriculum_eval_sr = []
 
                 for ep in range(rollouts):
                     state = env.reset()
@@ -174,10 +174,10 @@ def train(run_id, json_dir, algo_name):
                         if done or t == max_timesteps-1:
                             cur_curriculum_eval_rewards.append(np.sum(cur_ep_eval_ep_rwds)) 
                             cur_run_eval_projections.append(np.mean(cur_ep_eval_projections))
-                            cur_curriculum_eval_sr += int(np.sum(cur_ep_eval_ep_rwds) >= 800)
+                            cur_curriculum_eval_sr.append(np.sum(cur_ep_eval_ep_rwds) >= 800)
 
-                print(f'Curriculum {c_idx} gets {np.mean(cur_curriculum_eval_rewards)} average rewards per episode, {cur_curriculum_eval_sr / rollouts} success rates')
-                cur_run_eval_curricula_success_rates.append(cur_curriculum_eval_sr / rollouts)
+                print(f'Curriculum {c_idx} gets {np.mean(cur_curriculum_eval_rewards)} average rewards per episode, {np.mean(cur_curriculum_eval_sr)} success rates')
+                cur_run_eval_curricula_success_rates.append(np.mean(cur_curriculum_eval_sr))
                 cur_run_eval_curricula_rewards.append(np.mean(cur_run_eval_curricula_rewards))
                 # break
 
@@ -266,8 +266,8 @@ def train(run_id, json_dir, algo_name):
 if __name__ == "__main__":
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(file_dir, "../outputs")
+    output_dir = os.path.join(file_dir, "outputs")
     algo_name = "curriculum_door_continuous_random_point_td3"
-
-    train(0, output_dir, algo_name)
+    for trial in range(10):
+        train(trial, output_dir, algo_name)
     
