@@ -113,7 +113,7 @@ class OriginalDoorObject(MujocoXMLObject):
             tuple: size of the door panel
         '''
 
-        # TODO: hard-coded value for now, is there a way to extract this from the XML?
+        # TODO: hard-coded value for now, is there a way to extract this from the XML? 
         return (0.22, 0.02, .29)
     
     @property
@@ -148,6 +148,3 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         # Set relevant body names
         self.revolute_body = self.naming_prefix + "link_0"
         self.hinge_joint = self.naming_prefix + "joint_0"
-
-    
-    

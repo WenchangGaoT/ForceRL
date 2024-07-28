@@ -27,8 +27,8 @@ def train(run_id):
 
     raw_env = suite.make(
         "OriginalDoorEnv",
-        has_renderer=True,
-        has_offscreen_renderer=False,
+        has_renderer=False,
+        has_offscreen_renderer=True,
         use_camera_obs=False,
         control_freq=20,
         horizon=max_timesteps, 

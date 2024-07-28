@@ -102,7 +102,7 @@ class OriginalDoorEnv(MujocoEnv):
             raise ValueError("Must specify at least one camera name when using camera obs")
         
         # Set up backup renderer
-        self.backup_renderer = mujoco.Renderer(self.sim.model._model)
+        # self.backup_renderer = mujoco.Renderer(self.sim.model._model)
 
     def visualize(self, vis_settings):
         return super().visualize(vis_settings=vis_settings)
