@@ -1,21 +1,22 @@
 import robosuite as suite
 from env.robot_revolute_env import RobotRevoluteOpening
+from env.train_multiple_revolute_env import MultipleRevoluteEnv
 import numpy as np
+import time
 
 controller_name = "OSC_POSE"
 controller_configs = suite.load_controller_config( default_controller=controller_name)
 
-env:RobotRevoluteOpening = suite.make(
-     "RobotRevoluteOpening",
-    robots="Panda",
+env:MultipleRevoluteEnv = suite.make(
+     "MultipleRevoluteEnv",
+     object_name = "train-door-counterclock-1",
+    init_door_angle = (0, 0),
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
     camera_depths = True,
     camera_segmentations = "element",
-    controller_configs=controller_configs,
-    control_freq = 20,
-    horizon=10000,
+    horizon=1000,
     camera_names = "agentview",
     camera_heights = 1024,
     camera_widths = 1024
@@ -24,6 +25,9 @@ env:RobotRevoluteOpening = suite.make(
 obs = env.reset()
 env.render()
 while True:
-    action = np.zeros(7)
-    env.step(action)
+    action = np.array([0,0,0])
+    obs, _,_,_ = env.step(action)
+    print(obs["hinge_qpos"])
     env.render()
+    time.sleep(0.1)
+    

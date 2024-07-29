@@ -148,3 +148,89 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         # Set relevant body names
         self.revolute_body = self.naming_prefix + "link_0"
         self.hinge_joint = self.naming_prefix + "joint_0"
+
+class TrainRevoluteObjects(MujocoXMLObject):
+    """
+    Sample Objects with revolute joints (used in Train)
+    Args:
+        name (str): Name of the object
+    """
+
+    def __init__(self, name):
+        available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1"]
+        assert name in available_names, "Object name must be one of {}".format(available_names)
+
+        xml_path = f"{name}/{name}.xml"
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
+        )
+
+        # Set relevant body names
+        if not name == "door_original":
+            self.revolute_body = self.naming_prefix + "link_0"
+            self.hinge_joint = self.naming_prefix + "joint_0"
+        else:
+            self.revolute_body = self.naming_prefix + "door"
+            # self.frame_body = self.naming_prefix + "frame"
+            self.hinge_joint = self.naming_prefix + "hinge"
+            self.lock = False
+            # set the door friction and damping to 0 for training
+            self._set_door_friction(0.0)
+            self._set_door_damping(0.0)
+
+
+    def _set_door_friction(self, friction):
+        """
+        Helper function to override the door friction directly in the XML
+
+        Args:
+            friction (3-tuple of float): friction parameters to override the ones specified in the XML
+        """
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge.set("frictionloss", array_to_string(np.array([friction])))
+
+    def _set_door_damping(self, damping):
+        """
+        Helper function to override the door friction directly in the XML
+
+        Args:
+            damping (float): damping parameter to override the ones specified in the XML
+        """
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge.set("damping", array_to_string(np.array([damping])))
+    
+    @property
+    def hinge_direction(self):
+        '''
+        Returns:
+            str: hinge direction
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_direction_text = hinge.get("axis")
+        hinge_direction = hinge_direction_text.split(" ")
+        hinge_direction = [float(x) for x in hinge_direction]
+        return hinge_direction
+    
+    @property
+    def hinge_pos_relative(self):
+        '''
+        Returns:
+            str: hinge position relative to the object
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_pos = hinge.get("pos")
+        hinge_pos = hinge_pos.split(" ")
+        hinge_pos = [float(x) for x in hinge_pos]
+        return hinge_pos
+    
+    @property
+    def hinge_range(self):
+        '''
+        Returns:
+            str: hinge ransge
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_range = hinge.get("range")
+        hinge_range = hinge_range.split(" ")
+        hinge_range = [float(x) for x in hinge_range]
+        return hinge_range
