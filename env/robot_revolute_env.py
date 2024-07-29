@@ -125,9 +125,9 @@ class RobotRevoluteOpening(SingleArmEnv):
                 mujoco_objects=self.revolute_object,
                 # x_range=[-1.2, -1.2], #No randomization
                 # y_range=[-1, -1], #No randomization
-                x_range=[-1.0, -1.0], #No randomization
-                y_range=[-0.14,-0.14], #No randomization
-                rotation=(-np.pi/2.0 , -np.pi/2.0 ), #No randomization
+                x_range=[0.1, 0.1], #No randomization
+                y_range=[-1,-1], #No randomization
+                rotation=(-np.pi, -np.pi ), #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=(-0.6, -1.0, 0.5)
@@ -203,7 +203,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
-        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
+        # self.sim.data.qpos[self.slider_qpos_addr] = 0.5
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
