@@ -1,0 +1,15 @@
+<root><body name="train-dishwasher-1_main">
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="train-dishwasher-1_new-0" group="0" conaffinity="0" contype="0" name="train-dishwasher-1_g0" rgba="0.5 0 0 1" scale="0.1 0.1 0.1" />
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="train-dishwasher-1_new-3" group="0" conaffinity="0" contype="0" name="train-dishwasher-1_g1" rgba="0.5 0 0 1" scale="0.1 0.1 0.1" />
+        <body name="train-dishwasher-1_link_0" pos="-0.531837 -0.599446 -0.559579" quat="0.5 0.5 -0.5 -0.5">
+            <inertial pos="-0.601521 0.660954 0.0431004" quat="-0.00910051 0.707181 0.00989488 0.706905" mass="56.3931" diaginertia="13.505 9.07828 4.44272" />
+            <joint name="train-dishwasher-1_joint_0" pos="0 0 0" axis="1 0 0" limited="true" range="0 1.5708" />
+            <geom name="train-dishwasher-1_panel" pos="-0.599446 0.559579 -0.531837" type="mesh" mesh="train-dishwasher-1_new-2" group="0" rgba="0.5 0 0 1" scale="0.1 0.1 0.1" />
+            <geom pos="-0.599446 0.559579 -0.531837" type="mesh" mesh="train-dishwasher-1_new-1" group="0" name="train-dishwasher-1_g3" rgba="0.5 0 0 1" scale="0.1 0.1 0.1" />
+        <geom name="train-dishwasher-1_panel_visual" pos="-0.599446 0.559579 -0.531837" type="mesh" mesh="train-dishwasher-1_new-2" group="1" conaffinity="0" contype="0" mass="1e-8" scale="0.1 0.1 0.1" />
+            <geom pos="-0.599446 0.559579 -0.531837" type="mesh" mesh="train-dishwasher-1_new-1" group="1" name="train-dishwasher-1_g3_visual" conaffinity="0" contype="0" mass="1e-8" scale="0.1 0.1 0.1" />
+        </body>
+    <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="train-dishwasher-1_new-0" group="1" conaffinity="0" contype="0" name="train-dishwasher-1_g0_visual" mass="1e-8" scale="0.1 0.1 0.1" />
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="train-dishwasher-1_new-3" group="1" conaffinity="0" contype="0" name="train-dishwasher-1_g1_visual" mass="1e-8" scale="0.1 0.1 0.1" />
+        <site pos="0 0 0" size="0.002 0.002 0.002" rgba="1 0 0 0" type="sphere" group="0" name="train-dishwasher-1_default_site" /></body>
+            </root>

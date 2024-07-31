@@ -16,7 +16,7 @@
             <joint name="joint_0" pos="0 0 0" axis="0 1 0" limited="true" range="-0.816814 1.50796" />
             <!-- <site name="hinge_site" pos="0 0 0" rgba="0 0 0 0" size="0.005"/> -->
             <!-- <joint name="joint_0" pos="0 0 0" axis="0 1 0" limited="true" range="0.0 1.0" /> -->
-            <geom pos="-0.254289 -0.823603 0.104352" type="mesh" mesh="original-5.obj.convex" group="0" />
+            <geom pos="-0.254289 -0.823603 0.104352" type="mesh" mesh="original-5.obj.convex" name="panel" group="0" />
             <body name="link_1" pos="-0.439038 -1.01798 0.395463">
                 <inertial pos="0.0110353 -0.00290809 0.00887909" quat="0.649889 0.275326 0.273867 0.653327" mass="0.0747925" diaginertia="0.000166626 0.000166562 1.39156e-05" />
                 <joint name="joint_1" pos="0 0 0" axis="-0.707108 1.63273e-08 -0.707106" limited="true" range="-0.785398 0.785398" />

@@ -80,7 +80,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.cache_video = save_video
 
         self.object_name = object_name
-        assert self.object_name in ["train-door-counterclock-1", "door_original", "train-microwave-1"], "Invalid object name"
+        assert self.object_name in ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"], "Invalid object name"
         
 
         self.use_object_obs = True # always use low-level object obs for this environment
@@ -205,12 +205,12 @@ class MultipleRevoluteEnv(MujocoEnv):
             # import xml.etree.ElementTree as ET
             # tree = ET.ElementTree(self.revolute_object.get_obj().root)
             # tree.write(f)
+
         import xml.etree.ElementTree as ET
         root = ET.Element("root")
         root.append(self.revolute_object.get_obj())
         tree = ET.ElementTree(root)
-        self.revolute_object.get_xml()
-        tree.write("train-door-counterclock-1-temp.xml", encoding="utf-8")
+        tree.write("train-dishwasher-temp.xml", encoding="utf-8")
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -220,7 +220,7 @@ class MultipleRevoluteEnv(MujocoEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                x_range=[0.07, 0.09],
+                x_range=[-1.07, -1.09],
                 y_range=[-0.01, 0.01],
                 # rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
                 rotation=self.init_door_angle,
@@ -257,6 +257,10 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.hinge_position_rel = self.revolute_object.hinge_pos_relative
         # self.hinge_position = self.sim.data.jo[self.hinge_site_id]
         # hinge direction is normalized
+
+        # panel geom
+        self.panel_geom_name = self.revolute_object.naming_prefix + "panel"
+
         self.hinge_direction_rel = self.revolute_object.hinge_direction / np.linalg.norm(self.revolute_object.hinge_direction)
 
         self.hinge_position = self.calculate_hinge_pos_absolute()
@@ -269,8 +273,12 @@ class MultipleRevoluteEnv(MujocoEnv):
         calculate the hinge position in the world frame
         '''
         hinge_pos = np.array(self.hinge_position_rel)
-        hinge_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_pos)
-        hinge_pos += self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
+        # hinge_pos[2] -= 0.5
+    
+        # hinge_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_pos)
+        # print("body xpos for hinge: ", self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        hinge_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+
         return hinge_pos
     
     def calculate_hinge_direction_absolute(self):
@@ -380,7 +388,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         sample a point on the door to apply force, the point is relative to the door frame
         '''
         if not self.random_force_point:
-            return np.array([-0,0,0])
+            return np.array([-0.,0.,-0.])
         else:
             # TODO: handle this to give correct revolute body size
             panel_size = self.revolute_object.door_panel_size
@@ -391,16 +399,39 @@ class MultipleRevoluteEnv(MujocoEnv):
             print("sampled force point: ", np.array([x,y,z*0.7]))
             return np.array([x,y,z])
     
+    # def relative_force_point_to_world(self, relative_force_point):
+    #     '''
+    #     convert the relative force point to world frame
+    #     '''
+    #     revolute_body_pos_abs = self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
+    #     # print("revolute body pos abs: ", revolute_body_pos_abs)
+    #     revolute_body_rot_abs = self.sim.data.get_body_xmat(self.revolute_object.revolute_body)
+    #     # print("revolute body rot abs: ", revolute_body_rot_abs)
+
+    #     # calculate relative rotation with respect to relative zero
+    #     revolute_body_rot = np.dot(revolute_body_rot_abs, self.revolute_body_rel_zero_rot.T) 
+        
+    #     # move and rotate relative to hinge position
+    #     relative_force_position_to_hinge = np.dot(revolute_body_rot, relative_force_point)
+
+
+    #     revolute_body_pos = revolute_body_pos_abs
+    #     revolute_body_rot = revolute_body_rot_abs
+
+    #     # compute the trainsition relative to 
+
+    #     # print("np dot", np.dot(revolute_body_rot, relative_force_point))
+        
+    #     # return deepcopy(revolute_body_pos + np.dot(revolute_body_rot, relative_force_point))
+    #     return deepcopy(self.hinge_position + relative_force_position_to_hinge)
     def relative_force_point_to_world(self, relative_force_point):
         '''
         convert the relative force point to world frame
         '''
-        revolute_body_pos = self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
-        # print("revolute body pos: ", revolute_body_pos)
-        revolute_body_rot = self.sim.data.get_body_xmat(self.revolute_object.revolute_body)
+        panel_pos = self.sim.data.get_geom_xpos(self.panel_geom_name)
+        panel_rot = self.sim.data.get_geom_xmat(self.panel_geom_name)
         
-        return deepcopy(revolute_body_pos + np.dot(revolute_body_rot, relative_force_point))
-
+        return deepcopy(panel_pos + np.dot(panel_rot, relative_force_point))
 
     def _reset_internal(self):
         """
@@ -423,6 +454,9 @@ class MultipleRevoluteEnv(MujocoEnv):
             self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0
 
         self.frames = []
+
+        # disable gravity
+        self.sim.model._model.opt.gravity[:] = [0, 0, 0]
     
         # additional housekeeping
         self.sim_state_initial = self.sim.get_state()
@@ -448,8 +482,18 @@ class MultipleRevoluteEnv(MujocoEnv):
             self.sim.model.body_pos[revolute_body_id] = door_pos
             self.sim.model.body_quat[revolute_body_id] = door_quat
         
+        
+
         # set the door hinge to the initial position, lower bound of the hinge limit
         self.sim.data.qpos[self.hinge_qpos_addr] = self.hinge_range[0]
+
+        # get hinge absolute position
+        self.hinge_position = self.calculate_hinge_pos_absolute()
+        self.hinge_direction = self.calculate_hinge_direction_absolute()
+
+        # read the body position and rotation as the relative zero
+        self.revolute_body_rel_zero_pos = deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        self.revolute_body_rel_zero_rot = deepcopy(self.sim.data.get_body_xmat(self.revolute_object.revolute_body))
         
         # sample a force point on the door
         self.force_point = self.sample_relative_force_point()
@@ -458,15 +502,19 @@ class MultipleRevoluteEnv(MujocoEnv):
         # get the initial render arrow end
         self.render_arrow_end = self.force_point_world
 
+        
+
         # get the initial hinge qpos
         self.last_hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
         self.last_force_point_xpos = deepcopy(self.force_point_world)
         # print("initial force point: ", self.force_point_world)
 
     def _pre_action(self, action, policy_step=False):
+        self.hinge_position = self.calculate_hinge_pos_absolute()
+        self.hinge_direction = self.calculate_hinge_direction_absolute()
 
         if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
                 self.frames.append(frame)
         
         self.last_hinge_qpos = deepcopy(self.sim.data.qpos[self.hinge_qpos_addr])
@@ -503,6 +551,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         else:
             current_force_point_xpos = deepcopy(self.relative_force_point_to_world(self.force_point))
             # print("current force point: ", current_force_point_xpos)
+            # print("relative hinge position: ", self.hinge_position_rel)
             # print("last force point: ", self.last_force_point_xpos)
             delta_force_point = current_force_point_xpos - self.last_force_point_xpos
             self.last_force_point_xpos = deepcopy(current_force_point_xpos)
@@ -544,11 +593,19 @@ class MultipleRevoluteEnv(MujocoEnv):
     
     def modify_scene(self, scene):
         rgba = np.array([0.5, 0.5, 0.5, 1.0])
-
+        
+        # body_xpos = self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
         # start and end point of the arrow
-        point1 = self.force_point_world
-        point2 = self.render_arrow_end
+        # point1 = body_xpos
+        # point1 = self.force_point_world
+        # point2 = self.render_arrow_end
+        point1 = self.hinge_position
+        point2 = self.hinge_position + self.hinge_direction 
+        # print("point 1", point1)
+        # print("body xpos: ", body_xpos)
+        # print("hint position: ", self.hinge_position)
 
+        # radius = 0.5
         radius = 0.05
 
         if scene.ngeom >= scene.maxgeom:
@@ -561,6 +618,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
                            int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
                            point1, point2)
+        # print("modify!")
 
     def render(self):
         super().render() 

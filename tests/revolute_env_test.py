@@ -9,25 +9,33 @@ controller_configs = suite.load_controller_config( default_controller=controller
 
 env:MultipleRevoluteEnv = suite.make(
      "MultipleRevoluteEnv",
-     object_name = "train-door-counterclock-1",
-    init_door_angle = (0, 0),
+     object_name = "train-dishwasher-1",
+     random_force_point = False,
+    init_door_angle = (-np.pi + np.pi/4, -np.pi + np.pi/4),
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
     camera_depths = True,
     camera_segmentations = "element",
     horizon=1000,
-    camera_names = "agentview",
-    camera_heights = 1024,
-    camera_widths = 1024
+    camera_names = ["agentview", "sideview", "frontview", "birdview"],
+    camera_heights = [1024,1024, 1024, 1024],
+    camera_widths = [1024, 256, 1024, 1024],
+    render_camera = "frontview",
+    # save_video = True,
+    # video_width=256,
+    # video_height=1024,
 )
 
 obs = env.reset()
+obs = env.reset()
 env.render()
-while True:
-    action = np.array([0,0,0])
+for _ in range(500):
+    action = np.array([1,0.0,0.0])
     obs, _,_,_ = env.step(action)
     print(obs["hinge_qpos"])
     env.render()
-    time.sleep(0.1)
+    # time.sleep(0.1)
+
+env.save_video("test_revolute_video.gif")
     

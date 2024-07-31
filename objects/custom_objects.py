@@ -128,6 +128,8 @@ class OriginalDoorObject(MujocoXMLObject):
         hinge_direction = [float(x) for x in hinge_direction]
         return hinge_direction
     
+    
+    
 class SelectedMicrowaveObject(MujocoXMLObject):
     """
     Microwave with door (used in Microwave)
@@ -157,7 +159,7 @@ class TrainRevoluteObjects(MujocoXMLObject):
     """
 
     def __init__(self, name):
-        available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1"]
+        available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"]
         assert name in available_names, "Object name must be one of {}".format(available_names)
 
         xml_path = f"{name}/{name}.xml"
@@ -169,6 +171,7 @@ class TrainRevoluteObjects(MujocoXMLObject):
         if not name == "door_original":
             self.revolute_body = self.naming_prefix + "link_0"
             self.hinge_joint = self.naming_prefix + "joint_0"
+            self.change_scale([0.1, 0.1, 0.1])
         else:
             self.revolute_body = self.naming_prefix + "door"
             # self.frame_body = self.naming_prefix + "frame"
@@ -234,3 +237,29 @@ class TrainRevoluteObjects(MujocoXMLObject):
         hinge_range = hinge_range.split(" ")
         hinge_range = [float(x) for x in hinge_range]
         return hinge_range
+    
+    def change_scale(self, new_scale):
+        '''
+        Change the scale of the object
+        '''
+        # find all bodies
+        bodies = find_elements(root=self.worldbody, tags="body")
+        for body in bodies:
+            # get the scale
+            # scale = body.get("scale")
+            # scale = scale.split(" ")
+            # scale = [float(x) for x in scale]
+            # # change the scale
+            # scale = [x * new_scale for x in scale]
+            body.set("scale", array_to_string(new_scale))
+
+        # find all geoms
+        geoms = find_elements(root=self.worldbody, tags="geom")
+        for geom in geoms:
+            # get the scale
+            # scale = geom.get("size")
+            # scale = scale.split(" ")
+            # scale = [float(x) for x in scale]
+            # # change the scale
+            # scale = [x * new_scale for x in scale]
+            geom.set("scale", array_to_string(new_scale))
