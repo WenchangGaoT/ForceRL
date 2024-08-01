@@ -22,6 +22,7 @@ from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
 import imageio
+from scipy.spatial.transform import Rotation as R
 
 class CurriculumDoorEnv(MujocoEnv):
     def __init__(self, 
@@ -554,3 +555,27 @@ class CurriculumDoorEnv(MujocoEnv):
             # print('success')
             done = True
         return next_state, reward, done, info
+
+    def _get_camera_config(self, camera_name):
+        '''
+        Get the information of cameras.
+        Input:
+            -camera_name: str, the name of the camera to be parsed 
+
+        Returns:
+            {
+                
+        }
+        ''' 
+        camera_id = self.sim.model.camera_name2id(camera_name)
+        camera_pos = self.sim.data.cam_xpos[camera_id] 
+        camera_rot_matrix = self.sim.data.cam_xmat[camera_id].reshape(3, 3)
+
+        # Convert the rotation matrix to a quaternion
+        camera_quat = R.from_matrix(camera_rot_matrix).as_quat()
+        return {
+            'camera_config': {
+                'trans': camera_pos, 
+                'quat': camera_quat
+            }
+        }

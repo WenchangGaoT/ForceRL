@@ -1,0 +1,4 @@
+Implementing camera config to get position and quaternion of certain camera for AO-Grasp. 
+Code is in Original Door environment. 
+
+Saved a door rendered in robosuite. Remember to test sam to segment handle out later.

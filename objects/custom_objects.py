@@ -135,12 +135,12 @@ class SelectedMicrowaveObject(MujocoXMLObject):
     Args:
     """
 
-    def __init__(self, name, microwave_number):
+    def __init__(self, name, microwave_number, scale=False):
 
         available_numbers = [1]
         assert microwave_number in available_numbers, "Microwave number must be one of {}".format(available_numbers)
 
-        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml"
+        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml" if not scale else f'microwave-{microwave_number}/rescaled-microwave-{microwave_number}.xml'
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
         )
