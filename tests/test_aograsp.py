@@ -97,7 +97,7 @@ print('Corresponding quaternion: ', quat)
 
 
 obj_pos = env.obj_pos 
-camera_trans = 3*np.array([-0.77542536, -0.02539806,  0.30146208])
+camera_trans = 2*np.array([-1.77542536, -0.02539806,  0.30146208])
 # set_camera_pose(env, 'sideview', [-0.77542536, -0.02539806,  2.20146208], [-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])
 set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
 # display_camera_pose(env, 'frontview')
