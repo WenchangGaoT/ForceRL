@@ -9,9 +9,10 @@ controller_configs = suite.load_controller_config( default_controller=controller
 
 env:MultipleRevoluteEnv = suite.make(
      "MultipleRevoluteEnv",
-     object_name = "train-dishwasher-1",
+     object_name = "train-microwave-1",
      random_force_point = False,
-    init_door_angle = (-np.pi + np.pi/4, -np.pi + np.pi/4),
+    # init_door_angle = (-np.pi + np.pi/4, -np.pi + np.pi/4),
+    init_door_angle = (-np.pi,-np.pi),
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
@@ -30,7 +31,7 @@ env:MultipleRevoluteEnv = suite.make(
 obs = env.reset()
 obs = env.reset()
 env.render()
-for _ in range(500):
+for _ in range(1000):
     action = np.array([1,0.0,0.0])
     obs, _,_,_ = env.step(action)
     print(obs["hinge_qpos"])

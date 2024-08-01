@@ -255,7 +255,6 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.hinge_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.hinge_joint)
         
         self.hinge_position_rel = self.revolute_object.hinge_pos_relative
-        # self.hinge_position = self.sim.data.jo[self.hinge_site_id]
         # hinge direction is normalized
 
         # panel geom
@@ -263,6 +262,8 @@ class MultipleRevoluteEnv(MujocoEnv):
 
         self.hinge_direction_rel = self.revolute_object.hinge_direction / np.linalg.norm(self.revolute_object.hinge_direction)
 
+        # TODO: the revolute body pos is not updated when _setup_references. Currently it is calculated in pre_action. Are there 
+        # more elegant way to do this?
         self.hinge_position = self.calculate_hinge_pos_absolute()
         self.hinge_direction = self.calculate_hinge_direction_absolute()
 
@@ -399,31 +400,6 @@ class MultipleRevoluteEnv(MujocoEnv):
             print("sampled force point: ", np.array([x,y,z*0.7]))
             return np.array([x,y,z])
     
-    # def relative_force_point_to_world(self, relative_force_point):
-    #     '''
-    #     convert the relative force point to world frame
-    #     '''
-    #     revolute_body_pos_abs = self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
-    #     # print("revolute body pos abs: ", revolute_body_pos_abs)
-    #     revolute_body_rot_abs = self.sim.data.get_body_xmat(self.revolute_object.revolute_body)
-    #     # print("revolute body rot abs: ", revolute_body_rot_abs)
-
-    #     # calculate relative rotation with respect to relative zero
-    #     revolute_body_rot = np.dot(revolute_body_rot_abs, self.revolute_body_rel_zero_rot.T) 
-        
-    #     # move and rotate relative to hinge position
-    #     relative_force_position_to_hinge = np.dot(revolute_body_rot, relative_force_point)
-
-
-    #     revolute_body_pos = revolute_body_pos_abs
-    #     revolute_body_rot = revolute_body_rot_abs
-
-    #     # compute the trainsition relative to 
-
-    #     # print("np dot", np.dot(revolute_body_rot, relative_force_point))
-        
-    #     # return deepcopy(revolute_body_pos + np.dot(revolute_body_rot, relative_force_point))
-    #     return deepcopy(self.hinge_position + relative_force_position_to_hinge)
     def relative_force_point_to_world(self, relative_force_point):
         '''
         convert the relative force point to world frame
@@ -594,18 +570,12 @@ class MultipleRevoluteEnv(MujocoEnv):
     def modify_scene(self, scene):
         rgba = np.array([0.5, 0.5, 0.5, 1.0])
         
-        # body_xpos = self.sim.data.get_body_xpos(self.revolute_object.revolute_body)
-        # start and end point of the arrow
         # point1 = body_xpos
-        # point1 = self.force_point_world
-        # point2 = self.render_arrow_end
-        point1 = self.hinge_position
-        point2 = self.hinge_position + self.hinge_direction 
-        # print("point 1", point1)
-        # print("body xpos: ", body_xpos)
-        # print("hint position: ", self.hinge_position)
+        point1 = self.force_point_world
+        point2 = self.render_arrow_end
+        # point1 = self.hinge_position
+        # point2 = self.hinge_position + self.hinge_direction 
 
-        # radius = 0.5
         radius = 0.05
 
         if scene.ngeom >= scene.maxgeom:
@@ -618,7 +588,6 @@ class MultipleRevoluteEnv(MujocoEnv):
         mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
                            int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
                            point1, point2)
-        # print("modify!")
 
     def render(self):
         super().render() 
