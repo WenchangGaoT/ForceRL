@@ -23,13 +23,13 @@ from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
 from scipy.spatial.transform import Rotation as R
 
-class OriginalDoorEnv(MujocoEnv):
+class CameraDoorEnv(MujocoEnv):
     def __init__(self, 
                  use_camera_obs=True, 
                  placement_initializer=None,
                  random_force_point = False,
                  has_renderer=True, 
-                 has_offscreen_renderer=False,
+                 has_offscreen_renderer=True,
                  render_camera="frontview",
                  render_collision_mesh=False,
                  render_visual_mesh=True,
@@ -41,7 +41,7 @@ class OriginalDoorEnv(MujocoEnv):
                  camera_names="agentview",
                  camera_heights=256,
                  camera_widths=256,
-                 camera_depths=False,
+                 camera_depths=True,
                  camera_segmentations=None,
                  renderer="mujoco",
                  action_scale=1,
@@ -77,27 +77,6 @@ class OriginalDoorEnv(MujocoEnv):
         self.use_object_obs = True # always use low-level object obs for this environment
         self.random_force_point = random_force_point 
 
-        
-        super().__init__(
-            has_renderer=self.has_renderer,
-            has_offscreen_renderer=self.has_offscreen_renderer,
-            render_camera=render_camera,
-            render_collision_mesh=render_collision_mesh,
-            render_visual_mesh=render_visual_mesh,
-            render_gpu_device_id=render_gpu_device_id,
-            control_freq=control_freq,
-            horizon=horizon,
-            ignore_done=ignore_done,
-            hard_reset=hard_reset,
-            renderer=renderer,
-            renderer_config=renderer_config
-        )
-
-        self.horizon = horizon 
-        self._action_dim = 3
-        self.reward_scale = reward_scale
-        
-
         # Set camera attributes
         self.camera_names =  (
             list(camera_names) if type(camera_names) is list or type(camera_names) is tuple else [camera_names]
@@ -121,6 +100,26 @@ class OriginalDoorEnv(MujocoEnv):
             raise ValueError("Error: Camera observations require an offscreen renderer!")
         if self.use_camera_obs and self.camera_names is None:
             raise ValueError("Must specify at least one camera name when using camera obs")
+
+        
+        super().__init__(
+            has_renderer=self.has_renderer,
+            has_offscreen_renderer=self.has_offscreen_renderer,
+            render_camera=render_camera,
+            render_collision_mesh=render_collision_mesh,
+            render_visual_mesh=render_visual_mesh,
+            render_gpu_device_id=render_gpu_device_id,
+            control_freq=control_freq,
+            horizon=horizon,
+            ignore_done=ignore_done,
+            hard_reset=hard_reset,
+            renderer=renderer,
+            renderer_config=renderer_config
+        )
+
+        self.horizon = horizon 
+        self._action_dim = 3
+        self.reward_scale = reward_scale
         
         # Set up backup renderer
         # self.backup_renderer = mujoco.Renderer(self.sim.model._model)
@@ -284,12 +283,59 @@ class OriginalDoorEnv(MujocoEnv):
                 sensors.append(camera_depth)
                 names.append(depth_sensor_name)
             if cam_segs is not None:
-                raise NotImplementedError("Segmentation sensors are not supported for this environment")
+                # raise NotImplementedError("Segmentation sensors are not supported for this environment")
+                # Define mapping we'll use for segmentation
+                for cam_s in cam_segs:
+                    seg_sensor, seg_sensor_name = self._create_segementation_sensor(
+                        cam_name=cam_name,
+                        cam_w=cam_w,
+                        cam_h=cam_h,
+                        cam_s=cam_s,
+                        seg_name_root=segmentation_sensor_name,
+                        modality=modality,
+                    )
+
+                    sensors.append(seg_sensor)
+                    names.append(seg_sensor_name)
             
             return sensors, names
     
     def _create_segementation_sensor(self, cam_name, cam_w, cam_h, cam_s, seg_name_root, modality="image"):
-        pass
+        convention = IMAGE_CONVENTION_MAPPING[macros.IMAGE_CONVENTION]
+
+        if cam_s == "instance":
+            name2id = {inst: i for i, inst in enumerate(list(self.model.instances_to_ids.keys()))}
+            mapping = {idn: name2id[inst] for idn, inst in self.model.geom_ids_to_instances.items()}
+        elif cam_s == "class":
+            name2id = {cls: i for i, cls in enumerate(list(self.model.classes_to_ids.keys()))}
+            mapping = {idn: name2id[cls] for idn, cls in self.model.geom_ids_to_classes.items()}
+        else:  # element
+            # No additional mapping needed
+            mapping = None
+
+        @sensor(modality=modality)
+        def camera_segmentation(obs_cache):
+            seg = self.sim.render(
+                camera_name=cam_name,
+                width=cam_w,
+                height=cam_h,
+                depth=False,
+                segmentation=True,
+            )
+            seg = np.expand_dims(seg[::convention, :, 1], axis=-1)
+            # Map raw IDs to grouped IDs if we're using instance or class-level segmentation
+            if mapping is not None:
+                seg = (
+                    np.fromiter(map(lambda x: mapping.get(x, -1), seg.flatten()), dtype=np.int32).reshape(
+                        cam_h, cam_w, 1
+                    )
+                    + 1
+                )
+            return seg
+
+        name = f"{seg_name_root}_{cam_s}"
+
+        return camera_segmentation, name
 
     def _setup_observables(self):
         """
@@ -416,7 +462,40 @@ class OriginalDoorEnv(MujocoEnv):
             if self.render_camera is not None:
                 camera_id = self.sim.model.camera_name2id(self.render_camera)
                 self.viewer.set_camera(camera_id)
-
+        if self.use_camera_obs:
+            temp_names = []
+            for cam_name in self.camera_names:
+                if "all-" in cam_name:
+                    # We need to add all robot-specific camera names that include the key after the tag "all-"
+                    start_idx = len(temp_names) - 1
+                    key = cam_name.replace("all-", "")
+                    for robot in self.robots:
+                        for robot_cam_name in robot.robot_model.cameras:
+                            if key in robot_cam_name:
+                                temp_names.append(robot_cam_name)
+                    # We also need to broadcast the corresponding values from each camera dimensions as well
+                    end_idx = len(temp_names) - 1
+                    self.camera_widths = (
+                        self.camera_widths[:start_idx]
+                        + [self.camera_widths[start_idx]] * (end_idx - start_idx)
+                        + self.camera_widths[(start_idx + 1) :]
+                    )
+                    self.camera_heights = (
+                        self.camera_heights[:start_idx]
+                        + [self.camera_heights[start_idx]] * (end_idx - start_idx)
+                        + self.camera_heights[(start_idx + 1) :]
+                    )
+                    self.camera_depths = (
+                        self.camera_depths[:start_idx]
+                        + [self.camera_depths[start_idx]] * (end_idx - start_idx)
+                        + self.camera_depths[(start_idx + 1) :]
+                    )
+                else:
+                    # We simply add this camera to the temp_names
+                    temp_names.append(cam_name)
+            # Lastly, replace camera names with the updated ones
+            self.camera_names = temp_names
+        
         if self.has_offscreen_renderer:
             if self.sim._render_context_offscreen is None:
                 render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)

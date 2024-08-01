@@ -7,7 +7,8 @@ from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
 
-from objects.custom_objects import SelectedMicrowaveObject
+from objects.custom_objects import SelectedMicrowaveObject 
+from scipy.spatial.transform import Rotation as R
 
 import os 
 os.environ['MUJOCO_GL'] = 'osmesa'
@@ -46,6 +47,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         camera_segmentations=None,  # {None, instance, class, element}
         renderer="mujoco",
         renderer_config=None,
+        agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
+        agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -79,6 +82,8 @@ class RobotRevoluteOpening(SingleArmEnv):
             camera_segmentations=camera_segmentations,
             renderer=renderer,
             renderer_config=renderer_config,
+            # agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
+            # agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
         )
         
         self.reward_scale = reward_scale
@@ -87,7 +92,19 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.placement_initializer = placement_initializer
 
         
-        
+        ## AO-Grasp required information
+        self.agentview_camera_pos = agentview_camera_pos 
+        self.agentview_camera_quat = agentview_camera_quat 
+
+        self.camera_cfgs = {
+            'agentview': {
+                'trans': np.array(self.agentview_camera_pos), 
+                'quat': np.array(self.agentview_camera_quat)
+            }
+        }
+
+
+        ################################################################################################
         
     
 
@@ -99,6 +116,7 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # set robot position
         xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
+        xpos = (20, xpos[1], xpos[2]) # Move the robot away
         self.robots[0].robot_model.set_base_xpos(xpos)
 
         # set empty arena
@@ -113,24 +131,40 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # get the revolute object
         if self.object_type == "microwave":
-            self.revolute_object = SelectedMicrowaveObject(name="drawer", microwave_number=self.object_model_idx)
+            self.revolute_object = SelectedMicrowaveObject(name="drawer", microwave_number=self.object_model_idx, scale=False)
 
         # Create placement initializer
         if self.placement_initializer is not None:
             self.placement_initializer.reset()
             self.placement_initializer.add_objects(self.revolute_object)
         else:
+            # self.placement_initializer = UniformRandomSampler(
+            #     name="ObjectSampler",
+            #     mujoco_objects=self.revolute_object,
+            #     # x_range=[-1.2, -1.2], #No randomization
+            #     # y_range=[-1, -1], #No randomization
+            #     x_range=[0.1, 0.1], #No randomization
+            #     y_range=[-1,-1], #No randomization
+            #     rotation=(-np.pi/2, -np.pi/2 ), #No randomization
+            #     rotation_axis="z",
+            #     ensure_object_boundary_in_range=False, 
+            #     reference_pos=(-0.6, -1.0, 0.5)
+            # )
+            self.obj_pos = np.array([-0.6, -1, 0.6])
+
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                # x_range=[-1.2, -1.2], #No randomization
-                # y_range=[-1, -1], #No randomization
-                x_range=[-1.0, -1.0], #No randomization
-                y_range=[-0.14,-0.14], #No randomization
-                rotation=(-np.pi/2.0 , -np.pi/2.0 ), #No randomization
+                x_range=[0, 0], #No randomization
+                y_range=[0, 0], #No randomization 
+                z_offset=0.1,
+                # x_range=[0, 0], #No randomization
+                # y_range=[0,0], #No randomization
+                rotation=(0, 0 ), #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=(-0.6, -1.0, 0.5)
+                # reference_pos=(0, 0, 0)
             )
 
         # Create task
@@ -203,7 +237,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
-        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
+        # self.sim.data.qpos[self.slider_qpos_addr] = 0.5
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
@@ -212,3 +247,26 @@ class RobotRevoluteOpening(SingleArmEnv):
     def reward(self, action):
         return 0
     
+    def _get_camera_config(self, camera_name):
+        '''
+        Get the information of cameras.
+        Input:
+            -camera_name: str, the name of the camera to be parsed 
+
+        Returns:
+            {
+                
+        }
+        ''' 
+        camera_id = self.sim.model.camera_name2id(camera_name)
+        camera_pos = self.sim.data.cam_xpos[camera_id] 
+        camera_rot_matrix = self.sim.data.cam_xmat[camera_id].reshape(3, 3)
+
+        # Convert the rotation matrix to a quaternion
+        camera_quat = R.from_matrix(camera_rot_matrix).as_quat()
+        return {
+            'camera_config': {
+                'trans': camera_pos, 
+                'quat': camera_quat
+            }
+        }

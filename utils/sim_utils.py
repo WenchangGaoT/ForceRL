@@ -27,7 +27,8 @@ def get_pointcloud(env, obs, camera_names,
         cam_height = cam_heights[camera_names.index(camera_name)]
         seg_image = obs["{}_segmentation_element".format(camera_name)]
         depth_image = obs['{}_depth'.format(camera_name)]
-        depth_image = flip_image(depth_image)
+        depth_image = flip_image(depth_image) 
+        # depth_image = np.flip(depth_image, 2)
         depth_image = camera_utils.get_real_depth_map(env.sim, depth_image)
         
         # get geom id corresponding to geom_name
@@ -36,7 +37,8 @@ def get_pointcloud(env, obs, camera_names,
 
         # create mask using geom_id and segmentation image
         masked_segmentation = np.isin(seg_image, pc_geom_id)
-        masked_segmentation = flip_image(masked_segmentation)
+        masked_segmentation = flip_image(masked_segmentation) 
+        # masked_segmentation = np.flip(masked_segmentation, 2)
 
         # mask the depth image
         masked_depth = np.multiply(depth_image, masked_segmentation).astype(np.float32)
