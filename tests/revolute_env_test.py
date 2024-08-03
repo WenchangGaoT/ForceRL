@@ -9,8 +9,8 @@ controller_configs = suite.load_controller_config( default_controller=controller
 
 env:MultipleRevoluteEnv = suite.make(
      "MultipleRevoluteEnv",
-     object_name = "train-microwave-1",
-     random_force_point = False,
+     object_name = "door_original",
+     random_force_point = True,
     # init_door_angle = (-np.pi + np.pi/4, -np.pi + np.pi/4),
     init_door_angle = (-np.pi,-np.pi),
     has_renderer=True,
@@ -22,7 +22,7 @@ env:MultipleRevoluteEnv = suite.make(
     camera_names = ["agentview", "sideview", "frontview", "birdview"],
     camera_heights = [1024,1024, 1024, 1024],
     camera_widths = [1024, 256, 1024, 1024],
-    render_camera = "frontview",
+    render_camera = "sideview",
     # save_video = True,
     # video_width=256,
     # video_height=1024,

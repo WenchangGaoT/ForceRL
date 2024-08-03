@@ -81,7 +81,13 @@ class MultipleRevoluteEnv(MujocoEnv):
 
         self.object_name = object_name
         assert self.object_name in ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"], "Invalid object name"
-        
+        # save bounds for relative force point for each object, (lower bound, upper bound, axis)
+        self.train_object_force_point_bound = {
+            "train-door-counterclock-1" : [(0,0), (0, 0.3), (-0.7, 0.7)],
+            "train-microwave-1" : [(0, 0), (-0.35, 0.35), (0., 0.5)], 
+            "train-dishwasher-1" : [(0, 0), (-0.55, 0.), (-0.6, 0.6)], 
+            "door_original" : [(-0.22,0), (0, 0.), (-0.29,0.29)]
+        }
 
         self.use_object_obs = True # always use low-level object obs for this environment
         self.random_force_point = random_force_point
@@ -389,16 +395,24 @@ class MultipleRevoluteEnv(MujocoEnv):
         sample a point on the door to apply force, the point is relative to the door frame
         '''
         if not self.random_force_point:
-            return np.array([-0.,0.,-0.])
+            return np.array([-0.,0.,0.5])
         else:
-            # TODO: handle this to give correct revolute body size
-            panel_size = self.revolute_object.door_panel_size
-            # random sample a point on the door panel
-            x = np.random.uniform(-panel_size[0], 0)
-            y = 0
-            z = np.random.uniform(-panel_size[2], panel_size[2])
-            print("sampled force point: ", np.array([x,y,z*0.7]))
+            # sample a point on the door panel according to the object type
+            panel_size = self.train_object_force_point_bound[self.object_name]
+            x = np.random.uniform(panel_size[0][0], panel_size[0][1])
+            y = np.random.uniform(panel_size[1][0], panel_size[1][1])
+            z = np.random.uniform(panel_size[2][0], panel_size[2][1])
             return np.array([x,y,z])
+
+        # else:
+        #     # TODO: handle this to give correct revolute body size
+        #     panel_size = self.revolute_object.door_panel_size
+        #     # random sample a point on the door panel
+        #     x = np.random.uniform(-panel_size[0], 0)
+        #     y = 0
+        #     z = np.random.uniform(-panel_size[2], panel_size[2])
+        #     print("sampled force point: ", np.array([x,y,z*0.7]))
+        #     return np.array([x,y,z])
     
     def relative_force_point_to_world(self, relative_force_point):
         '''

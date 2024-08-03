@@ -1,186 +1,21 @@
-<root><body name="train-microwave-1_main">
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_original-12" conaffinity="0" contype="0" name="train-microwave-1_g0" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_new-4" conaffinity="0" contype="0" name="train-microwave-1_g1" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_original-49" conaffinity="0" contype="0" name="train-microwave-1_g2" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_original-51" conaffinity="0" contype="0" name="train-microwave-1_g3" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_original-1" conaffinity="0" contype="0" name="train-microwave-1_g4" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_original-50" conaffinity="0" contype="0" name="train-microwave-1_g5" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_new-3" conaffinity="0" contype="0" name="train-microwave-1_g6" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_new-2" conaffinity="0" contype="0" name="train-microwave-1_g7" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_new-1" conaffinity="0" contype="0" name="train-microwave-1_g8" rgba="0.5 0 0 1" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="train-microwave-1_new-0" conaffinity="0" contype="0" name="train-microwave-1_g9" rgba="0.5 0 0 1" />
-        <body name="train-microwave-1_link_0" pos="-0.359218 0.618785 0" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.414829 0.0166444 0.298924" quat="0.00349468 0.499467 -0.00703786 0.866297" mass="72.4061" diaginertia="9.0744 5.85664 3.30306" />
-            <joint name="train-microwave-1_joint_0" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.523599 1.39626" />
-            
-            <geom name="train-microwave-1_panel" pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="train-microwave-1_new-6" rgba="0.5 0 0 1" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="train-microwave-1_new-5" name="train-microwave-1_g11" rgba="0.5 0 0 1" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="train-microwave-1_original-3" name="train-microwave-1_g12" rgba="0.5 0 0 1" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="train-microwave-1_original-4" name="train-microwave-1_g13" rgba="0.5 0 0 1" />
-        <geom name="train-microwave-1_panel_visual" pos="0.618785 0 -0.359218" type="mesh" group="1" mesh="train-microwave-1_new-6" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="1" mesh="train-microwave-1_new-5" name="train-microwave-1_g11_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="1" mesh="train-microwave-1_original-3" name="train-microwave-1_g12_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="1" mesh="train-microwave-1_original-4" name="train-microwave-1_g13_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_1" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525268 0.0782934 0.00494252" quat="0.416789 0.571373 -0.416729 0.571101" mass="0.0153622" diaginertia="5.42181e-06 2.78238e-06 2.76854e-06" />
-            <joint name="train-microwave-1_joint_1" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-41" name="train-microwave-1_g14" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-36" name="train-microwave-1_g15" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-41" name="train-microwave-1_g14_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-36" name="train-microwave-1_g15_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_2" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0188435 0.0782797 0.00492333" quat="0.523586 0.475286 -0.523487 0.475312" mass="0.0152598" diaginertia="5.40253e-06 2.76766e-06 2.76238e-06" />
-            <joint name="train-microwave-1_joint_2" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-35" name="train-microwave-1_g16" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-19" name="train-microwave-1_g17" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-35" name="train-microwave-1_g16_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-19" name="train-microwave-1_g17_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_3" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0902985 0.0782677 0.00495284" quat="0.511133 0.489369 -0.510207 0.488824" mass="0.0154119" diaginertia="5.43794e-06 2.79688e-06 2.77117e-06" />
-            <joint name="train-microwave-1_joint_3" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-42" name="train-microwave-1_g18" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-34" name="train-microwave-1_g19" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-42" name="train-microwave-1_g18_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-34" name="train-microwave-1_g19_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_4" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525505 0.144933 0.00491951" quat="0.433322 0.558723 -0.433633 0.55859" mass="0.015244" diaginertia="5.40095e-06 2.76746e-06 2.76057e-06" />
-            <joint name="train-microwave-1_joint_4" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-31" name="train-microwave-1_g20" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-18" name="train-microwave-1_g21" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-31" name="train-microwave-1_g20_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-18" name="train-microwave-1_g21_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_5" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0188408 0.144906 0.00492199" quat="0.50045 0.499561 -0.500384 0.499604" mass="0.0152543" diaginertia="5.40253e-06 2.76929e-06 2.76059e-06" />
-            <joint name="train-microwave-1_joint_5" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-17" name="train-microwave-1_g22" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-33" name="train-microwave-1_g23" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-17" name="train-microwave-1_g22_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-33" name="train-microwave-1_g23_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_6" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0902233 0.145003 0.00491762" quat="0.538897 0.4578 -0.539781 0.456777" mass="0.0152383" diaginertia="5.41307e-06 2.78393e-06 2.75593e-06" />
-            <joint name="train-microwave-1_joint_6" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-32" name="train-microwave-1_g24" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-16" name="train-microwave-1_g25" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-32" name="train-microwave-1_g24_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-16" name="train-microwave-1_g25_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_7" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525354 0.211524 0.00492121" quat="0.498386 0.501707 -0.498157 0.501738" mass="0.0152511" diaginertia="5.40133e-06 2.76679e-06 2.76181e-06" />
-            <joint name="train-microwave-1_joint_7" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-15" name="train-microwave-1_g26" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-30" name="train-microwave-1_g27" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-15" name="train-microwave-1_g26_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-30" name="train-microwave-1_g27_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_8" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0188068 0.211507 0.00492189" quat="0.460979 0.535865 -0.460969 0.536521" mass="0.0152547" diaginertia="5.40482e-06 2.77216e-06 2.75997e-06" />
-            <joint name="train-microwave-1_joint_8" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-14" name="train-microwave-1_g28" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-29" name="train-microwave-1_g29" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-14" name="train-microwave-1_g28_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-29" name="train-microwave-1_g29_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_9" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0901986 0.211528 0.00490226" quat="0.493278 0.506366 -0.493456 0.506726" mass="0.0151735" diaginertia="5.39223e-06 2.76187e-06 2.75547e-06" />
-            <joint name="train-microwave-1_joint_9" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-40" name="train-microwave-1_g30" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-13" name="train-microwave-1_g31" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-40" name="train-microwave-1_g30_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-13" name="train-microwave-1_g31_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_10" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525762 0.27815 0.00492342" quat="0.476989 0.52168 -0.477166 0.522153" mass="0.0152608" diaginertia="5.40687e-06 2.77474e-06 2.75963e-06" />
-            <joint name="train-microwave-1_joint_10" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-39" name="train-microwave-1_g32" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-22" name="train-microwave-1_g33" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-39" name="train-microwave-1_g32_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-22" name="train-microwave-1_g33_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_11" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.018806 0.278119 0.00493691" quat="0.515069 0.484096 -0.515002 0.4849" mass="0.015318" diaginertia="5.42126e-06 2.78827e-06 2.76198e-06" />
-            <joint name="train-microwave-1_joint_11" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-20" name="train-microwave-1_g34" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-38" name="train-microwave-1_g35" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-20" name="train-microwave-1_g34_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-38" name="train-microwave-1_g35_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_12" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0902546 0.278197 0.00488226" quat="0.424816 0.565551 -0.424962 0.56488" mass="0.0150911" diaginertia="5.3894e-06 2.76162e-06 2.75066e-06" />
-            <joint name="train-microwave-1_joint_12" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-23" name="train-microwave-1_g36" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-37" name="train-microwave-1_g37" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-23" name="train-microwave-1_g36_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-37" name="train-microwave-1_g37_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_13" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525448 0.344788 0.00484603" quat="1.15734e-06 0.707107 1.15734e-06 0.707107" mass="0.0149451" diaginertia="5.37555e-06 2.74744e-06 2.74693e-06" />
-            <joint name="train-microwave-1_joint_13" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-48" name="train-microwave-1_g38" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-21" name="train-microwave-1_g39" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-48" name="train-microwave-1_g38_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-21" name="train-microwave-1_g39_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_14" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0190398 0.344761 0.00495282" quat="-0.0488533 0.706881 0.0490433 0.703937" mass="0.0153893" diaginertia="5.4433e-06 2.79118e-06 2.78271e-06" />
-            <joint name="train-microwave-1_joint_14" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-46" name="train-microwave-1_g40" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-27" name="train-microwave-1_g41" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-46" name="train-microwave-1_g40_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-27" name="train-microwave-1_g41_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_15" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0901969 0.345031 0.00493707" quat="0.526718 0.471473 -0.529363 0.469101" mass="0.0153223" diaginertia="5.447e-06 2.81288e-06 2.76291e-06" />
-            <joint name="train-microwave-1_joint_15" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-28" name="train-microwave-1_g42" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-45" name="train-microwave-1_g43" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-28" name="train-microwave-1_g42_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-45" name="train-microwave-1_g43_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_16" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="0.0525477 0.411444 0.00487455" quat="0.521185 0.477846 -0.521504 0.47756" mass="0.0150669" diaginertia="5.38168e-06 2.7526e-06 2.75092e-06" />
-            <joint name="train-microwave-1_joint_16" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-47" name="train-microwave-1_g44" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-25" name="train-microwave-1_g45" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-47" name="train-microwave-1_g44_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-25" name="train-microwave-1_g45_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_17" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0187233 0.411399 0.00495249" quat="0.00340111 0.706275 -0.00319812 0.707922" mass="0.0154076" diaginertia="5.43481e-06 2.78378e-06 2.78115e-06" />
-            <joint name="train-microwave-1_joint_17" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-44" name="train-microwave-1_g46" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-24" name="train-microwave-1_g47" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-44" name="train-microwave-1_g46_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-24" name="train-microwave-1_g47_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_18" pos="-0.455784 -0.541882 -0.22907" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-0.0903206 0.411412 0.00495393" quat="-0.00870997 0.707735 0.00871353 0.706371" mass="0.0154121" diaginertia="5.43422e-06 2.78341e-06 2.78114e-06" />
-            <joint name="train-microwave-1_joint_18" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.004" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-43" name="train-microwave-1_g48" rgba="0.5 0 0 1" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="0" mesh="train-microwave-1_original-26" name="train-microwave-1_g49" rgba="0.5 0 0 1" />
-        <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-43" name="train-microwave-1_g48_visual" conaffinity="0" contype="0" mass="1e-8" />
-            <geom pos="-0.541882 0.22907 -0.455784" type="mesh" group="1" mesh="train-microwave-1_original-26" name="train-microwave-1_g49_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-        <body name="train-microwave-1_link_19" pos="0.0518395 0.111487 0" quat="0.5 0.5 -0.5 -0.5">
-            <inertial pos="-5.69581e-08 -0.222454 -3.02447e-09" quat="0.707107 0 0 0.707107" mass="8.33956" diaginertia="0.417774 0.209422 0.209422" />
-            <joint name="train-microwave-1_joint_19" pos="0 0 0" axis="0 1 0" />
-            <geom pos="0.111487 0 0.0518395" type="mesh" group="0" mesh="train-microwave-1_original-10" name="train-microwave-1_g50" rgba="0.5 0 0 1" />
-        <geom pos="0.111487 0 0.0518395" type="mesh" group="1" mesh="train-microwave-1_original-10" name="train-microwave-1_g50_visual" conaffinity="0" contype="0" mass="1e-8" />
-        </body>
-    <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_original-12" conaffinity="0" contype="0" name="train-microwave-1_g0_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_new-4" conaffinity="0" contype="0" name="train-microwave-1_g1_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_original-49" conaffinity="0" contype="0" name="train-microwave-1_g2_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_original-51" conaffinity="0" contype="0" name="train-microwave-1_g3_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_original-1" conaffinity="0" contype="0" name="train-microwave-1_g4_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_original-50" conaffinity="0" contype="0" name="train-microwave-1_g5_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_new-3" conaffinity="0" contype="0" name="train-microwave-1_g6_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_new-2" conaffinity="0" contype="0" name="train-microwave-1_g7_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_new-1" conaffinity="0" contype="0" name="train-microwave-1_g8_visual" mass="1e-8" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="1" mesh="train-microwave-1_new-0" conaffinity="0" contype="0" name="train-microwave-1_g9_visual" mass="1e-8" />
-        <site pos="0 0 0" size="0.002 0.002 0.002" rgba="1 0 0 0" type="sphere" group="0" name="train-microwave-1_default_site" /></body>
+<root><body name="door_original_main">
+          <body name="door_original_frame" pos="0 0.22 0" quat="0.707388 0 0 -0.706825">
+              <inertial pos="0.3 0 0" quat="0.5 0.5 0.5 0.5" mass="7.85398" diaginertia="0.923301 0.764585 0.168533" />
+              <geom size="0.03 0.3" pos="0.555 0 0" type="cylinder" rgba="1 1 1 1" group="1" name="door_original_r_frame" />
+              <geom size="0.03 0.3" pos="0.045 0 0" type="cylinder" rgba="1 1 1 1" group="1" name="door_original_l_frame" />
+              <body name="door_original_door" pos="0.3 0 0">
+                  <inertial pos="0.0296816 -0.00152345 0" quat="0.701072 0 0 0.713091" mass="2.43455" diaginertia="0.0913751 0.0521615 0.043714" />
+                  <joint name="door_original_hinge" pos="0.255 0 0" axis="0 0 1" range="0.0 1.0" damping="1" frictionloss="1" limited="true" />
+                  <site name="door_original_hinge_site" pos="0.255 0 0" rgba="0 0 0 0" size="0.005" />
+                  <geom size="0.22 0.02 .29" type="box" friction="1 1 1" group="1" name="door_original_panel" material="door_original_MatDarkWood" />
+                  <body name="door_original_latch" pos="-0.175 0 -0.025">
+                      <inertial pos="-0.017762 0.0138544 0" quat="0.365653 0.605347 -0.36522 0.605365" mass="0.1" diaginertia="0.0483771 0.0410001 0.0111013" />
+                      <geom fromto="0 0 0 0 -0.125 0" size="0.025" type="cylinder" group="1" name="door_original_handle_base" material="door_original_MatMetal" />
+                      <geom size="0.075 0.015 0.02" pos="0.075 -0.10 0" type="box" group="1" name="door_original_handle" material="door_original_MatMetal" />
+                      
+                      <site name="door_original_handle" pos="0.125 -0.10 0" size="0.02" rgba="0 0 1 0" />
+                  </body>
+              </body>
+          </body>
+        <site pos="0 0 0" size="0.002 0.002 0.002" rgba="1 0 0 0" type="sphere" group="0" name="door_original_default_site" /></body>
         </root>
