@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 # from env.robo
 # from aograsp.run_pointscore_inference import get_heatmap 
 from scipy.spatial.transform import Rotation as R 
-from robosuite.utils.transform_utils import quat2mat
+from robosuite.utils.transform_utils import *
 
 def set_camera_pose(env, camera_name, position, quaternion):
     sim = env.sim
@@ -52,6 +52,7 @@ controller_configs = suite.load_controller_config(default_controller=controller_
 env = suite.make(
     "RobotRevoluteOpening",
     robots="Panda",
+    obj_rotation=(np.pi/2, np.pi/2),
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
@@ -86,18 +87,45 @@ print('rotation matrix for [0.5, 0.5, 0.5, 0.5]: ')
 m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) 
 print(m1)
 
-print('rotation matrix for quat: ') 
-m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564]))  
-# m2 = quat2mat(np.array([0, 0, 0, 1]))
-print(m2)
+# print('rotation matrix for quat: ') 
+# m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564]))  
+# # m2 = quat2mat(np.array([0, 0, 0, 1]))
+# print(m2)
 
-M = np.dot(m1, m2) 
+# M = np.dot(m1, m2) 
+
+obj_quat = env.obj_quat 
+obj_quat = convert_quat(obj_quat, to='xyzw')
+print("obj_quat", obj_quat)
+rotation_mat_world = quat2mat(obj_quat)
+rotation_euler_world = mat2euler(rotation_mat_world)
+rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
+m3_world = quat2mat(obj_quat)
+# obj_quat = np.array([0.383, 0, 0, 0.924])
+
+m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously
+# m3 = np.eye(3)
+
+print('rotation matrix for quat: ') 
+m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
+print(m2)
+print("m3: ", m3)
+M = np.dot(m1,m2)
+M = np.dot(M, m3.T) 
+# M = np.dot( m3.T, m1)
+# M = np.dot(m2, M)
+# M = m1
+# M = np.dot(M, m2) 
+# M = np.dot(m3.T, M)
+# M = m1
 quat = R.from_matrix(M).as_quat() 
 print('Corresponding quaternion: ', quat)
 
 
 obj_pos = env.obj_pos 
-camera_trans = 2*np.array([-1.77542536, -0.02539806,  0.30146208])
+camera_trans = np.array([-0.77542536, -0.02539806,  0.30146208]) * 3
+camera_trans = np.dot(m3_world, camera_trans)
+print('camera_trans: ', camera_trans)
 # set_camera_pose(env, 'sideview', [-0.77542536, -0.02539806,  2.20146208], [-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])
 set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
 # display_camera_pose(env, 'frontview')
