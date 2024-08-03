@@ -48,14 +48,18 @@ class RobotRevoluteOpening(SingleArmEnv):
         renderer="mujoco",
         renderer_config=None,
         agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
-        agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
+        agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349], 
+
+        # Object rotation
+        obj_rotation=(np.pi, np.pi)
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
         self.available_objects = ["microwave"]
         assert object_type in self.available_objects, "Invalid object type! Choose from: {}".format(self.available_objects)
         self.object_type = object_type
-        self.object_model_idx = object_model_idx
+        self.object_model_idx = object_model_idx 
+        self.obj_rotation = obj_rotation
 
         super().__init__(
             robots=robots,
@@ -150,17 +154,17 @@ class RobotRevoluteOpening(SingleArmEnv):
             #     ensure_object_boundary_in_range=False, 
             #     reference_pos=(-0.6, -1.0, 0.5)
             # )
-            self.obj_pos = np.array([-0.6, -1, 0.6])
+            # self.obj_pos = np.array([-0.6, -1, 0.6])
 
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                x_range=[0, 0], #No randomization
-                y_range=[0, 0], #No randomization 
+                x_range=[1, 1], #No randomization
+                y_range=[1, 1], #No randomization 
                 z_offset=0.1,
                 # x_range=[0, 0], #No randomization
                 # y_range=[0,0], #No randomization
-                rotation=(0, 0 ), #No randomization
+                rotation=self.obj_rotation, #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=(-0.6, -1.0, 0.5)
@@ -185,7 +189,11 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.object_body_ids = dict()
         self.object_body_ids["drawer"] = self.sim.model.body_name2id(self.revolute_object.revolute_body)
         # self.revolute_object_handle_site_id = self.sim.model.site_name2id(self.revolute_object.important_sites["handle"])
-        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joints[0])
+        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joints[0]) 
+        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
+        self.obj_pos = self.sim.data.body_xpos[obj_id] 
+        self.obj_quat = self.sim.data.body_xquat[obj_id]
+        # self.obj_pos = self.sim.data.body_xpos[self.object_body_ids[self.revolute_object.revolute_body]]
 
     def _setup_observables(self):
         """
