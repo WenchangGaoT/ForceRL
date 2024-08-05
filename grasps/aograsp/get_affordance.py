@@ -12,8 +12,8 @@ import open3d as o3d
 # from train_model.test import load_conf
 import aograsp.viz_utils as v_utils
 import aograsp.model_utils as m_utils 
-import aograsp.data_utils.dataset_utils as d_utils 
-import aograsp.rotation_utils as r_utils
+import utils.aograsp_utils.dataset_utils as d_utils 
+import utils.aograsp_utils.rotation_utils as r_utils
 import copy
 
 

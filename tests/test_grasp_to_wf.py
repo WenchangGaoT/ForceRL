@@ -105,7 +105,7 @@ transformed_arrow = transform_arrow(arrow, position, quaternion)
 
 # Create a point cloud for visualization
 pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector(np.random.rand(100, 3))  # Example random points
+pcd.points = o3d.utility.Vector3dVector(np.random.rand(100, 3))  # Example random points 
 
 # Visualize the point cloud with the arrow
 o3d.visualization.draw_geometries([pcd, transformed_arrow])
