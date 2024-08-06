@@ -88,7 +88,15 @@ def get_pts_from_zfront_to_wf(pts_cf_arr, camera_info_path):
 def get_quat_from_zfront_to_wf(pts_quat_cf, camera_info_path): 
     '''
     Get the world frame point of a cf point. 
-    info_path: the path to the config of camera to calculate cf.
+    camera_info_path: the path to the config of camera to calculate cf. 
+        {
+            'data': {
+                'camera_config': {
+                    'trans': np.array(3,), 
+                    'quat': np.array(4,)
+                }
+            }
+        }
     '''
     if not os.path.exists(camera_info_path):
         raise ValueError(
@@ -135,6 +143,22 @@ def recover_pts_from_cam_to_wf(pts_cf_info_path, camera_info_path):
     return pts_wf_arr 
 
 def convert_proposal_to_wf(proposal_path, camera_info_path, pts_cf_info_path): 
+    '''
+    Convert the grasp proposals from normalized camera frame to world frame. 
+    proposal_path:
+        the path to the proposal npz file dumped from a dictionary with pickle.
+            {
+                'data': {
+                    'proposals': [
+                        (pts, quats, score),
+                        ...
+                    ],
+                    'cgn_grasps': [
+                        (pts, quats, score),
+                        ...
+                    ]
+            }
+    '''
     proposal_cf_dict = np.load(proposal_path, allow_pickle=True)['data'].item()  
     pts_cf_info_dict = np.load(pts_cf_info_path, allow_pickle=True) 
     proposals = proposal_cf_dict['proposals'] 
