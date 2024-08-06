@@ -3,6 +3,7 @@ Run pointscore inference on partial pointcloud
 """
 
 import os
+import pickle
 from argparse import ArgumentParser
 import numpy as np
 import torch
@@ -11,8 +12,9 @@ import open3d as o3d
 # from train_model.test import load_conf
 import aograsp.viz_utils as v_utils
 import aograsp.model_utils as m_utils 
-import aograsp.data_utils.dataset_utils as d_utils 
-import aograsp.rotation_utils as r_utils
+import utils.aograsp_utils.dataset_utils as d_utils 
+import utils.aograsp_utils.rotation_utils as r_utils
+import copy
 
 
 def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, info_path):
@@ -71,16 +73,24 @@ def inference_affordance(model, pcd_path, info_path, device, args):
         ########################################################
         # Convert loaded point cloud into c frame
         pts_arr = np.array(pcd.points) 
-        print(pts_arr)
+        # print(pts_arr)
         pts_arr = d_utils.get_aograsp_pts_in_cam_frame_z_front_with_info(pts_arr, info_path) 
-        print(pts_arr)
+        # print(pts_arr)
     else:
         raise ValueError(f"{pcd_ext} filetype not supported")
 
     # Recenter pcd to origin 
     # pcd = pcd.farthest_point_down_sample(4096)
     mean = np.mean(pts_arr, axis=0)
-    pts_arr -= mean
+    pts_arr_backup = copy.deepcopy(pts_arr)
+
+    pts_arr -= mean 
+    # pts_arr_backup = pts_arr
+
+    # # Save the converted points 
+    # pcd_cf = o3d.geometry.PointCloud() 
+    # pcd_cf.points = o3d.utility.Vector3dVector(pts_arr)
+    # o3d.io.write_point_cloud('point_clouds/camera_frame_temp_door.ply', pcd_cf)
 
     # Randomly shuffle points in pts
     np.random.shuffle(pts_arr)
@@ -91,7 +101,7 @@ def inference_affordance(model, pcd_path, info_path, device, args):
     print('Number of points: ', pts.shape[0])
     pts = torch.unsqueeze(pts, dim=0)
     input_dict = {"pcs": pts} 
-    print(pts)
+    # print(pts) 
 
     # Run inference
     print("Computing heatmap")
@@ -101,7 +111,18 @@ def inference_affordance(model, pcd_path, info_path, device, args):
 
     # Save heatmap point cloud 
     print(f'inference result: {test_dict.keys()}')
-    scores = test_dict["point_score_heatmap"][0].cpu().numpy()
+    scores = test_dict["point_score_heatmap"][0].cpu().numpy() 
+
+    # Save the converted points and the mean into a npz.
+    data_name = os.path.splitext(os.path.basename(pcd_path))[0] 
+    points_cf_dict = {
+        'pts_arr': pts_arr_backup, 
+        'mean': mean
+    } 
+    with open('outputs/'+data_name+'_cf_info.npz', 'wb') as f:
+        pickle.dump(points_cf_dict, f)
+    # np.savez('outputs/'+data_name+'_cf_info.npz', points_cf_dict)
+
     return test_dict, pts_arr
 
 def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data_name):

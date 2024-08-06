@@ -37,7 +37,7 @@ def display_camera_pose(env, camera_name):
     print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
     print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
 
-def get_aograsp_ply_config(environment_name, object_name, camera_pos, camera_quat, scale_factor=3, cfg_path='temp.npz', pcd_path='temp.ply', device='cuda:0', denoise=False):
+def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera_quat, scale_factor=3, cfg_path='temp.npz', pcd_path='temp.ply', device='cuda:0', denoise=False):
 
     # aograsp_model = m_utils.load_model(
     #     model_conf_path='models/grasp_models/ao-grasp/conf.pth', 
@@ -166,6 +166,6 @@ if __name__ == '__main__':
     parser.add_argument('--denoise', default=True)
     args = parser.parse_args()
 
-    get_aograsp_ply_config(args.environment_name, args.object_name, args.camera_pos, 
+    get_aograsp_ply_and_config(args.environment_name, args.object_name, args.camera_pos, 
                            args.camera_quat, args.scale_factor, args.cfg_path, args.pcd_path, denoise=args.denoise)
 
