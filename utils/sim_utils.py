@@ -19,7 +19,7 @@ def get_pointcloud(env, obs, camera_names,
         cam_heights = [cam_heights]
         cam_widths = [cam_widths]
     # get depth image, rgb image, segmentation image
-    print(obs.keys())
+    # print(obs.keys())
     masked_pcd_list = []
 
     for camera_name in camera_names:
