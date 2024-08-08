@@ -213,11 +213,11 @@ class MultipleRevoluteEnv(MujocoEnv):
             # tree = ET.ElementTree(self.revolute_object.get_obj().root)
             # tree.write(f)
 
-        import xml.etree.ElementTree as ET
-        root = ET.Element("root")
-        root.append(self.revolute_object.get_obj())
-        tree = ET.ElementTree(root)
-        tree.write("train-dishwasher-temp.xml", encoding="utf-8")
+        # import xml.etree.ElementTree as ET
+        # root = ET.Element("root")
+        # root.append(self.revolute_object.get_obj())
+        # tree = ET.ElementTree(root)
+        # tree.write("train-dishwasher-temp.xml", encoding="utf-8")
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -396,7 +396,13 @@ class MultipleRevoluteEnv(MujocoEnv):
         sample a point on the door to apply force, the point is relative to the door frame
         '''
         if not self.random_force_point:
-            return np.array([-0.,0.,0.5])
+
+            # TODO: for now we only have fixed force point for door_original
+            if self.object_name == "door_original":
+                return np.array([-0.2, 0, 0])
+            else:
+                raise NotImplementedError("For now we only have fixed force point for door_original")
+        
         else:
             # sample a point on the door panel according to the object type
             panel_size = self.train_object_force_point_bound[self.object_name]
@@ -404,16 +410,6 @@ class MultipleRevoluteEnv(MujocoEnv):
             y = np.random.uniform(panel_size[1][0], panel_size[1][1])
             z = np.random.uniform(panel_size[2][0], panel_size[2][1])
             return np.array([x,y,z])
-
-        # else:
-        #     # TODO: handle this to give correct revolute body size
-        #     panel_size = self.revolute_object.door_panel_size
-        #     # random sample a point on the door panel
-        #     x = np.random.uniform(-panel_size[0], 0)
-        #     y = 0
-        #     z = np.random.uniform(-panel_size[2], panel_size[2])
-        #     print("sampled force point: ", np.array([x,y,z*0.7]))
-        #     return np.array([x,y,z])
     
     def relative_force_point_to_world(self, relative_force_point):
         '''

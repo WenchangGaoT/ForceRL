@@ -46,16 +46,6 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         0.1
     ]
 
-    curriculas = [
-        (-0.25, 0.25),
-        (-np.pi / 2.0, 0), 
-        (-np.pi/2.0 - 0.25, -np.pi/2.0 + 0.25),
-        (-np.pi / 4.0, np.pi / 2.0),
-        (-np.pi / 2.0, np.pi / 2.0),
-        (0, np.pi),
-        (-np.pi, np.pi)
-    ] 
-
     # each curriculum is tuple (revolute_obj_pose, random_force_point, object_name)
     curriculas = [
          ((-0.25, 0.25), False, "single-obj"),
@@ -84,10 +74,11 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
     for curriculum_idx, current_curriculum in enumerate(curriculas):
 
-        available_objects_dict = MultipleRevoluteEnv.available_objects
+        available_objects_dict = MultipleRevoluteEnv.available_objects()
         current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
         # randomly choose an object from the available objects
         current_curriculum_object = np.random.choice(current_curriculum_available_objects)
+        print(f'Curriculum {curriculum_idx} is training with object {current_curriculum_object}')
 
 
         curriculum_env_kwargs = {
@@ -149,6 +140,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                                             ])
                 
                 cur_ep_rwds.append(reward)
+                # env.render()
 
                 action_projection = env.current_action_projection
                 cur_ep_projections.append(action_projection)
@@ -253,8 +245,18 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 if __name__ == "__main__":
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(file_dir)
     output_dir = os.path.join(file_dir, "outputs")
-    checkpoint_dir = os.path.join(output_dir, "checkpoints/force_policies")
+    checkpoint_dir = os.path.join(project_dir, "checkpoints/force_policies")
+
+    # create the output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # create the checkpoint directory if it does not exist
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+
     algo_name = "curriculum_door_continuous_random_point_td3"
     for trial in range(10):
         train(trial, output_dir, algo_name, checkpoint_dir)
