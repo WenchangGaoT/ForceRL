@@ -523,8 +523,10 @@ class MultipleRevoluteEnv(MujocoEnv):
     def _check_success(self):
         # TODO:implement this
         hinge_qpos = self.sim.data.qpos[self.hinge_qpos_addr]
+
+        hinge_pos_relative_to_range = (hinge_qpos - self.hinge_range[0]) / (self.hinge_range[1] - self.hinge_range[0])
         # open 30 degrees
-        return hinge_qpos > 0.8
+        return hinge_pos_relative_to_range > 0.8
     
     def reward(self, action = None):
         if self._check_success() and self.first_success == True:

@@ -47,12 +47,24 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
     ]
 
     # each curriculum is tuple (revolute_obj_pose, random_force_point, object_name)
+    # curriculas = [
+    #      ((-0.25, 0.25), True, "door-like"),
+    #      ((-np.pi / 2.0, 0), False, "single-obj"),
+    #      ((-np.pi / 2.0, np.pi / 2.0), False, "single-obj"),
+    #      ((-np.pi, 0), False, "single-obj"),
+    #      ((-np.pi, np.pi), False, "single-obj"),
+    #      ((-np.pi, np.pi), True, "single-obj"),
+    #      ((-np.pi, np.pi), True, "door-like"),
+    #      ((-np.pi, np.pi), True, "dishwasher-like"),
+    #      ((-np.pi, np.pi), True, "all"),
+    # ]
+
     curriculas = [
-         ((-0.25, 0.25), False, "single-obj"),
-         ((-np.pi / 2.0, 0), False, "single-obj"),
-         ((-np.pi / 2.0, np.pi / 2.0), False, "single-obj"),
-         ((-np.pi, 0), False, "single-obj"),
-         ((-np.pi, np.pi), False, "single-obj"),
+         ((-0.25, 0.25), True, "door-like"),
+         ((-np.pi / 2.0, 0), True, "door-like"),
+         ((-np.pi / 2.0, np.pi / 2.0), True, "door-like"),
+         ((-np.pi, 0), True, "door-like"),
+         ((-np.pi, np.pi), True, "single-obj"),
          ((-np.pi, np.pi), True, "single-obj"),
          ((-np.pi, np.pi), True, "door-like"),
          ((-np.pi, np.pi), True, "dishwasher-like"),
@@ -65,41 +77,17 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         200, 
         200, 
         300, 
-        200, 
         300,
         300, 
         300,
+        300,
     ]
+
+    assert len(curriculas) == len(episodes_schedule), "The length of curriculas and episodes_schedule should be the same."
 
 
     for curriculum_idx, current_curriculum in enumerate(curriculas):
 
-        available_objects_dict = MultipleRevoluteEnv.available_objects()
-        current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
-        # randomly choose an object from the available objects
-        current_curriculum_object = np.random.choice(current_curriculum_available_objects)
-        print(f'Curriculum {curriculum_idx} is training with object {current_curriculum_object}')
-
-
-        curriculum_env_kwargs = {
-            "init_door_angle": current_curriculum[0],
-            "has_renderer": False,
-            "has_offscreen_renderer": False,
-            "use_camera_obs": False,
-            "control_freq": 20,
-            "horizon": max_timesteps,
-            "reward_scale": 1.0,
-            "random_force_point": current_curriculum[1],
-            "object_name": current_curriculum_object
-        }
-
-        # Environment initialization
-        raw_env = suite.make(
-            "MultipleRevoluteEnv", 
-            **curriculum_env_kwargs
-            )
-        
-        env: MultipleRevoluteEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
 
         # some list to record training data
         cur_curriculum_rewards = []
@@ -110,7 +98,34 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         cur_noise_idx = 0
 
         for episodes in range(episodes_schedule[curriculum_idx]):
+            
 
+            available_objects_dict = MultipleRevoluteEnv.available_objects()
+            current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
+            # randomly choose an object from the available objects
+            current_curriculum_object = np.random.choice(current_curriculum_available_objects)
+            print(f'episode {episodes} is training with object {current_curriculum_object}')
+
+
+            curriculum_env_kwargs = {
+                "init_door_angle": current_curriculum[0],
+                "has_renderer": False,
+                "has_offscreen_renderer": False,
+                "use_camera_obs": False,
+                "control_freq": 20,
+                "horizon": max_timesteps,
+                "reward_scale": 1.0,
+                "random_force_point": current_curriculum[1],
+                "object_name": current_curriculum_object
+            }
+
+            # Environment initialization
+            raw_env = suite.make(
+                "MultipleRevoluteEnv", 
+                **curriculum_env_kwargs
+                )
+        
+            env: MultipleRevoluteEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
             cur_ep_rwds = [] 
             cur_ep_projections = []
             
@@ -159,6 +174,8 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                     cur_curriculum_rewards.append(np.sum(cur_ep_rwds))
                     cur_curriculum_successes.append(episode_success) # The task is considered success if reward >= 800.
                     cur_curriculum_projections.append(np.mean(cur_ep_projections))
+
+                    env.close()
                     break
 
             cur_curriculum_latest_rwd = np.mean(cur_curriculum_rewards[max(-20, -episodes):]) 
@@ -174,6 +191,35 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                 print(f'Curriculum {curriculum_idx} is finished training. Evaluating.') 
 
                 for ep in range(rollouts):
+
+                    # make the environments  
+                    available_objects_dict = MultipleRevoluteEnv.available_objects()
+
+                    current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
+                    # randomly choose an object from the available objects
+                    current_curriculum_object = np.random.choice(current_curriculum_available_objects)
+                    print(f'episode {episodes} is training with object {current_curriculum_object}')
+
+
+                    curriculum_env_kwargs = {
+                        "init_door_angle": current_curriculum[0],
+                        "has_renderer": True,
+                        "has_offscreen_renderer": True,
+                        "use_camera_obs": False,
+                        "control_freq": 20,
+                        "horizon": max_timesteps,
+                        "reward_scale": 1.0,
+                        "random_force_point": current_curriculum[1],
+                        "object_name": current_curriculum_object
+                    }
+
+                    # Environment initialization
+                    raw_env = suite.make(
+                        "MultipleRevoluteEnv", 
+                        **curriculum_env_kwargs
+                        )
+                
+                    env: MultipleRevoluteEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
 
                     cur_ep_eval_ep_rwds = [] 
                     cur_ep_eval_projections = []
@@ -203,6 +249,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                         action_projection = env.current_action_projection
                         cur_ep_eval_ep_rwds.append(reward)
                         cur_ep_eval_projections.append(action_projection) 
+                        env.render()
 
                         state = next_state
 
@@ -213,6 +260,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                             cur_run_eval_rwds.append(np.sum(cur_ep_eval_ep_rwds)) 
                             cur_run_eval_projections.append(np.mean(cur_ep_eval_projections))
                             cur_run_eval_success_rates.append(current_episode_success)
+                            env.close()
                             break
 
                 print(f'Curriculum {curriculum_idx} gets {np.mean(cur_run_eval_rwds[-rollouts:])} average rewards per episode, {np.mean(cur_run_eval_success_rates[-rollouts:])} success rates')
