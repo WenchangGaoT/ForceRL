@@ -139,7 +139,7 @@ class SelectedMicrowaveObject(MujocoXMLObject):
 
     def __init__(self, name, microwave_number):
 
-        available_numbers = [1]
+        available_numbers = [1, 2, 3, 4]
         assert microwave_number in available_numbers, "Microwave number must be one of {}".format(available_numbers)
 
         xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml"
