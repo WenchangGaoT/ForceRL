@@ -51,7 +51,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349], 
 
         # Object rotation
-        obj_rotation=(np.pi, np.pi)
+        obj_rotation=(np.pi, np.pi), 
+        move_robot_away=True
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -59,7 +60,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         assert object_type in self.available_objects, "Invalid object type! Choose from: {}".format(self.available_objects)
         self.object_type = object_type
         self.object_model_idx = object_model_idx 
-        self.obj_rotation = obj_rotation
+        self.obj_rotation = obj_rotation 
+        self.move_robot_away = move_robot_away
 
         super().__init__(
             robots=robots,
@@ -110,7 +112,19 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         ################################################################################################
         
-    
+    # def move_robot_away(self): 
+    #     print('Moving robot away')
+    #     xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
+    #     xpos = (20, xpos[1], xpos[2]) 
+    #     self.robots[0].robot_model.set_base_xpos(xpos) 
+    #     # self.sim.data.qpos[self.robots[0].robot_model.joint_qposadr[:3]] = xpos
+    #     # self.robots[0].set_robot_joint_positions(xpos) 
+    #     self.sim.forward()
+
+    # def move_robot_back(self): 
+    #     print('Moving robot back')
+    #     self.robots[0].robot_model.set_base_xpos(self.robot_init_xpos)
+    #     self.sim.forward()
 
     def _load_model(self):
         """
@@ -119,9 +133,11 @@ class RobotRevoluteOpening(SingleArmEnv):
         super()._load_model()
 
         # set robot position
-        xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
-        xpos = (20, xpos[1], xpos[2]) # Move the robot away
-        self.robots[0].robot_model.set_base_xpos(xpos)
+        xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0]) 
+        self.robot_init_xpos = xpos
+        if self.move_robot_away:
+            xpos = (20, xpos[1], xpos[2]) # Move the robot away
+            self.robots[0].robot_model.set_base_xpos(xpos)
 
         # set empty arena
         mujoco_arena = EmptyArena()

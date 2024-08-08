@@ -111,6 +111,7 @@ if __name__ == "__main__":
     ) 
 
     obs = env.reset() 
+    # env.move_robot_away()
     print('camera width and height: ', env.camera_widths, env.camera_heights)
 
     print('rotation matrix for [0.5, 0.5, 0.5, 0.5]: ') 
@@ -190,11 +191,27 @@ if __name__ == "__main__":
     else:
 
         # do visualization
-        for i in range(10000):
+        for i in range(5000):
             action = np.random.uniform(low, high)
             # action = np.zeros(3)
             obs, reward, done, _ = env.step(action)
-            env.render()
+            env.render() 
+        env = suite.make(
+        **options,
+        has_renderer=False if renderer != "mujoco" else True,  # no on-screen renderer
+        has_offscreen_renderer=True,  # no off-screen renderer
+        ignore_done=True,
+        use_camera_obs=True,  # no camera observations
+        control_freq=20,
+        renderer=renderer, 
+        move_robot_away=False
+        ) 
+        
+        for i in range(5000):
+            action = np.random.uniform(low, high)
+            # action = np.zeros(3)
+            obs, reward, done, _ = env.step(action)
+            env.render() 
 
     env.close_renderer()
     print("Done.")
