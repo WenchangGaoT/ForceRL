@@ -1,5 +1,5 @@
 """
-Run pointscore inference on partial pointcloud
+Use `cgn` conda environment
 """
 
 import os
@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 import numpy as np
 # import torch
 import open3d as o3d
+import pickle
 
 # from train_model.test import load_conf
 # import aograsp.viz_utils as v_utils
@@ -127,26 +128,26 @@ def get_quat_from_zfront_to_wf(pts_quat_cf, camera_info_path):
 
     return pts_quat_wf 
 
-def recover_pts_from_cam_to_wf(pts_cf_info_path, camera_info_path): 
+def recover_pts_from_cam_to_wf(pts_cf_path, camera_info_path): 
     '''
     Recover the camera frame point cloud to world frame point cloud. 
     pts_cf_path:
-        the path to the camera frame point cloud information npz file dumped from a dictionary with pickle.
-            {
-                'pts_arr': np.array([...]),
-                'mean': np.array([...])
-            }
+        the path to the camera frame point cloud ply file. Usually stored in 'outputs/camera_frame_pointclouds/camera_frame_$(object_name).ply' 
+    camera_info_path:
+        the path to the camera info npz file. Usually stored in "infos/$(object_name)_camera_info.npz"
     '''
-    pts_cf_info_dict = np.load(pts_cf_info_path, allow_pickle=True) 
-    pts_cf_arr = pts_cf_info_dict['pts_arr']
+    pts_cf = o3d.io.read_point_cloud(pts_cf_path)
+    pts_cf_arr = np.array(pts_cf.points)
+    # pts_cf_info_dict = np.load(pts_cf_info_path, allow_pickle=True) 
+    # pts_cf_arr = pts_cf_info_dict['pts_arr']
     pts_wf_arr = get_pts_from_zfront_to_wf(pts_cf_arr, camera_info_path) 
     return pts_wf_arr 
 
-def convert_proposal_to_wf(proposal_path, camera_info_path, pts_cf_info_path): 
+def convert_proposal_to_wf(proposal_path, camera_info_path, pts_cf_path): 
     '''
     Convert the grasp proposals from normalized camera frame to world frame. 
     proposal_path:
-        the path to the proposal npz file dumped from a dictionary with pickle.
+        the path to the proposal npz file dumped from a dictionary with pickle. Usually stored in "outputs/grasp_proposals/camera_frame_proposals/camera_frame_$(object_name)_grasp.npz"
             {
                 'data': {
                     'proposals': [
@@ -160,14 +161,17 @@ def convert_proposal_to_wf(proposal_path, camera_info_path, pts_cf_info_path):
             }
     '''
     proposal_cf_dict = np.load(proposal_path, allow_pickle=True)['data'].item()  
-    pts_cf_info_dict = np.load(pts_cf_info_path, allow_pickle=True) 
+    pts_cf = o3d.io.read_point_cloud(pts_cf_path)
+    pts_cf_arr = np.array(pts_cf.points)
+    # pts_cf_info_dict = np.load(pts_cf_info_path, allow_pickle=True) 
     proposals = proposal_cf_dict['proposals'] 
     cgn_grasps = proposal_cf_dict['cgn_grasps'] 
     proposal_points_cf = np.array([p[0] for p in proposals]) 
     proposal_quats_cf = np.array([p[1] for p in proposals]) 
     proposal_scores = np.array([p[2] for p in proposals]) 
     
-    proposal_points_cf += pts_cf_info_dict['mean']
+    # proposal_points_cf += pts_cf_info_dict['mean'] 
+    proposal_points_cf += np.mean(pts_cf_arr, axis=0)
     proposal_points_wf = get_pts_from_zfront_to_wf(proposal_points_cf, camera_info_path) 
     proposal_quats_wf = get_quat_from_zfront_to_wf(proposal_quats_cf, camera_info_path) 
 
@@ -184,20 +188,42 @@ def get_grasp_proposals(score_path):
     '''
     get the grasp proposals and return the tuple list
     '''
+    pass 
+
+def store_world_frame_grasp_proposals(grasp_pos_wf, grasp_quat_wf, scores, cgn_gs, output_path): 
+    '''
+    store the grasp proposals in the world frame. Usually stores in "outputs/grasp_proposals/world_frame_proposals/world_frame_$(object_name)_grasp.npz"
+    Stored npz structure:
+        {
+        'pos': [np.array(3,), ...], 
+        'quat': [np.array(4,), ...], 
+        'scores': [float, ...],
+        'cgn_gs': [np.array(3,), np.array(4,), float, ...] 
+        }
+    ''' 
+    wf_grasp_dict = {
+        'pos': grasp_pos_wf, 
+        'quat': grasp_quat_wf, 
+        'scores': scores,
+        'cgn_gs': cgn_gs
+    }
+    with open(output_path, 'wb') as f: 
+        pickle.dump(wf_grasp_dict, f)
     pass
 
 
 if __name__ == '__main__': 
     parser = ArgumentParser() 
     # parser.add_argument('--pcd_path', type=str) 
-    parser.add_argument('--pcd_cf_info_path', type=str)
+    parser.add_argument('--pcd_cf_path', type=str)
     parser.add_argument('--camera_info_path', type=str)  
-    parser.add_argument('--proposal_path', type=str) 
+    parser.add_argument('--proposal_cf_path', type=str) 
     parser.add_argument('--top_k', type=int, default=10)
 
     args = parser.parse_args()  
-    pts_wf_arr = recover_pts_from_cam_to_wf(args.pcd_cf_info_path, args.camera_info_path)
-    g_pos_wf, g_quat_wf, scores, cgn_gs = convert_proposal_to_wf(args.proposal_path, args.camera_info_path, args.pcd_cf_info_path) 
+    pts_wf_arr = recover_pts_from_cam_to_wf(args.pcd_cf_path, args.camera_info_path)
+    g_pos_wf, g_quat_wf, scores, cgn_gs = convert_proposal_to_wf(args.proposal_cf_path, args.camera_info_path, args.pcd_cf_path) 
+    store_world_frame_grasp_proposals(g_pos_wf, g_quat_wf, scores, cgn_gs, 'outputs/grasp_proposals/world_frame_proposals/world_frame_temp_door_grasp.npz')
     eef_pos_list = [g for g in g_pos_wf] 
     eef_quat_list = [g for g in g_quat_wf] 
     sorted_grasp_tuples = [(g_pos_wf[i], g_quat_wf[i], scores[i]) for i in range(len(g_pos_wf))] 

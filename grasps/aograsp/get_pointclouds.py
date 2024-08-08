@@ -23,7 +23,8 @@ from env.robot_drawer_opening import RobotDrawerOpening
 from env.original_door_env import OriginalDoorEnv 
 from env.camera_door_env import CameraDoorEnv
 from scipy.spatial.transform import Rotation as R 
-from robosuite.utils.transform_utils import *
+from robosuite.utils.transform_utils import * 
+import utils.sim_utils as s_utils
 
 def set_camera_pose(env, camera_name, position, quaternion):
     sim = env.sim
@@ -37,13 +38,11 @@ def display_camera_pose(env, camera_name):
     print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
     print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
     
-def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera_quat, scale_factor=3, cfg_path='temp.npz', pcd_path='temp.ply', device='cuda:0', denoise=False):
-
-    # aograsp_model = m_utils.load_model(
-    #     model_conf_path='models/grasp_models/ao-grasp/conf.pth', 
-    #     ckpt_path='models/grasp_models/ao-grasp/770-network.pth'
-    # ) 
-    # aograsp_model.to(torch.device(device))
+def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera_quat, scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', device='cuda:0', denoise=True):
+    '''
+    Get the segmented object point cloud from the environment in world frame and stores it in `pcd_wf_path`. This is in the format of "point_clouds/world_frame_pointclouds/world_frame_$(object_name).ply".
+    Stores the camera information into `pcd_wf_path`. This is in the format of "infos/$(object_name)_camera_info.npz".
+    '''
 
     controller_name = "OSC_POSE"
     controller_configs = suite.load_controller_config(default_controller=controller_name)
@@ -65,44 +64,37 @@ def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera
     )
 
     obs = env.reset() 
-    print('rotation matrix for [-0.5, -0.5, 0.5, 0.5]: ') 
-    m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) # Camera local frame to world frame front, set camera fram
-    print(m1)
+    # print('rotation matrix for [-0.5, -0.5, 0.5, 0.5]: ') 
+    # m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) # Camera local frame to world frame front, set camera fram
+    # # print(m1)
 
-    # obj_quat = env.obj_quat
+    # obj_quat = env.obj_quat 
     # obj_quat = convert_quat(obj_quat, to='xyzw')
-    # m3 = quat2mat(obj_quat)# Turn camera and microwave simultaneously
+    # rotation_mat_world = quat2mat(obj_quat)
+    # rotation_euler_world = mat2euler(rotation_mat_world)
+    # rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
+    # m3_world = quat2mat(obj_quat)
+    # # obj_quat = np.array([0.383, 0, 0, 0.924])
+
+    # m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously
+    # # m3 = np.eye(3)
 
     # print('rotation matrix for quat: ') 
+    # # m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
+
     # m2 = quat2mat(np.array(camera_quat)) # Turn camera to microwave
-    # print(m2)
+    # M = np.dot(m1,m2)
+    # M = np.dot(M, m3.T) 
+    # quat = R.from_matrix(M).as_quat() 
+    # print('Corresponding quaternion: ', quat)
 
-    obj_quat = env.obj_quat 
-    obj_quat = convert_quat(obj_quat, to='xyzw')
-    rotation_mat_world = quat2mat(obj_quat)
-    rotation_euler_world = mat2euler(rotation_mat_world)
-    rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
-    m3_world = quat2mat(obj_quat)
-    # obj_quat = np.array([0.383, 0, 0, 0.924])
+    # obj_pos = env.obj_pos 
+    # camera_pos = np.array(camera_pos)
+    # camera_trans = scale_factor*camera_pos 
+    # camera_trans = np.dot(m3_world, camera_trans) 
 
-    m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously
-    # m3 = np.eye(3)
-
-    print('rotation matrix for quat: ') 
-    m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
-    print(m2)
-    print("m3: ", m3)
-    M = np.dot(m1,m2)
-    M = np.dot(M, m3.T) 
-    quat = R.from_matrix(M).as_quat() 
-    print('Corresponding quaternion: ', quat)
-
-    obj_pos = env.obj_pos 
-    camera_pos = np.array(camera_pos)
-    camera_trans = scale_factor*camera_pos 
-    camera_trans = np.dot(m3_world, camera_trans) 
-
-    set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
+    # set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
+    s_utils.init_camera_pose(env, camera_pos, scale_factor)
     display_camera_pose(env, 'sideview') 
     low, high = env.action_spec
     obs, reward, done, _ = env.step(np.zeros_like(low))
@@ -123,21 +115,21 @@ def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera
     pointcloud.points = o3d.utility.Vector3dVector(obs_arr)
     pts_arr = np.array(pointcloud.points)
 
-    o3d.io.write_point_cloud(pcd_path, pointcloud) 
-    print(f'point cloud saved to {pcd_path}') 
+    o3d.io.write_point_cloud(pcd_wf_path, pointcloud) 
+    print(f'World frame point cloud saved to {pcd_wf_path}') 
 
-    pts_npz = {
-        'data': {
-            'pts': pts_arr, 
-            'obj_pos': np.array(env.obj_pos), 
-            'obj_quat': np.array(env.obj_quat)
-            }
-        }
+    # pts_npz = {
+    #     'data': {
+    #         'pts': pts_arr, 
+    #         'obj_pos': np.array(env.obj_pos), 
+    #         'obj_quat': np.array(env.obj_quat)
+    #         }
+    #     }
     
-    np.save(f"{pcd_path}.npz", pts_npz) 
-    with open(f'{pcd_path}.npz', 'wb') as f:
-        pickle.dump(pts_npz, f)
-    print(f'point cloud npz saved to {pcd_path}.npz')
+    # np.save(f"{pcd_path}.npz", pts_npz) 
+    # with open(f'{pcd_path}.npz', 'wb') as f:
+    #     pickle.dump(pts_npz, f)
+    # print(f'point cloud npz saved to {pcd_path}.npz')
 
     camera_config = {'data': {
                         'camera_config': {
@@ -147,7 +139,7 @@ def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera
                         }
                     }
                 } 
-    with open(cfg_path, 'wb') as f:
+    with open(camera_info_path, 'wb') as f:
         pickle.dump(camera_config, f)
     env.close()
 
@@ -160,12 +152,12 @@ if __name__ == '__main__':
     parser.add_argument('--camera_quat', default=[-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])
     # parser.add_argument('--output_dir', type=str, default='outputs/')
     parser.add_argument('--scale_factor', default=3)
-    parser.add_argument('--pcd_path', type=str, default='point_clouds/temp_door.ply') 
-    parser.add_argument('--cfg_path', type=str, default='temp_door_camera.npz')
+    parser.add_argument('--pcd_wf_path', type=str, default='point_clouds/world_frame_pointclouds/world_frame_temp_door.ply') 
+    parser.add_argument('--camera_info_path', type=str, default='temp_door_camera.npz')
     parser.add_argument('--device', type=str, default='cuda:0') 
     parser.add_argument('--denoise', default=True)
     args = parser.parse_args()
 
     get_aograsp_ply_and_config(args.environment_name, args.object_name, args.camera_pos, 
-                           args.camera_quat, args.scale_factor, args.cfg_path, args.pcd_path, denoise=args.denoise)
+                           args.camera_quat, args.scale_factor, args.camera_info_path, args.pcd_cf_path, denoise=args.denoise)
 
