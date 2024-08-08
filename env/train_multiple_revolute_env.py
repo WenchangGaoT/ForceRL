@@ -79,6 +79,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.video_height = video_height 
         self.cache_video = save_video
 
+        
         self.object_name = object_name
         assert self.object_name in ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"], "Invalid object name"
         # save bounds for relative force point for each object, (lower bound, upper bound, axis)
@@ -618,3 +619,17 @@ class MultipleRevoluteEnv(MujocoEnv):
             # print('success')
             done = True
         return next_state, reward, done, info
+    
+    @property
+    def success(self):
+        return self._check_success()
+
+    @classmethod
+    def available_objects(cls):
+        available_objects = {
+            "single-obj": ["door_original"],
+            "door-like": ["door_original", "train-door-counterclock-1", "train-microwave-1"],
+            "dishwasher-like": ["train-dishwasher-1"],
+            "all": ["door_original", "train-door-counterclock-1", "train-microwave-1", "train-dishwasher-1"]
+        }
+        return available_objects

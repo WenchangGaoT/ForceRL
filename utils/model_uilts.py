@@ -10,6 +10,7 @@ import mujoco
 
 import trimesh
 import numpy as np
+import argparse
 
 
 
@@ -51,6 +52,7 @@ def convert_obj_to_stl(file_dir, output_dir):
         mesh.export(file_obj=os.path.join(output_dir, obj_file.replace('.obj', '.stl')))
         print(f"Converted {obj_file} to {obj_file.replace('.obj', '.stl')}")
     print(f"Converted {len(obj_files)} obj files to stl files")
+
 
 def ascii_to_binary_stl(file_dir, outpur_dir):
     # convert all ascii stl files to binary stl files for mujoco
@@ -100,6 +102,41 @@ def extrude_2d_meshes(file_dir, output_dir):
         else:
             # copy the mesh to the output directory
             copyfile(stl_path, os.path.join(output_dir, stl_file))
+
+def preprocess_meshes(file_dir, output_dir):
+    # read obj, extrude them, and save them as binary stl
+
+    # find all obj files in the directory
+    obj_files = [f for f in os.listdir(file_dir) if f.endswith('.obj')]
+    # create output directory if it does not exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    for obj_file in obj_files:
+        obj_path = os.path.join(file_dir, obj_file)
+        mesh = trimesh.load(obj_path)
+        # check if the mesh is 2D using watertight
+        if is_2d_plane(mesh):
+            print(f"Extruding {obj_file} to 3D mesh")
+            # get the outline of the mesh, move it to 2D, save the transform
+            # on_plane, to_3D = mesh.outline().to_planar()
+            # # extrude the outline into a solid    
+            # extrude = on_plane.extrude(0.01)                                                          
+            # extrude = on_plane.extrude(0.01).to_mesh().apply_transform(to_3D)
+            # assert extrude.is_watertight, "Extruded mesh is not watertight"
+            # trimesh.Scene([extrude, mesh]).show()
+
+            # extrude the mesh
+            extrude = extrude_single_2d_mesh(mesh, 0.001)
+            # show the extruded mesh
+            trimesh.Scene([extrude, mesh]).show()
+
+            # save the extruded mesh
+            extrude.export(file_obj=os.path.join(output_dir, obj_file.replace('.obj', '.stl')), file_type='stl')
+        else:
+            # export the mesh as stl
+            print(f"Converting {obj_file} to stl")
+            mesh.export(file_obj=os.path.join(output_dir, obj_file).replace('.obj', '.stl'), file_type='stl')
 
 
 def extrude_single_2d_mesh(mesh, extrusion_height):
@@ -187,23 +224,38 @@ def is_2d_plane(mesh):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 4:
-        print_usage()
-        exit(0)
+    # if len(sys.argv) != 4:
+    #     print_usage()
+    #     exit(0)
 
-    func_name = sys.argv[1]
-    input_dir = sys.argv[2]
-    output_dir = sys.argv[3]
-    # execute the function
-    if func_name == "convert_obj_to_stl":
-        convert_obj_to_stl(input_dir, output_dir)
-    elif func_name == "ascii_to_binary_stl":
-        ascii_to_binary_stl(input_dir, output_dir)
-    elif func_name == "compile_mjcf_model":
-        compile_mjcf_model(input_dir, output_dir)
-    elif func_name == "extrude_2d_meshes":
-        extrude_2d_meshes(input_dir, output_dir)
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-i', '--input', type=str, help='input directory')
+    parser.add_argument('-o', '--output', type=str, help='output directory')
+    parser.add_argument('-f', '--func', type=str, help='function to execute', default="preprocess_meshes")
+
+    args = parser.parse_args()
+
+    if args.func == "preprocess_meshes":
+        preprocess_meshes(args.input, args.output)
     else:
-        print(f"Function {func_name} not found")
-        print_usage()
-        exit(0)
+        raise NotImplementedError(f"Function {args.func} not implemented")
+
+
+    # func_name = sys.argv[1]
+    # input_dir = sys.argv[2]
+    # output_dir = sys.argv[3]
+    # # execute the function
+    # if func_name == "convert_obj_to_stl":
+    #     convert_obj_to_stl(input_dir, output_dir)
+    # elif func_name == "ascii_to_binary_stl":
+    #     ascii_to_binary_stl(input_dir, output_dir)
+    # elif func_name == "compile_mjcf_model":
+    #     compile_mjcf_model(input_dir, output_dir)
+    # elif func_name == "extrude_2d_meshes":
+    #     extrude_2d_meshes(input_dir, output_dir)
+    # elif func_name == "convert_mtl_to_stl":
+    #     convert_mtl_to_stl(input_dir, output_dir)
+    # else:
+    #     print(f"Function {func_name} not found")
+    #     print_usage()
+    #     exit(0)
