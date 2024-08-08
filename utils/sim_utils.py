@@ -3,6 +3,8 @@ import open3d as o3d
 import robosuite.utils.camera_utils as camera_utils
 import os
 import copy
+from scipy.spatial.transform import Rotation as R 
+from robosuite.utils.transform_utils import quat2mat, mat2euler, convert_quat, euler2mat
 
 def flip_image(image):
     return np.flip(image, 0)
@@ -112,4 +114,43 @@ def close_gripper(env):
 def fill_custom_xml_path(xml_path):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     abs_xml_path = os.path.join(base_dir, "sim_models", xml_path)
-    return abs_xml_path
+    return abs_xml_path 
+
+def set_camera_pose(env, camera_name, position, quaternion):
+    sim = env.sim
+    cam_id = sim.model.camera_name2id(camera_name)
+    sim.model.cam_pos[cam_id] = position
+    sim.model.cam_quat[cam_id] = quaternion
+    sim.forward() 
+
+def display_camera_pose(env, camera_name):
+    cam_id = env.sim.model.camera_name2id(camera_name)
+    print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
+    print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
+
+def init_camera_pose(env, camera_pos, scale_factor):
+    '''
+    Converts the camera pose to the fixed relative pose of the object in the environment
+    '''
+    m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) # Camera local frame to world frame front, set camera fram
+    
+    obj_quat = env.obj_quat # wxyz
+    obj_quat = convert_quat(obj_quat, to='xyzw')
+    rotation_mat_world = quat2mat(obj_quat)
+    rotation_euler_world = mat2euler(rotation_mat_world)
+    rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
+    
+    m3_world = quat2mat(obj_quat)
+    m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously    
+    m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
+
+    M = np.dot(m1,m2)
+    M = np.dot(M, m3.T) 
+
+    quat = R.from_matrix(M).as_quat() 
+    obj_pos = env.obj_pos 
+    camera_pos = np.array(camera_pos)
+    camera_trans = scale_factor*camera_pos 
+    camera_trans = np.dot(m3_world, camera_trans) 
+
+    set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
