@@ -33,3 +33,10 @@ fixed initial pose -> wider initial pose -> random point
 works good.
 
 Do we need discretization if so?
+
+
+
+# Revolute object Axis:
+For microwave, X is facing outward, Y is facing up, Z is facing "left"
+dishwasher: X facing outward, Y facing downward, Z facing "right"
+Door counterclock: X out, Y left, Z down 
