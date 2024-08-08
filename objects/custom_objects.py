@@ -137,12 +137,12 @@ class SelectedMicrowaveObject(MujocoXMLObject):
     Args:
     """
 
-    def __init__(self, name, microwave_number):
+    def __init__(self, name, microwave_number, scale=False):
 
         available_numbers = [1, 2, 3, 4]
         assert microwave_number in available_numbers, "Microwave number must be one of {}".format(available_numbers)
 
-        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml"
+        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml" if not scale else f'microwave-{microwave_number}/rescaled-microwave-{microwave_number}.xml'
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
         )
@@ -150,6 +150,7 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         # Set relevant body names
         self.revolute_body = self.naming_prefix + "link_0"
         self.hinge_joint = self.naming_prefix + "joint_0"
+
 
 class TrainRevoluteObjects(MujocoXMLObject):
     """
@@ -177,27 +178,17 @@ class TrainRevoluteObjects(MujocoXMLObject):
             self.hinge_joint = self.naming_prefix + "hinge"
             self.lock = False
             # set the door friction and damping to 0 for training
-            self._set_door_friction(0.0)
-            self._set_door_damping(0.0)
+        self._set_door_friction(0.0)
+        self._set_door_damping(0.0)
 
 
     def _set_door_friction(self, friction):
-        """
-        Helper function to override the door friction directly in the XML
-
-        Args:
-            friction (3-tuple of float): friction parameters to override the ones specified in the XML
-        """
+      
         hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
         hinge.set("frictionloss", array_to_string(np.array([friction])))
 
     def _set_door_damping(self, damping):
-        """
-        Helper function to override the door friction directly in the XML
 
-        Args:
-            damping (float): damping parameter to override the ones specified in the XML
-        """
         hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
         hinge.set("damping", array_to_string(np.array([damping])))
     
@@ -236,4 +227,3 @@ class TrainRevoluteObjects(MujocoXMLObject):
         hinge_range = hinge_range.split(" ")
         hinge_range = [float(x) for x in hinge_range]
         return hinge_range
-    

@@ -14,7 +14,7 @@ from robosuite.models.arenas import EmptyArena
 from objects.custom_objects import DrawerObject
 from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
-from utils.renderer_modified import MjRendererForceVisualization
+from utils.renderer_modified import MjRendererForceVisualization, MjRendererForceVisualizationOffscreen
 from robosuite.utils.transform_utils import convert_quat
 import copy
 
@@ -262,7 +262,8 @@ class DrawerOpeningEnv(MujocoEnv):
 
         if self.has_offscreen_renderer:
             if self.sim._render_context_offscreen is None:
-                render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
+                # render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
+                render_context = MjRendererForceVisualizationOffscreen(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
                 # render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
             self.sim._render_context_offscreen.vopt.geomgroup[0] = 1 if self.render_collision_mesh else 0
             self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0

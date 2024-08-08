@@ -69,7 +69,7 @@ depth_image = flip_image(depth_image)
 # This is from GPD and set still for further testing
 hand_pose = np.array([-0.176013,-0.632732,1.25141])
 # Robosuite have an x pointing out of screen to you and an Z facing upward 
-rotation_euler = np.array([0.005762052722275257, -0.984636664390564,0.17452049255371094])
+rotation_euler = np.array([0.005762052722275257, -0.984636664390564, 0.17452049255371094])
 rotation_matrix = transform.euler2mat(rotation_euler)
 target_quat = transform.mat2quat(rotation_matrix)
 # obs = env.reset()

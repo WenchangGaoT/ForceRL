@@ -21,10 +21,11 @@ import mujoco
 from robosuite.utils import OpenCVRenderer
 from robosuite.utils.binding_utils import MjRenderContextOffscreen
 from utils.renderer_modified import MjRendererForceVisualization
+from scipy.spatial.transform import Rotation as R
 
 class OriginalDoorEnv(MujocoEnv):
     def __init__(self, 
-                 use_camera_obs=False, 
+                 use_camera_obs=True, 
                  placement_initializer=None,
                  random_force_point = False,
                  has_renderer=True, 
@@ -46,7 +47,11 @@ class OriginalDoorEnv(MujocoEnv):
                  action_scale=1,
                  reward_scale=10,
                  renderer_config=None, 
-                 debug_mode=False): 
+                 debug_mode=False, 
+
+                 # Camera settings in case
+                 agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
+                 agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]): 
         
         self.action_scale = action_scale
         self.has_renderer = has_renderer
@@ -55,8 +60,24 @@ class OriginalDoorEnv(MujocoEnv):
         self.placement_initializer = placement_initializer
         self.debug_mode = debug_mode 
 
+        ## AO-Grasp required information
+        self.agentview_camera_pos = agentview_camera_pos 
+        self.agentview_camera_quat = agentview_camera_quat 
+
+        self.camera_cfgs = {
+            'agentview': {
+                'trans': np.array(self.agentview_camera_pos), 
+                'quat': np.array(self.agentview_camera_quat)
+            }
+        }
+
+
+        ################################################################################################
+
         self.use_object_obs = True # always use low-level object obs for this environment
-        self.random_force_point = random_force_point
+        self.random_force_point = random_force_point 
+
+        
         super().__init__(
             has_renderer=self.has_renderer,
             has_offscreen_renderer=self.has_offscreen_renderer,
@@ -164,8 +185,8 @@ class OriginalDoorEnv(MujocoEnv):
         # Modify default agentview camera
         mujoco_arena.set_camera(
             camera_name="agentview",
-            pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423],
-            quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
+            pos=self.agentview_camera_pos,
+            quat=self.agentview_camera_quat,
         )
 
         # initialize objects of interest
@@ -279,6 +300,38 @@ class OriginalDoorEnv(MujocoEnv):
         """
         observables = super()._setup_observables()
 
+        if self.use_camera_obs:
+            # Create sensor information
+            sensors = []
+            names = []
+            for (cam_name, cam_w, cam_h, cam_d, cam_segs) in zip(
+                self.camera_names,
+                self.camera_widths,
+                self.camera_heights,
+                self.camera_depths,
+                self.camera_segmentations,
+            ):
+
+                # Add cameras associated to our arrays
+                cam_sensors, cam_sensor_names = self._create_camera_sensors(
+                    cam_name, cam_w=cam_w, cam_h=cam_h, cam_d=cam_d, cam_segs=cam_segs, modality="image"
+                )
+                sensors += cam_sensors
+                names += cam_sensor_names
+
+            # If any the camera segmentations are not None, then we shrink all the sites as a hacky way to
+            # prevent them from being rendered in the segmentation mask
+            if not all(seg is None for seg in self.camera_segmentations):
+                self.sim.model.site_size[:, :] = 1.0e-8
+
+            # Create observables for these cameras
+            for name, s in zip(names, sensors):
+                observables[name] = Observable(
+                    name=name,
+                    sensor=s,
+                    sampling_rate=self.control_freq,
+                )
+
         # low-level object information
         if self.use_object_obs:
             # Get robot prefix and define observables modality
@@ -311,8 +364,11 @@ class OriginalDoorEnv(MujocoEnv):
                 return self.relative_force_point_to_world(self.force_point)
 
 
-            sensors = [door_pos, handle_pos, hinge_qpos, hinge_position, force_point, hinge_direction]
-            names = [s.__name__ for s in sensors]
+            sensors = [door_pos, handle_pos, hinge_qpos, hinge_position, force_point, hinge_direction] 
+
+            # if self.use_camera_obs:
+            #     sensors.extend()
+            names = [s.__name__ for s in sensors] 
 
             # Create observables
             for name, s in zip(names, sensors):
@@ -503,4 +559,33 @@ class OriginalDoorEnv(MujocoEnv):
         Returns:
             np.array: Door handle (x,y,z)
         """
-        return self.sim.data.site_xpos[self.door_handle_site_id]
+        return self.sim.data.site_xpos[self.door_handle_site_id] 
+    
+    def display_cameras(self):
+        print('-----------------------------------------')
+        print(self.sim.model.camera_names)
+    
+    def _get_camera_config(self, camera_name):
+        '''
+        Get the information of cameras.
+        Input:
+            -camera_name: str, the name of the camera to be parsed 
+
+        Returns:
+            {
+                
+        }
+        ''' 
+        camera_id = self.sim.model.camera_name2id(camera_name)
+        camera_pos = self.sim.data.cam_xpos[camera_id] 
+        camera_rot_matrix = self.sim.data.cam_xmat[camera_id].reshape(3, 3)
+
+        # Convert the rotation matrix to a quaternion
+        camera_quat = R.from_matrix(camera_rot_matrix).as_quat()
+        return {
+            'camera_config': {
+                'trans': camera_pos, 
+                'quat': camera_quat
+            }
+        }
+        

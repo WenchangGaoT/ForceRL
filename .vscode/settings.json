@@ -8,6 +8,6 @@
         "iostream": "cpp"
     },
     
-    "python.analysis.extraPaths": ["/home/frank/frl/robosuite", "/home/shijie-fang/learning_with_progress/robosuite"],
+    "python.analysis.extraPaths": ["/home/frank/frl/robosuite", "/home/shijie-fang/learning_with_progress/robosuite", "/home/wgao22/simulations/robosuite", "/home/wgao22/ref-codes/ao-grasp/"], 
     "ros.distro": "noetic",
 }

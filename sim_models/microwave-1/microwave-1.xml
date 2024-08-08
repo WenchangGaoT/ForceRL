@@ -24,9 +24,9 @@
     <worldbody>
     <body>
         <body name="object">
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-4.obj.convex" group="0" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-2.obj.convex" group="0" />
-        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-5.obj.convex" group="0" />
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-4.obj.convex" contype="0" conaffinity="0" group="0" />
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-2.obj.convex" contype="0" conaffinity="0" group="0" />
+        <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" mesh="original-5.obj.convex" contype="0" conaffinity="0" group="0" />
         <body name="link_0" pos="-0.547794 0.64304 -0.425939" quat="0.5 0.5 -0.5 -0.5">
             <inertial pos="0.518367 0.444263 0.0148138" quat="-0.000472274 0.701823 0.00050564 0.712351" mass="62.2208" diaginertia="9.46003 5.72577 3.77786" />
             <joint name="joint_0" pos="0 0 0" axis="0 -1 0" limited="true" range="0 1.5708" />
