@@ -12,7 +12,10 @@ import robosuite.utils.transform_utils as transform
 from utils.control_utils import PathPlanner, Linear, Gaussian
 import os 
 import json
+from scipy.spatial.transform import Rotation as R
 
+
+object_name = "microwave_closed" # A microwave called "drawer"!!!
 
 controller_name = "OSC_POSE"
 controller_cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"controller_configs")
@@ -39,13 +42,16 @@ env:RobotDrawerOpening = suite.make(
 )
 
 obs = env.reset()
-print(type(obs["gripper_quat"]))
+# print(type(obs["gripper_quat"]))
 # env.render()
 camera_name = "frontview"
 depth_image = obs['{}_depth'.format(camera_name)]
 depth_image = flip_image(depth_image)
 
-hand_pose = np.array([-0.2030102014541626, -0.540092134475708, 1.2524129152297974])
+proposals = np.load(f'outputs/grasp_proposals/{object_name}.npz', allow_pickle=True)['data'].item()
+print(proposals.keys())
+
+hand_pose = np.array([-0.2030102014541626, -0.540092134475708, 1.2524129152297974]) 
 # Robosuite have an x pointing out of screen to you and an Z facing upward 
 # rotation_euler = np.array([0.005762052722275257, -0.984636664390564,0.17452049255371094])
 rotation_euler = np.array([0.005762052722275257, -0.984636664390564,0.17452049255371094])
@@ -60,7 +66,7 @@ rotation_matrix = np.array([[-0.10221315920352936, -0.9264970421791077,-0.362154
                             [0.9178903102874756, 0.05249011516571045,-0.3933473229408264]])
 # rotation_matrix = np.transpose(rotation_matrix)
 
-sci_rotation = scipy.spatial.transform.Rotation.from_matrix(rotation_matrix)
+sci_rotation = R.from_matrix(rotation_matrix)
 rotation_axis_angle = sci_rotation.as_rotvec()
 
 # target_quat = transform.mat2quat(rotation_matrix)
@@ -78,57 +84,5 @@ K_epochs = 4
 eps_clip = 0.2 
 action_std = 0.5 
 has_continuous_action_space = True 
-
-ppo_agent = PPO( 
-    state_dim, 
-    action_dim, 
-    lr_actor, 
-    lr_critic, 
-    gamma, 
-    K_epochs, 
-    eps_clip, 
-    has_continuous_action_space, 
-    action_std 
-    )  
-
-model_pth = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"checkpoint_1100.pth")
-ppo_agent.load(model_pth)
-
-action = np.concatenate([hand_pose, rotation_axis_angle,[-1]])
-
-for i in range(80):
-    obs = env.step(action)
-    env.render()
-
-
-hand_pose_new = np.array([-0.2030102014541626, -0.660092134475708, 1.2524129152297974])
-action = np.concatenate([hand_pose_new, rotation_axis_angle,[0]])
-for i in range(50):
-    obs = env.step(action)
-    env.render()
-
-action = np.concatenate([hand_pose_new, rotation_axis_angle,[1]])
-for i in range(10):
-    obs = env.step(action)
-    env.render()
-
-action = np.concatenate([hand_pose_new, rotation_axis_angle,[1]])
-obs, _,_,_ = env.step(action)
-handle_pos = obs["handle_pos"]
-handle_quat = obs["handle_quat"]
-gripper_pos = obs["gripper_pos"]
-
-for i in range(50):
-    action = ppo_agent.select_action(np.concatenate([handle_pos,handle_quat]))
-    action = action * 0.1
-    # print(action)
-    action_absolute = np.concatenate([gripper_pos + action, rotation_axis_angle, [1]])
-    print(action_absolute)
-    for j in range(4):
-        obs, _,_,_ = env.step(action_absolute)
-        env.render()
-    handle_pos = obs["handle_pos"]
-    handle_quat = obs["handle_quat"]
-    gripper_pos = obs["gripper_pos"]
 
 

@@ -49,33 +49,30 @@ def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, info_path):
 
     return pts_cf 
 
-def inference_affordance(model, pcd_path, info_path, device, args):
-    # Load model and weights
-    # Directory to save output
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+def inference_affordance(model, pcd_wf_path, camera_info_path, device, args): 
+    '''
+    Converts a world frame point cloud to camera frame and saves it under "point_clouds/camera_frame_pointclouds/camera_frame_$(object_name).ply", then
+    inference the affordance of a point cloud using the AO-Grasp model. The camera frame affordance is saved in "outputs/point_score/camera_frame_$(object_name)_affordance.npz" and the heatmap image is saved in "outputs/point_score_img/heatmap_$(object_name).png"
+    model: AO-Grasp model loaded with m_utils. 
 
-    # Create directories to save heatmaps and heatmap images
-    point_score_dir = os.path.join(args.output_dir, "point_score")
-    point_score_img_dir = os.path.join(args.output_dir, "point_score_img")
-    os.makedirs(point_score_dir, exist_ok=True)
-    os.makedirs(point_score_img_dir, exist_ok=True)
+    pcd_wf_path: path to the point cloud. Must be the world frame. Currently starts with "point_clouds/world_frame_pointclouds/world_frame_$(object_name).ply" 
+    camera_info_path: path to the information of camera of the pcd. Currently starts with "infos/$(object_name)_camera_info.npz 
 
+    saves the mean and the unnormalized point clouds in camera frame to "point_clouds/camera_frame_pointclouds/camera_frame_$(object_name).ply"
+    '''
     # Read from args.pcd_path and put into input_dict for model
-    if pcd_path is None:
+    if pcd_wf_path is None:
         raise ValueError("Missing path to input point cloud (--pcd_path)")
 
-    pcd_ext = os.path.splitext(pcd_path)[-1]
+    pcd_ext = os.path.splitext(pcd_wf_path)[-1]
     if pcd_ext == ".ply":
         # Open3d pointcloud
-        pcd = o3d.io.read_point_cloud(pcd_path)
+        pcd = o3d.io.read_point_cloud(pcd_wf_path)
         pcd = pcd.farthest_point_down_sample(4096) 
         ########################################################
         # Convert loaded point cloud into c frame
         pts_arr = np.array(pcd.points) 
-        # print(pts_arr)
-        pts_arr = d_utils.get_aograsp_pts_in_cam_frame_z_front_with_info(pts_arr, info_path) 
-        # print(pts_arr)
+        pts_arr = d_utils.get_aograsp_pts_in_cam_frame_z_front_with_info(pts_arr, camera_info_path) 
     else:
         raise ValueError(f"{pcd_ext} filetype not supported")
 
@@ -85,12 +82,6 @@ def inference_affordance(model, pcd_path, info_path, device, args):
     pts_arr_backup = copy.deepcopy(pts_arr)
 
     pts_arr -= mean 
-    # pts_arr_backup = pts_arr
-
-    # # Save the converted points 
-    # pcd_cf = o3d.geometry.PointCloud() 
-    # pcd_cf.points = o3d.utility.Vector3dVector(pts_arr)
-    # o3d.io.write_point_cloud('point_clouds/camera_frame_temp_door.ply', pcd_cf)
 
     # Randomly shuffle points in pts
     np.random.shuffle(pts_arr)
@@ -112,17 +103,26 @@ def inference_affordance(model, pcd_path, info_path, device, args):
     # Save heatmap point cloud 
     print(f'inference result: {test_dict.keys()}')
     scores = test_dict["point_score_heatmap"][0].cpu().numpy() 
+    heatmap_dict = {
+        "pts": pts_arr,  # Save original un-centered data
+        "labels": scores,
+    }
 
     # Save the converted points and the mean into a npz.
-    data_name = os.path.splitext(os.path.basename(pcd_path))[0] 
-    points_cf_dict = {
-        'pts_arr': pts_arr_backup, 
-        'mean': mean
-    } 
-    with open('outputs/'+data_name+'_cf_info.npz', 'wb') as f:
-        pickle.dump(points_cf_dict, f)
-    # np.savez('outputs/'+data_name+'_cf_info.npz', points_cf_dict)
+    data_name = os.path.splitext(os.path.basename(pcd_wf_path))[0].replace('world_frame_', '')
+    print(data_name)
+    # points_cf_dict = {
+    #     'pts_arr': pts_arr_backup, 
+    #     'mean': mean
+    # } 
 
+    cf_points = o3d.geometry.PointCloud() 
+    cf_points.points = o3d.utility.Vector3dVector(pts_arr_backup)
+    o3d.io.write_point_cloud('point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply', cf_points) 
+    print('Saved camera frame point cloud to: ', 'point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply') 
+
+    np.savez_compressed('outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz', data=heatmap_dict)
+    print('Saved heatmap to ', 'outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz')
     return test_dict, pts_arr
 
 def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data_name):
@@ -136,8 +136,8 @@ def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data
         "pts": pts_arr,  # Save original un-centered data
         "labels": scores,
     }
-    np.savez_compressed(pcd_path, data=heatmap_dict) 
-    print(pcd_path)
+    # np.savez_compressed(pcd_path, data=heatmap_dict) 
+    # print(pcd_path)
 
     # Save image of heatmap
     fig_path = os.path.join(point_score_img_dir, f"heatmap_{data_name}.png")
@@ -172,9 +172,11 @@ def parse_args():
         default="output",
         help="Path to directory to write output files",
     )
-    parser.add_argument("--pcd_path", type=str, help="Path to seg_pcd_clean.ply") 
+    parser.add_argument("--pcd_wf_path", type=str, help="Path to seg_pcd_clean.ply") 
 
-    parser.add_argument('--info_path', type=str, help='Path to information.npz')
+    parser.add_argument('--camera_info_path', type=str, help='Path to information.npz') 
+
+    parser.add_argument('--object', type=str, default='temp_door')
 
     parser.add_argument(
         "--device",
@@ -202,13 +204,13 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args() 
     model = m_utils.load_model(
-        model_conf_path='/home/wgao22/ref-codes/ao-grasp/aograsp/aograsp_model/conf.pth', 
-        ckpt_path='/home/wgao22/ref-codes/ao-grasp/aograsp/aograsp_model/770-network.pth'
+        model_conf_path='checkpoints/grasp_models/aograsp_models/conf.pth', 
+        ckpt_path='checkpoints/grasp_models/aograsp_models/770-network.pth'
     )
     model.to(args.device)
-    pcd_path = args.pcd_path 
-    info_path = args.info_path
+    pcd_wf_path = args.pcd_wf_path 
+    camera_info_path = args.camera_info_path
     device = args.device
-    t_dict, pts = inference_affordance(model, pcd_path, info_path, device, args) 
+    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device, args) 
     # pts = o3d.io.read_point_cloud(pcd_path) 
     visualize_heatmap(t_dict, pts, '/home/wgao22/projects/ForceRL/outputs/point_score', '/home/wgao22/projects/ForceRL/outputs/point_score_img', 'microwave')

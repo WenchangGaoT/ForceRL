@@ -20,7 +20,7 @@ import json
 import scipy
 from agent.ppo import PPO
 
-os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['MUJOCO_GL'] = 'osmesa'
 # initialize robot controller
 controller_name = "OSC_POSE"
 controller_cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"controller_configs")
@@ -127,8 +127,8 @@ ppo_agent = PPO(
     action_std 
     )  
 
-model_pth = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"checkpoint_1100.pth")
-ppo_agent.load(model_pth)
+# model_pth = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"checkpoint_1100.pth")
+# ppo_agent.load(model_pth)
 
 action = np.concatenate([hand_pose, rotation_axis_angle,[-1]])
 
@@ -155,7 +155,7 @@ handle_quat = obs["handle_quat"]
 gripper_pos = obs["gripper_pos"]
 
 for i in range(50):
-    action = ppo_agent.select_action(np.concatenate([handle_pos,handle_quat]))
+    action = ppo_agent.select_action(np.concatenate([handle_pos, handle_quat]))
     action = action * 0.1
     # print(action)
     action_absolute = np.concatenate([gripper_pos + action, rotation_axis_angle, [1]])
@@ -167,5 +167,4 @@ for i in range(50):
     handle_quat = obs["handle_quat"]
     gripper_pos = obs["gripper_pos"]
 
-
-
+env.close()
