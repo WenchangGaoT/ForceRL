@@ -159,5 +159,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     get_aograsp_ply_and_config(args.environment_name, args.object_name, args.camera_pos, 
-                           args.camera_quat, args.scale_factor, args.camera_info_path, args.pcd_cf_path, denoise=args.denoise)
+                           args.camera_quat, args.scale_factor, args.camera_info_path, args.pcd_wf_path, denoise=args.denoise)
 
