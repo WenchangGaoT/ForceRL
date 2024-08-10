@@ -144,6 +144,7 @@ class RobotRevoluteOpening(SingleArmEnv):
             xpos = (20, xpos[1], xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
         else:
+            xpos = (xpos[0], xpos[1] + 0.3, xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
 
         # set empty arena

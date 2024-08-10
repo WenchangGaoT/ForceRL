@@ -45,7 +45,8 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                                reset_x_range = (1,1), 
                                reset_y_range = (1,1),
                                scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', device='cuda:0', denoise=True, 
-                               viz = False):
+                               viz = False , 
+                               need_o3d_viz = False):
     '''
     Get the segmented object point cloud from the environment in world frame and stores it in `pcd_wf_path`. This is in the format of "point_clouds/world_frame_pointclouds/world_frame_$(object_name).ply".
     Stores the camera information into `pcd_wf_path`. This is in the format of "infos/$(object_name)_camera_info.npz".
@@ -126,9 +127,14 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                 } 
     with open(camera_info_path, 'wb') as f:
         pickle.dump(camera_config, f)
+    # env.close()
+    
+    # need to close the environment if want to visualize the point cloud in open3d
+    if need_o3d_viz:
+        env.close()
+    
 
     return pcd_wf_path, camera_info_path
-    # env.close()
 
 
 if __name__ == '__main__':

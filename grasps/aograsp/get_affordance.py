@@ -118,14 +118,20 @@ def inference_affordance(model, pcd_wf_path, camera_info_path, device):
 
     cf_points = o3d.geometry.PointCloud() 
     cf_points.points = o3d.utility.Vector3dVector(pts_arr_backup)
-    o3d.io.write_point_cloud('point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply', cf_points) 
-    print('Saved camera frame point cloud to: ', 'point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply') 
 
-    np.savez_compressed('outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz', data=heatmap_dict)
-    print('Saved heatmap to ', 'outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz')
-    return test_dict, pts_arr
+    # save camera frame point cloud and heatmap
+    pcd_cf_path = 'point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply'
 
-def get_affordance_main(pcd_wf_path, camera_info_path, device="cuda:0"):
+    o3d.io.write_point_cloud(pcd_cf_path, cf_points) 
+    print('Saved camera frame point cloud to: ', pcd_cf_path) 
+
+    affordance_path = 'outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz'
+
+    np.savez_compressed(affordance_path, data=heatmap_dict)
+    print('Saved heatmap to ', affordance_path)
+    return test_dict, pts_arr, pcd_cf_path, affordance_path
+
+def get_affordance_main(pcd_wf_path, camera_info_path, device="cuda:0", vis=False):
     '''
     main function for getting affordance
     '''
@@ -138,8 +144,10 @@ def get_affordance_main(pcd_wf_path, camera_info_path, device="cuda:0"):
     model.to(device)
 
     # do the inference
-    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
-    visualize_heatmap(t_dict, pts, point_score_dir = None, point_score_img_dir = None, data_name = "1")
+    t_dict, pts, pcd_cf_path, affordance_path = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
+    if vis:
+        visualize_heatmap(t_dict, pts, point_score_dir = None, point_score_img_dir = None, data_name = "1")
+    return pcd_cf_path, affordance_path
 
 
 
@@ -235,6 +243,6 @@ if __name__ == "__main__":
     pcd_wf_path = args.pcd_wf_path 
     camera_info_path = args.camera_info_path
     device = args.device
-    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
+    t_dict, pts, _, _ = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
     # pts = o3d.io.read_point_cloud(pcd_path) 
     visualize_heatmap(t_dict, pts, '/home/wgao22/projects/ForceRL/outputs/point_score', '/home/wgao22/projects/ForceRL/outputs/point_score_img', 'microwave')

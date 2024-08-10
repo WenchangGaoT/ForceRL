@@ -153,6 +153,7 @@ def viz_pts_and_eef_o3d(
         param.extrinsic = H
         ctr.convert_from_pinhole_camera_parameters(param)
     else:
+        print('world frame')
         # If world frame, place camera accordingly to face object front
         ctr = vis.get_view_control()
         param = ctr.convert_to_pinhole_camera_parameters()
