@@ -49,7 +49,7 @@ def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, info_path):
 
     return pts_cf 
 
-def inference_affordance(model, pcd_wf_path, camera_info_path, device, args): 
+def inference_affordance(model, pcd_wf_path, camera_info_path, device): 
     '''
     Converts a world frame point cloud to camera frame and saves it under "point_clouds/camera_frame_pointclouds/camera_frame_$(object_name).ply", then
     inference the affordance of a point cloud using the AO-Grasp model. The camera frame affordance is saved in "outputs/point_score/camera_frame_$(object_name)_affordance.npz" and the heatmap image is saved in "outputs/point_score_img/heatmap_$(object_name).png"
@@ -125,9 +125,27 @@ def inference_affordance(model, pcd_wf_path, camera_info_path, device, args):
     print('Saved heatmap to ', 'outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz')
     return test_dict, pts_arr
 
+def get_affordance_main(pcd_wf_path, camera_info_path, device="cuda:0"):
+    '''
+    main function for getting affordance
+    '''
+
+    # load ao-grasp model
+    model = m_utils.load_model(
+        model_conf_path='checkpoints/grasp_models/aograsp_models/conf.pth', 
+        ckpt_path='checkpoints/grasp_models/aograsp_models/770-network.pth'
+    )
+    model.to(device)
+
+    # do the inference
+    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
+    visualize_heatmap(t_dict, pts, point_score_dir = None, point_score_img_dir = None, data_name = "1")
+
+
+
 def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data_name):
     scores = test_dict["point_score_heatmap"][0].cpu().numpy()
-    pcd_path = os.path.join(point_score_dir, f"{data_name}.npz")
+    # pcd_path = os.path.join(point_score_dir, f"{data_name}.npz")
 
     pts_arr = pts
     mean = np.mean(pts_arr, axis=0) 
@@ -140,8 +158,14 @@ def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data
     # print(pcd_path)
 
     # Save image of heatmap
-    fig_path = os.path.join(point_score_img_dir, f"heatmap_{data_name}.png")
-    hist_path = os.path.join(point_score_img_dir, f"heatmap_{data_name}_hist.png") 
+    if point_score_img_dir:
+        fig_path = os.path.join(point_score_img_dir, f"heatmap_{data_name}.png")
+    else:
+        fig_path = None
+    if point_score_img_dir:
+        hist_path = os.path.join(point_score_img_dir, f"heatmap_{data_name}_hist.png") 
+    else: 
+        fig_path = None
     try:
         v_utils.viz_heatmap(
             heatmap_dict["pts"],
@@ -158,7 +182,7 @@ def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data
         save_path=hist_path,
         scale_cmap_to_heatmap_range=True,
     )
-    print(f"Heatmap saved to: {pcd_path}")
+    # print(f"Heatmap saved to: {pcd_path}")
     print(f"Visualization saved to: {fig_path}")
 
 
@@ -211,6 +235,6 @@ if __name__ == "__main__":
     pcd_wf_path = args.pcd_wf_path 
     camera_info_path = args.camera_info_path
     device = args.device
-    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device, args) 
+    t_dict, pts = inference_affordance(model, pcd_wf_path, camera_info_path, device) 
     # pts = o3d.io.read_point_cloud(pcd_path) 
     visualize_heatmap(t_dict, pts, '/home/wgao22/projects/ForceRL/outputs/point_score', '/home/wgao22/projects/ForceRL/outputs/point_score_img', 'microwave')

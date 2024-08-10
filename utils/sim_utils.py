@@ -154,3 +154,4 @@ def init_camera_pose(env, camera_pos, scale_factor):
     camera_trans = np.dot(m3_world, camera_trans) 
 
     set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
+    return R.from_matrix(np.dot(m2,m3.T)).as_quat()

@@ -51,8 +51,10 @@ class RobotRevoluteOpening(SingleArmEnv):
         agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349], 
 
         # Object rotation
-        obj_rotation=(np.pi, np.pi), 
-        move_robot_away=True
+        obj_rotation=(-np.pi/2, -np.pi / 2),
+        x_range = (-1,-1),
+        y_range = (0,0),
+        move_robot_away=True,
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -61,6 +63,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.object_type = object_type
         self.object_model_idx = object_model_idx 
         self.obj_rotation = obj_rotation 
+        self.x_range = x_range
+        self.y_range = y_range
         self.move_robot_away = move_robot_away
 
         super().__init__(
@@ -133,10 +137,13 @@ class RobotRevoluteOpening(SingleArmEnv):
         super()._load_model()
 
         # set robot position
-        xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0]) 
-        self.robot_init_xpos = xpos
+        # xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0]) 
+        xpos = self.robots[0].robot_model.base_xpos_offset["table"](0)
+        # self.robot_init_xpos = xpos
         if self.move_robot_away:
             xpos = (20, xpos[1], xpos[2]) # Move the robot away
+            self.robots[0].robot_model.set_base_xpos(xpos)
+        else:
             self.robots[0].robot_model.set_base_xpos(xpos)
 
         # set empty arena
@@ -151,7 +158,7 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # get the revolute object
         if self.object_type == "microwave":
-            self.revolute_object = SelectedMicrowaveObject(name="drawer", microwave_number=self.object_model_idx, scale=False)
+            self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -175,10 +182,12 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                x_range=[1, 1], #No randomization
-                y_range=[1, 1], #No randomization 
+                x_range = self.x_range, #No randomization
+                y_range = self.y_range, #No randomization 
                 z_offset=0.1,
                 # x_range=[0, 0], #No randomization
+                # x_range=[-1, -1], #No randomization
+                # y_range=[-0.54,-0.54], #No randomization
                 # y_range=[0,0], #No randomization
                 rotation=self.obj_rotation, #No randomization
                 rotation_axis="z",
