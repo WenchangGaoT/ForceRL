@@ -150,6 +150,17 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         # Set relevant body names
         self.revolute_body = self.naming_prefix + "link_0"
         self.hinge_joint = self.naming_prefix + "joint_0"
+    @property
+    def hinge_pos_relative(self):
+        '''
+        Returns:
+            str: hinge position relative to the object
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_pos = hinge.get("pos")
+        hinge_pos = hinge_pos.split(" ")
+        hinge_pos = [float(x) for x in hinge_pos]
+        return hinge_pos
 
 
 class TrainRevoluteObjects(MujocoXMLObject):

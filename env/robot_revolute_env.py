@@ -9,6 +9,7 @@ from robosuite.utils.transform_utils import convert_quat
 
 from objects.custom_objects import SelectedMicrowaveObject 
 from scipy.spatial.transform import Rotation as R
+from copy import deepcopy
 
 import os 
 os.environ['MUJOCO_GL'] = 'osmesa'
@@ -219,7 +220,23 @@ class RobotRevoluteOpening(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+
+        self.hinge_position_rel = self.revolute_object.hinge_pos_relative
+        self.hinge_position = self.calculate_hinge_pos_absolute()
         # self.obj_pos = self.sim.data.body_xpos[self.object_body_ids[self.revolute_object.revolute_body]]
+
+    def calculate_hinge_pos_absolute(self):
+        '''
+        calculate the hinge position in the world frame
+        '''
+        hinge_pos = np.array(self.hinge_position_rel)
+        # hinge_pos[2] -= 0.5
+    
+        # hinge_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_pos)
+        # print("body xpos for hinge: ", self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        hinge_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+
+        return hinge_pos
 
     def _setup_observables(self):
         """
@@ -261,6 +278,10 @@ class RobotRevoluteOpening(SingleArmEnv):
             )
 
         return observables
+    
+    def _pre_action(self, action, policy_step=False):
+        super()._pre_action(action, policy_step)
+        self.hinge_position = self.calculate_hinge_pos_absolute()
 
     def _reset_internal(self):
         super()._reset_internal()
@@ -272,6 +293,7 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
+        self.hinge_position = self.calculate_hinge_pos_absolute()
         # self.sim.data.qpos[self.slider_qpos_addr] = 0.5
 
     def _check_success(self):

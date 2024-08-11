@@ -44,7 +44,11 @@ def display_camera_pose(env, camera_name):
 def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_pos, camera_quat,
                                reset_x_range = (1,1), 
                                reset_y_range = (1,1),
-                               scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', device='cuda:0', denoise=True, 
+                               reset_joint_qpos = np.pi / 6,
+                               scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', 
+                               pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', 
+                               pcd_wf_no_downsample_path='point_clouds/world_frame_pointclouds/world_frame_temp_door_no_downsample.npz',
+                               device='cuda:0', denoise=True, 
                                viz = False , 
                                need_o3d_viz = False):
     '''
@@ -71,7 +75,10 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
 
     obs = env.reset() 
 
-    cam_quat_1 = s_utils.init_camera_pose(env, camera_pos, scale_factor)
+    env.sim.data.qpos[env.slider_qpos_addr] = reset_joint_qpos
+    env.sim.forward()
+
+    cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor)
     display_camera_pose(env, 'sideview') 
 
     low, high = env.action_spec
@@ -93,6 +100,13 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
         pointcloud, ind = pointcloud.remove_statistical_outlier(nb_neighbors=200, std_ratio=2.0)
     print(f'After denoising: {len(pointcloud.points)}') 
     
+    obs_arr_without_downsample = np.asarray(pointcloud.points) - np.array(env.obj_pos)
+    obs_arr_without_downsample = obs_arr_without_downsample / scale_factor
+    pointcloud_without_downsample = o3d.geometry.PointCloud()
+    pointcloud_without_downsample.points = o3d.utility.Vector3dVector(obs_arr_without_downsample)
+    o3d.io.write_point_cloud(pcd_wf_no_downsample_path, pointcloud_without_downsample)
+
+
     pointcloud = pointcloud.farthest_point_down_sample(4096) 
     obs_arr = np.asarray(pointcloud.points) - np.array(env.obj_pos)
     obs_arr = obs_arr / scale_factor
@@ -121,7 +135,8 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                         'camera_config': {
                             # 'trans': camera_pos*scale_factor, 
                             'trans': camera_pos, 
-                            'quat': camera_quat_rot_90
+                            'quat': camera_quat_rot_90,
+                            'trans_absolute': cam_pos_actual,
                         }
                     }
                 } 
@@ -134,7 +149,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
         env.close()
     
 
-    return pcd_wf_path, camera_info_path
+    return pcd_wf_path, pcd_wf_no_downsample_path, camera_info_path
 
 
 if __name__ == '__main__':
