@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(file_dir)
-    output_dir = os.path.join(file_dir, "outputs")
+    output_dir = os.path.join(file_dir, "force_training_outputs")
     checkpoint_dir = os.path.join(project_dir, "checkpoints/force_policies")
 
     # create the output directory if it does not exist
@@ -306,6 +306,6 @@ if __name__ == "__main__":
         os.makedirs(checkpoint_dir)
 
     algo_name = "curriculum_door_continuous_random_point_td3"
-    for trial in range(10):
+    for trial in range(20):
         train(trial, output_dir, algo_name, checkpoint_dir)
     

@@ -14,7 +14,7 @@ from tqdm import tqdm
 import trimesh
 import trimesh.transformations as tra
 
-import tensorflow.compat.v1 as tf
+# import tensorflow.compat.v1 as tf
 
 class Object(object):
     """Represents a graspable object."""
@@ -166,7 +166,8 @@ class PandaGripper(object):
         control_points = np.tile(np.expand_dims(control_points, 0), [batch_size, 1, 1])
 
         if use_tf:
-            return tf.convert_to_tensor(control_points)
+            raise NotImplementedError("Modified, not support tensorflow for the sake of environment compatibility")
+            # return tf.convert_to_tensor(control_points)
 
         return control_points
 

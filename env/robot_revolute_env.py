@@ -9,6 +9,7 @@ from robosuite.utils.transform_utils import convert_quat
 
 from objects.custom_objects import SelectedMicrowaveObject 
 from scipy.spatial.transform import Rotation as R
+from copy import deepcopy
 
 import os 
 os.environ['MUJOCO_GL'] = 'osmesa'
@@ -51,8 +52,10 @@ class RobotRevoluteOpening(SingleArmEnv):
         agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349], 
 
         # Object rotation
-        obj_rotation=(np.pi, np.pi), 
-        move_robot_away=True
+        obj_rotation=(-np.pi/2, -np.pi / 2),
+        x_range = (-1,-1),
+        y_range = (0,0),
+        move_robot_away=True,
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -61,6 +64,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.object_type = object_type
         self.object_model_idx = object_model_idx 
         self.obj_rotation = obj_rotation 
+        self.x_range = x_range
+        self.y_range = y_range
         self.move_robot_away = move_robot_away
 
         super().__init__(
@@ -133,10 +138,14 @@ class RobotRevoluteOpening(SingleArmEnv):
         super()._load_model()
 
         # set robot position
-        xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0]) 
-        self.robot_init_xpos = xpos
+        # xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0]) 
+        xpos = self.robots[0].robot_model.base_xpos_offset["table"](0)
+        # self.robot_init_xpos = xpos
         if self.move_robot_away:
             xpos = (20, xpos[1], xpos[2]) # Move the robot away
+            self.robots[0].robot_model.set_base_xpos(xpos)
+        else:
+            xpos = (xpos[0], xpos[1] + 0.3, xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
 
         # set empty arena
@@ -151,7 +160,7 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # get the revolute object
         if self.object_type == "microwave":
-            self.revolute_object = SelectedMicrowaveObject(name="drawer", microwave_number=self.object_model_idx, scale=False)
+            self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -175,10 +184,12 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                x_range=[1, 1], #No randomization
-                y_range=[1, 1], #No randomization 
+                x_range = self.x_range, #No randomization
+                y_range = self.y_range, #No randomization 
                 z_offset=0.1,
                 # x_range=[0, 0], #No randomization
+                # x_range=[-1, -1], #No randomization
+                # y_range=[-0.54,-0.54], #No randomization
                 # y_range=[0,0], #No randomization
                 rotation=self.obj_rotation, #No randomization
                 rotation_axis="z",
@@ -209,7 +220,23 @@ class RobotRevoluteOpening(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+
+        self.hinge_position_rel = self.revolute_object.hinge_pos_relative
+        self.hinge_position = self.calculate_hinge_pos_absolute()
         # self.obj_pos = self.sim.data.body_xpos[self.object_body_ids[self.revolute_object.revolute_body]]
+
+    def calculate_hinge_pos_absolute(self):
+        '''
+        calculate the hinge position in the world frame
+        '''
+        hinge_pos = np.array(self.hinge_position_rel)
+        # hinge_pos[2] -= 0.5
+    
+        # hinge_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_pos)
+        # print("body xpos for hinge: ", self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        hinge_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+
+        return hinge_pos
 
     def _setup_observables(self):
         """
@@ -251,6 +278,10 @@ class RobotRevoluteOpening(SingleArmEnv):
             )
 
         return observables
+    
+    def _pre_action(self, action, policy_step=False):
+        super()._pre_action(action, policy_step)
+        self.hinge_position = self.calculate_hinge_pos_absolute()
 
     def _reset_internal(self):
         super()._reset_internal()
@@ -262,6 +293,7 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
+        self.hinge_position = self.calculate_hinge_pos_absolute()
         # self.sim.data.qpos[self.slider_qpos_addr] = 0.5
 
     def _check_success(self):

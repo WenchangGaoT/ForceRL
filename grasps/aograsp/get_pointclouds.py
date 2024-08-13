@@ -25,6 +25,9 @@ from env.camera_door_env import CameraDoorEnv
 from scipy.spatial.transform import Rotation as R 
 from robosuite.utils.transform_utils import * 
 import utils.sim_utils as s_utils
+import time
+import robosuite.utils.camera_utils as robo_cam_utils
+import robosuite.utils.transform_utils as transform_utils
 
 def set_camera_pose(env, camera_name, position, quaternion):
     sim = env.sim
@@ -38,75 +41,72 @@ def display_camera_pose(env, camera_name):
     print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
     print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
     
-def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera_quat, scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', device='cuda:0', denoise=True):
+def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_pos, camera_quat,
+                               reset_x_range = (1,1), 
+                               reset_y_range = (1,1),
+                               reset_joint_qpos = np.pi / 6,
+                               scale_factor=3, camera_info_path='infos/temp_door_camera_info.npz', 
+                               pcd_wf_path='point_clouds/world_frame_pointclouds/world_frame_temp_door.npz', 
+                               pcd_wf_no_downsample_path='point_clouds/world_frame_pointclouds/world_frame_temp_door_no_downsample.npz',
+                               device='cuda:0', denoise=True, 
+                               viz = False , 
+                               need_o3d_viz = False):
     '''
     Get the segmented object point cloud from the environment in world frame and stores it in `pcd_wf_path`. This is in the format of "point_clouds/world_frame_pointclouds/world_frame_$(object_name).ply".
     Stores the camera information into `pcd_wf_path`. This is in the format of "infos/$(object_name)_camera_info.npz".
     '''
 
-    controller_name = "OSC_POSE"
-    controller_configs = suite.load_controller_config(default_controller=controller_name)
+
+    # set move_robot_away to true
+    env_kwargs["move_robot_away"] = True
+
+    # use given x_range and y_range so that we can see the whole object. 
+    env_kwargs["x_range"] = reset_x_range
+    env_kwargs["y_range"] = reset_y_range
+    env_kwargs["camera_names"] = "sideview"
+    env_kwargs["camera_heights"] = 256
+    env_kwargs["camera_widths"] = 256
+    # env_kwargs["obj_rotation"] = (0,0)
+
     env = suite.make(
-        environment_name,
-        robots="Panda",
-        has_renderer=True,
-        use_camera_obs=True,
-        has_offscreen_renderer=True,
-        camera_depths = True,
-        camera_segmentations = "element",
-        controller_configs=controller_configs,
-        control_freq = 20,
-        horizon=10000,
-        camera_names = ['sideview'], 
-        camera_heights = 256, 
-        camera_widths = 256, 
-        obj_rotation=(np.pi/6, np.pi/6)
+        env_name,
+        **env_kwargs
     )
 
     obs = env.reset() 
-    # print('rotation matrix for [-0.5, -0.5, 0.5, 0.5]: ') 
-    # m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) # Camera local frame to world frame front, set camera fram
-    # # print(m1)
 
-    # obj_quat = env.obj_quat 
-    # obj_quat = convert_quat(obj_quat, to='xyzw')
-    # rotation_mat_world = quat2mat(obj_quat)
-    # rotation_euler_world = mat2euler(rotation_mat_world)
-    # rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
-    # m3_world = quat2mat(obj_quat)
-    # # obj_quat = np.array([0.383, 0, 0, 0.924])
+    env.sim.data.qpos[env.slider_qpos_addr] = reset_joint_qpos
+    env.sim.forward()
 
-    # m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously
-    # # m3 = np.eye(3)
-
-    # print('rotation matrix for quat: ') 
-    # # m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
-
-    # m2 = quat2mat(np.array(camera_quat)) # Turn camera to microwave
-    # M = np.dot(m1,m2)
-    # M = np.dot(M, m3.T) 
-    # quat = R.from_matrix(M).as_quat() 
-    # print('Corresponding quaternion: ', quat)
-
-    # obj_pos = env.obj_pos 
-    # camera_pos = np.array(camera_pos)
-    # camera_trans = scale_factor*camera_pos 
-    # camera_trans = np.dot(m3_world, camera_trans) 
-
-    # set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
-    s_utils.init_camera_pose(env, camera_pos, scale_factor)
+    cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor)
     display_camera_pose(env, 'sideview') 
+
     low, high = env.action_spec
     obs, reward, done, _ = env.step(np.zeros_like(low))
-    plt.imshow(obs['sideview_image']) 
-    plt.show()
-    plt.imshow(obs['sideview_depth'], cmap='gray')
-    plt.show() 
+    
+    if viz:
+        plt.imshow(obs['sideview_image']) 
+        plt.show()
+        plt.imshow(obs['sideview_depth'], cmap='gray')
+        plt.show() 
+
+    
+    
     pointcloud = get_pointcloud(env, obs, ['sideview'], [256], [256], [object_name]) 
+    
     print(f'Before denoising: {len(pointcloud.points)}')
+    
     if denoise:
         pointcloud, ind = pointcloud.remove_statistical_outlier(nb_neighbors=200, std_ratio=2.0)
     print(f'After denoising: {len(pointcloud.points)}') 
+    
+    obs_arr_without_downsample = np.asarray(pointcloud.points) - np.array(env.obj_pos)
+    obs_arr_without_downsample = obs_arr_without_downsample / scale_factor
+    pointcloud_without_downsample = o3d.geometry.PointCloud()
+    pointcloud_without_downsample.points = o3d.utility.Vector3dVector(obs_arr_without_downsample)
+    o3d.io.write_point_cloud(pcd_wf_no_downsample_path, pointcloud_without_downsample)
+
+
     pointcloud = pointcloud.farthest_point_down_sample(4096) 
     obs_arr = np.asarray(pointcloud.points) - np.array(env.obj_pos)
     obs_arr = obs_arr / scale_factor
@@ -118,30 +118,38 @@ def get_aograsp_ply_and_config(environment_name, object_name, camera_pos, camera
     o3d.io.write_point_cloud(pcd_wf_path, pointcloud) 
     print(f'World frame point cloud saved to {pcd_wf_path}') 
 
-    # pts_npz = {
-    #     'data': {
-    #         'pts': pts_arr, 
-    #         'obj_pos': np.array(env.obj_pos), 
-    #         'obj_quat': np.array(env.obj_quat)
-    #         }
-    #     }
+    extrinsic = robo_cam_utils.get_camera_extrinsic_matrix(env.sim, 'sideview')
+    # print(extrinsic)
+    # camera_rotation = extrinsic[:3,:3]
+    # camera_quat = transform_utils.mat2quat(camera_rotation)
+    # cam_id = env.sim.model.camera_name2id("sideview")
+    # camera_quat = env.sim.model.cam_quat[cam_id]
+    # cam_rot = transform_utils.quat2mat(camera_quat).T
+    # cam_quat_t = transform_utils.mat2quat(cam_rot)
+
+    camera_rot_90 = transform_utils.euler2mat(np.array([0,0,env_kwargs['obj_rotation'][0]])) @ transform_utils.quat2mat(camera_quat) 
+    camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
     
-    # np.save(f"{pcd_path}.npz", pts_npz) 
-    # with open(f'{pcd_path}.npz', 'wb') as f:
-    #     pickle.dump(pts_npz, f)
-    # print(f'point cloud npz saved to {pcd_path}.npz')
 
     camera_config = {'data': {
                         'camera_config': {
                             # 'trans': camera_pos*scale_factor, 
                             'trans': camera_pos, 
-                            'quat': camera_quat
+                            'quat': camera_quat_rot_90,
+                            'trans_absolute': cam_pos_actual,
                         }
                     }
                 } 
     with open(camera_info_path, 'wb') as f:
         pickle.dump(camera_config, f)
-    env.close()
+    # env.close()
+    
+    # need to close the environment if want to visualize the point cloud in open3d
+    if need_o3d_viz:
+        env.close()
+    
+
+    return pcd_wf_path, pcd_wf_no_downsample_path, camera_info_path
 
 
 if __name__ == '__main__':
@@ -158,6 +166,30 @@ if __name__ == '__main__':
     parser.add_argument('--denoise', default=True)
     args = parser.parse_args()
 
-    get_aograsp_ply_and_config(args.environment_name, args.object_name, args.camera_pos, 
+    # ENV ARGS
+    controller_name = "OSC_POSE"
+    controller_configs = suite.load_controller_config(default_controller=controller_name)
+    env_kwargs = dict(
+    robots="Panda",
+    object_type = "microwave",
+    obj_rotation=(-np.pi/2, -np.pi/2),
+    has_renderer=True,
+    use_camera_obs=True,
+    has_offscreen_renderer=True,
+    camera_depths = True,
+    camera_segmentations = "element",
+    controller_configs=controller_configs,
+    control_freq = 20,
+    horizon=10000,
+    camera_names = ["birdview", "agentview", "frontview", "sideview"],
+    # render_camera = "birdview",
+    camera_heights = [1024,256,512,1024],
+    camera_widths = [1024,1024,1024,1024],
+    move_robot_away = False,
+    x_range = (-1,-1),
+    y_range = (0,0),
+    )
+    env_name = "RobotRevoluteOpening"
+    get_aograsp_ply_and_config(env_name, env_kwargs, args.object_name, args.camera_pos, 
                            args.camera_quat, args.scale_factor, args.camera_info_path, args.pcd_wf_path, denoise=args.denoise)
 

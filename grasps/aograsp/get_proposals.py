@@ -17,7 +17,7 @@ import utils.aograsp_utils.rotation_utils as r_utils
 from scipy.spatial.transform import Rotation
 # from robosuite.utils.transform_utils import * 
 import matplotlib 
-import utils.mesh_utils as mesh_utils 
+# import utils.mesh_utils as mesh_utils 
 
 import utils.cgn_utils.vis_utils as cgn_v_utils
 
@@ -210,6 +210,71 @@ def store_world_frame_grasp_proposals(grasp_pos_wf, grasp_quat_wf, scores, cgn_g
     with open(output_path, 'wb') as f: 
         pickle.dump(wf_grasp_dict, f)
     pass
+
+
+def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path, 
+                             object_name='temp_door', top_k=10, run_cgn=True, viz=False, 
+                             save_wf_pointcloud=False):
+    '''
+    main function for getting grasp proposals
+
+    args:
+        run_cgn: bool, whether to run the CGN model to get a new set of grasp proposals since CGN is slow.
+    '''
+
+    # run the get_cf_proposals.sh script
+    if run_cgn:
+        os.system(f"bash grasps/aograsp/get_cf_proposals.sh {pcd_heatmap_path}  {object_name}")
+
+    prop_save_dir = 'outputs/grasp_proposals/camera_frame_proposals'
+    prop_file_name = f'camera_frame_{object_name}_affordance.npz'
+    prop_cf_path = os.path.join(prop_save_dir, prop_file_name)
+
+    # recover the point cloud from camera frame to world frame
+    pts_wf_arr = recover_pts_from_cam_to_wf(pcd_cf_path, camera_info_path)
+
+    # convert the proposals from camera frame to world frame
+    g_pos_wf, g_quat_wf, scores, cgn_gs = convert_proposal_to_wf(prop_cf_path, camera_info_path, pcd_cf_path)
+
+    # store the proposals in the world frame
+    world_frame_proposal_path = f'outputs/grasp_proposals/world_frame_proposals/world_frame_{object_name}_grasp.npz'
+    store_world_frame_grasp_proposals(g_pos_wf, g_quat_wf, scores, cgn_gs, world_frame_proposal_path)
+    print(f"World frame proposals saved to {world_frame_proposal_path}")
+
+
+    sorted_grasp_tuples = [(g_pos_wf[i], g_quat_wf[i], scores[i]) for i in range(len(g_pos_wf))]
+    sorted_grasp_tuples.sort(key=lambda x: x[2], reverse=True)
+    top_k_pos_wf = [g[0] for g in sorted_grasp_tuples][:top_k]
+    top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]
+
+    # visualize the proposals
+    if viz:
+        eef_pos_list = [g for g in g_pos_wf]
+        eef_quat_list = [g for g in g_quat_wf]
+        
+        eef_pos_list = [g[0] for g in sorted_grasp_tuples][:top_k]
+        eef_quat_list = [g[1] for g in sorted_grasp_tuples][:top_k]
+        cgn_v_utils.viz_pts_and_eef_o3d(
+            pts_pcd=pts_wf_arr,
+            eef_pos_list=eef_pos_list,
+            eef_quat_list=eef_quat_list
+        )
+    
+    # save the world frame point cloud
+    if save_wf_pointcloud:
+        pcd_wf = o3d.geometry.PointCloud()
+        pcd_wf.points = o3d.utility.Vector3dVector(pts_wf_arr)
+        pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{object_name}_back.ply'
+        o3d.io.write_point_cloud(pcd_wf_path, pcd_wf)
+        print(f'World frame point cloud saved to {pcd_wf_path}')
+
+    top_k_pos_wf = [g[0] for g in sorted_grasp_tuples][:top_k]
+    top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]
+
+    return world_frame_proposal_path, top_k_pos_wf, top_k_quat_wf
+
+
+
 
 
 if __name__ == '__main__': 

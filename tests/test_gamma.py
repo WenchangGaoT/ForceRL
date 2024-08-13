@@ -16,7 +16,7 @@ import open3d as o3d
 parser = argparse.ArgumentParser() 
 parser.add_argument('--pcd_path', type=str, default='point_clouds/temp_door.ply') 
 parser.add_argument('--camera_pos', default=[-0.77542536, -0.02539806,  0.30146208]) 
-parser.add_argument('--scale_factor', type=float, default=3)
+parser.add_argument('--scale_factor', type=float, default=1)
 args = parser.parse_args()
 
 def set_camera_pose(env, camera_name, position, quaternion):
@@ -45,7 +45,11 @@ env = suite.make(
     camera_names = ['frontview', 'sideview'], 
     camera_heights = [448, 448], 
     camera_widths = [448, 448], 
-    obj_rotation=(0, 0)
+    # obj_rotation=(-np.pi/2, -np.pi/2),
+    obj_rotation=(0, 0),
+    x_range = (0.8,0.8),
+    y_range = (0.4, 0.4),
+    object_type = "microwave",
 ) 
 
 obs = env.reset() 
@@ -81,17 +85,18 @@ camera_trans = np.dot(m3_world, camera_trans)
 set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
 
 extrinsic = robo_cam_utils.get_camera_extrinsic_matrix(env.sim, 'sideview')
+# extrinsic[:3,:3] = M.T
 
 print('quaternion rotation matrix: \n', M)
 print('exported extrinsic: \n', extrinsic)
 
 low, high = env.action_spec
 obs, reward, done, _ = env.step(np.zeros_like(low))
-plt.imshow(obs['frontview_image']) 
+plt.imshow(obs['sideview_image']) 
 plt.show()
 plt.imshow(obs['sideview_depth'], cmap='gray')
 plt.show() 
-pointcloud = get_pointcloud(env, obs, ['sideview'], [448], [448], ['drawer'])  
+pointcloud = get_pointcloud(env, obs, ['sideview'], [448], [448], ['microwave'])  
 # pointcloud = pointcloud.farthest_point_down_sample(55000)
 
 o3d.io.write_point_cloud('point_clouds/microwave_open_wf.ply', pointcloud)

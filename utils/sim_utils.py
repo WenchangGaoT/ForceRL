@@ -5,6 +5,8 @@ import os
 import copy
 from scipy.spatial.transform import Rotation as R 
 from robosuite.utils.transform_utils import quat2mat, mat2euler, convert_quat, euler2mat
+import copy
+# import mujoco_py
 
 def flip_image(image):
     return np.flip(image, 0)
@@ -152,5 +154,36 @@ def init_camera_pose(env, camera_pos, scale_factor):
     camera_pos = np.array(camera_pos)
     camera_trans = scale_factor*camera_pos 
     camera_trans = np.dot(m3_world, camera_trans) 
+    res = copy.deepcopy(camera_trans)
 
     set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
+    return res
+
+
+
+# def scale_object(model, object_name, scale_factor):
+#     # Scale all the meshes associated with the object
+#     for mesh in model.meshes:
+#         if mesh.name.startswith(object_name):
+#             mesh.vert[:] *= scale_factor
+
+#     # Scale all geoms associated with the object
+#     for geom in model.geoms:
+#         if geom.name.startswith(object_name):
+#             geom.size[:] *= scale_factor
+#             geom.pos[:] *= scale_factor
+
+#     # Scale all joints associated with the object
+#     for joint in model.joints:
+#         if joint.name.startswith(object_name):
+#             joint.pos[:] *= scale_factor
+#             if joint.type in (mujoco_py.mj.JNT_SLIDE):
+#                 joint.range[:] *= scale_factor
+
+#     # If the object has a global position or orientation, scale those too
+#     for body in model.bodies:
+#         if body.name == object_name:
+#             body.pos[:] *= scale_factor
+
+#     # Reload the model to apply the changes
+#     model.forward()

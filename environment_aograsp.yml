@@ -25,7 +25,7 @@ dependencies:
   - pip:
       - absl-py==2.1.0
       - addict==2.4.0
-      - aograsp==0.0.1
+      # - aograsp==0.0.1
       - asttokens==2.4.1
       - attrs==23.2.0
       - blinker==1.8.2
@@ -115,8 +115,8 @@ dependencies:
       - pillow==10.4.0
       - platformdirs==4.2.2
       - plotly==5.23.0
-      - pointnet2==3.0.0
-      - pointnet2-ops==3.0.0
+      # - pointnet2==3.0.0
+      # - pointnet2-ops==3.0.0
       - prompt-toolkit==3.0.47
       - protobuf==4.25.4
       - ptyprocess==0.7.0
