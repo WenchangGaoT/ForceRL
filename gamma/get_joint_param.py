@@ -23,7 +23,7 @@ def get_joint_param_main(
     print("pcd_wf_path: ", pcd_wf_path)
     print("camera_info_path: ", camera_info_path)
     
-    model = gamma_model_net(in_channel=in_channels, num_point=int(num_point), num_classes=int(num_classes), device=device).to(device)
+    model = gamma_model_net(in_channel=in_channels, num_point=55000, num_classes=int(num_classes), device=device).to(device)
     assert os.path.exists(model_path)
     print("load model from path:", model_path)
     model.load_state_dict(torch.load(model_path)) 
