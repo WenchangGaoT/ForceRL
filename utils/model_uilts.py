@@ -11,7 +11,9 @@ import mujoco
 import trimesh
 import numpy as np
 import argparse
-
+from dm_control import mjcf 
+import struct 
+import xml.etree.ElementTree as ET
 
 
 def print_usage():
@@ -114,7 +116,8 @@ def preprocess_meshes(file_dir, output_dir):
     
     for obj_file in obj_files:
         obj_path = os.path.join(file_dir, obj_file)
-        mesh = trimesh.load(obj_path)
+        print("path:", obj_path)
+        mesh = trimesh.load(obj_path, force='mesh')
         # check if the mesh is 2D using watertight
         if is_2d_plane(mesh):
             print(f"Extruding {obj_file} to 3D mesh")
@@ -219,6 +222,97 @@ def is_2d_plane(mesh):
     
     return True
 
+def read_stl(filepath):
+    with open(filepath, 'rb') as f:
+        header = f.read(80) 
+        n_tri = struct.unpack('<I', f.read(4))[0] 
+        b_str = f.read()
+    return b_str
+
+def scale_object(original_xml_path, output_name, scale=(0.3, 0.3, 0.3)):
+    dir_name = os.path.dirname(os.path.abspath(original_xml_path)) 
+    print(dir_name)
+    files = os.listdir(dir_name)
+    print(files) 
+    assets = {} 
+    for f in files:
+        if f.endswith('.stl'):
+            assets[f] = read_stl(os.path.join(dir_name, f))
+            # assets[f].replace('/', '//')
+    # print(dir_name) 
+    print(assets)
+    print(original_xml_path)
+    mjcf_model = mjcf.from_path(original_xml_path, assets=assets)
+    print(type(mjcf_model))
+    print(mjcf_model.asset.__dir__()) 
+    meshes = mjcf_model.find_all('mesh') 
+    print('num meshes: ', len(meshes))
+    for mesh in meshes:
+        mesh.scale = list(scale)
+        mesh.file.vfs_filename = mesh.name + '.stl'
+        print(mesh.file.get_vfs_filename())
+    
+    geoms = mjcf_model.find_all('geom')
+    for geom in geoms:
+        if isinstance(geom.pos, np.ndarray):
+            # print("modifying!")
+            geom.pos *= scale[0]
+    # print(geoms)
+
+    bodies = mjcf_model.find_all('body')
+    # print(bodies)
+    print('num bodies: ', len(bodies))
+    for body in bodies:
+        print(type(body.pos)) 
+        if isinstance(body.pos, np.ndarray):
+            body.pos *= scale[0]
+
+    joints = mjcf_model.find_all('joint') 
+    print('num joints: ', len(joints))
+    for joint in joints:
+        print(type(joint.pos)) 
+        if isinstance(joint.pos, np.ndarray):
+            joint.pos *= scale[0] 
+    
+    # print(mjcf_model.to_xml_string())
+    with open(output_name, 'w') as f:
+        f.write(mjcf_model.to_xml_string())
+    # return mjcf_model
+    # for asset in mjcf_model.asset._children:
+    #     print(type(asset))
+        # if asset['mesh'] is not None:
+        #     print(asset)
+
+def scale_object_new(original_xml_path, output_name, scale=[0.3, 0.3, 0.3]):
+    tree = ET.parse(original_xml_path) 
+    root = tree.getroot() 
+    # print(root.__dir__())
+    for mesh in root.findall('.//mesh'):
+        mesh.set('scale', f'{scale[0]} {scale[1]} {scale[2]}') 
+        # print(mesh) 
+    
+    for geom in root.findall('.//geom'):
+        # print(geom.set(''))
+        if 'pos' in geom.attrib:
+            pos_str = geom.get('pos')
+            pos_strs = pos_str.split(' ') 
+            pos = [scale[i] * float(p) for i, p in enumerate(pos_strs)]
+            geom.set('pos', f'{pos[0]} {pos[1]} {pos[2]}')
+
+    for body in root.findall('.//body'): 
+        if 'pos' in body.attrib:
+            pos_str = body.get('pos')
+            pos_strs = pos_str.split(' ') 
+            pos = [scale[i] * float(p) for i, p in enumerate(pos_strs)]
+            body.set('pos', f'{pos[0]} {pos[1]} {pos[2]}') 
+
+    for joint in root.findall('.//joint'): 
+        if 'pos' in joint.attrib:
+            pos_str = joint.get('pos')
+            pos_strs = pos_str.split(' ') 
+            pos = [scale[i] * float(p) for i, p in enumerate(pos_strs)]
+            joint.set('pos', f'{pos[0]} {pos[1]} {pos[2]}')
+    tree.write(output_name)
 
         
 
@@ -228,17 +322,20 @@ if __name__ == "__main__":
     #     print_usage()
     #     exit(0)
 
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('-i', '--input', type=str, help='input directory')
-    parser.add_argument('-o', '--output', type=str, help='output directory')
-    parser.add_argument('-f', '--func', type=str, help='function to execute', default="preprocess_meshes")
+    # parser = argparse.ArgumentParser(description='Process some integers.')
+    # parser.add_argument('-i', '--input', type=str, help='input directory')
+    # parser.add_argument('-o', '--output', type=str, help='output directory')
+    # parser.add_argument('-f', '--func', type=str, help='function to execute', default="preprocess_meshes")
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    if args.func == "preprocess_meshes":
-        preprocess_meshes(args.input, args.output)
-    else:
-        raise NotImplementedError(f"Function {args.func} not implemented")
+    # if args.func == "preprocess_meshes":
+    #     preprocess_meshes(args.input, args.output)
+    # else:
+    #     raise NotImplementedError(f"Function {args.func} not implemented")
+
+    object_path = "./sim_models/microwave-2/microwave-2-original.xml"
+    scale_object_new(object_path, 'sim_models/microwave-2/microwave-2-test.xml')
 
 
     # func_name = sys.argv[1]
