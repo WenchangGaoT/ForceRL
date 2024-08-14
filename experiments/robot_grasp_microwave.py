@@ -37,6 +37,7 @@ env_kwargs = dict(
     robots="Panda",
     # robots="Kinova3",
     object_type = "microwave",
+    # object_model_idx = 2,
     obj_rotation=(-np.pi/2, -np.pi/2),
     has_renderer=True,
     use_camera_obs=True,
@@ -74,7 +75,7 @@ robot_gripper_pos = obs["robot0_eef_pos"]
 sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  0.30146208]), scale_factor=3) 
 
 # if want to visualize the point cloud in open3d, the environment later will not work
-need_o3d_viz =False
+need_o3d_viz = True
 
 pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(env_name = env_name, 
                         env_kwargs=env_kwargs,
@@ -103,11 +104,19 @@ world_frame_proposal_path, top_k_pos_wf, top_k_quat_wf = get_grasp_proposals_mai
 # get the joint parameters
 joint_poses, joint_directions, joint_types = get_joint_param_main(pcd_wf_no_downsample_path, camera_info_path, viz=need_o3d_viz)
 object_pos = np.array(env.obj_pos)
+if len(joint_poses ) >1:
+    joint_pose = joint_poses[0]
+    joint_direction = joint_directions[0]
+else:
+    joint_pose = joint_poses[0]
+    joint_direction = joint_directions[0]
 joint_poses += object_pos
-joint_direction = joint_directions[0] / np.linalg.norm(joint_directions[0])
+joint_pose += object_pos
+joint_direction = joint_direction / np.linalg.norm(joint_direction)
 print("joint_poses: ", joint_poses)
 print("joint_directions: ", joint_directions)
 print("joint_types: ", joint_types)
+print("joint pose", joint_pose)
 
 
 # print(type(obs["gripper_quat"]))
@@ -218,7 +227,7 @@ print("object pos: ", env.obj_pos)
 hinge_direction = np.array([0,0,1])
 
 # h_point, f_point, h_direction = hinge_pos, obs['robot0_eef_pos'], hinge_direction
-h_point, f_point, h_direction = joint_poses[0], obs['robot0_eef_pos'], joint_direction
+h_point, f_point, h_direction = joint_pose, obs['robot0_eef_pos'], joint_direction
 obs = np.concatenate([
                         h_direction, 
                         (f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction)
@@ -234,7 +243,7 @@ for i in range(200):
     action = np.concatenate([last_grasp_pos + action,rotation_vector, [1]])
     next_obs, reward, done, _ = env.step(action)
     # h_point, f_point, h_direction = hinge_pos, next_obs['robot0_eef_pos'], hinge_direction
-    h_point, f_point, h_direction = joint_poses[0], next_obs['robot0_eef_pos'], joint_direction
+    h_point, f_point, h_direction = joint_pose, next_obs['robot0_eef_pos'], joint_direction
     last_grasp_pos = next_obs['robot0_eef_pos']
     next_obs = np.concatenate([
                                     h_direction, 

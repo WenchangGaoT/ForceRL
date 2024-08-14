@@ -1,0 +1,3 @@
+[submodule "grasps/aograsp/contact_graspnet"]
+	path = grasps/aograsp/contact_graspnet
+	url = https://github.com/WenchangGaoT/contact_graspnet.git
