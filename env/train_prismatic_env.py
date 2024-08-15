@@ -355,9 +355,13 @@ class TrainPrismaticEnv(MujocoEnv):
             @sensor(modality=modality)
             def force_point(obs_cache):
                 return self.relative_force_point_to_world(self.force_point)
+            
+            @sensor(modality=modality)
+            def force_point_relative_to_start(obs_cache):
+                return self.relative_force_point_to_world(self.force_point) - self.initial_force_point
 
 
-            sensors = [object_pos, joint_qpos, joint_position, force_point, joint_direction]
+            sensors = [object_pos, joint_qpos, joint_position, force_point, joint_direction, force_point_relative_to_start]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -444,8 +448,8 @@ class TrainPrismaticEnv(MujocoEnv):
             self.sim.model.body_pos[prismatic_body_id] = object_pos
             self.sim.model.body_quat[prismatic_body_id] = object_quat
         
-        
-
+        # forward simulation to update the object position
+        self.sim.forward()
         # set the door joint to the initial position, lower bound of the joint limit
         self.sim.data.qpos[self.joint_qpos_addr] = self.joint_range[0]
 
@@ -456,6 +460,7 @@ class TrainPrismaticEnv(MujocoEnv):
         # sample a force point on the door
         self.force_point = self.sample_relative_force_point()
         self.force_point_world = deepcopy(self.relative_force_point_to_world(self.force_point))
+        self.initial_force_point = deepcopy(self.force_point_world)
         
         # get the initial render arrow end
         self.render_arrow_end = self.force_point_world
@@ -594,6 +599,6 @@ class TrainPrismaticEnv(MujocoEnv):
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "drawer-like": "train-drawer-1"
+            "prismatic": ["train-drawer-1"]
         }
         return available_objects

@@ -17,11 +17,7 @@ import aograsp.rotation_utils as r_utils
 import matplotlib.pyplot as plt
 
 from utils.sim_utils import get_pointcloud 
-from env.curri_door_env import CurriculumDoorEnv
 from env.robot_revolute_env import RobotRevoluteOpening 
-from env.robot_drawer_opening import RobotDrawerOpening 
-from env.original_door_env import OriginalDoorEnv 
-from env.camera_door_env import CameraDoorEnv
 from scipy.spatial.transform import Rotation as R 
 from robosuite.utils.transform_utils import * 
 import utils.sim_utils as s_utils
@@ -41,7 +37,7 @@ def display_camera_pose(env, camera_name):
     print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
     print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
     
-def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_pos, camera_quat,
+def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_pos, camera_quat = None,
                                reset_x_range = (1,1), 
                                reset_y_range = (1,1),
                                reset_joint_qpos = np.pi / 6,
@@ -78,7 +74,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     env.sim.data.qpos[env.slider_qpos_addr] = reset_joint_qpos
     env.sim.forward()
 
-    cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor)
+    cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
     display_camera_pose(env, 'sideview') 
 
     low, high = env.action_spec
@@ -130,6 +126,12 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     camera_rot_90 = transform_utils.euler2mat(np.array([0,0,env_kwargs['obj_rotation'][0]])) @ transform_utils.quat2mat(camera_quat) 
     camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
     
+    camera_euler = R.from_quat(camera_quat).as_euler('xyz', degrees=True)
+    camera_euler_for_gamma = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]]) 
+    camera_rot_for_gamma = R.from_euler('xyz', camera_euler_for_gamma, degrees=True).as_matrix()
+    camera_rot_for_gamma = transform_utils.euler2mat(np.array([0,0,env_kwargs['obj_rotation'][0]])) @ camera_rot_for_gamma
+    camera_quat_for_gamma = R.from_matrix(camera_rot_for_gamma).as_quat()
+    
 
     camera_config = {'data': {
                         'camera_config': {
@@ -137,6 +139,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                             'trans': camera_pos, 
                             'quat': camera_quat_rot_90,
                             'trans_absolute': cam_pos_actual,
+                            'quat_for_gamma': camera_quat_for_gamma,
                         }
                     }
                 } 

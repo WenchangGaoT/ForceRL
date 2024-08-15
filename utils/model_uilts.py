@@ -283,7 +283,9 @@ def scale_object(original_xml_path, output_name, scale=(0.3, 0.3, 0.3)):
         # if asset['mesh'] is not None:
         #     print(asset)
 
-def scale_object_new(original_xml_path, output_name, scale=[0.3, 0.3, 0.3]):
+def scale_object_new(original_xml_path, output_name = None, scale=[0.3, 0.3, 0.3]):
+
+    original_xml_dir = os.path.dirname(original_xml_path)
     tree = ET.parse(original_xml_path) 
     root = tree.getroot() 
     # print(root.__dir__())
@@ -312,7 +314,30 @@ def scale_object_new(original_xml_path, output_name, scale=[0.3, 0.3, 0.3]):
             pos_strs = pos_str.split(' ') 
             pos = [scale[i] * float(p) for i, p in enumerate(pos_strs)]
             joint.set('pos', f'{pos[0]} {pos[1]} {pos[2]}')
-    tree.write(output_name)
+        # scale the joint limit if it is slide
+        if 'type' in joint.attrib and joint.get('type') == 'slide':
+            # print('scaling joint limit')
+            if 'range' in joint.attrib:
+                range_str = joint.get('range')
+                range_strs = range_str.split(' ')
+                range_vals = [scale[i] * float(r) for i, r in enumerate(range_strs)]
+                joint.set('range', f'{range_vals[0]} {range_vals[1]}')
+        
+    for inertial in root.findall('.//inertial'):
+        if 'pos' in inertial.attrib:
+            pos_str = inertial.get('pos')
+            pos_strs = pos_str.split(' ') 
+            pos = [scale[i] * float(p) for i, p in enumerate(pos_strs)]
+            inertial.set('pos', f'{pos[0]} {pos[1]} {pos[2]}')
+    # TODO: also need to scale the joint limit if it is prismatic
+
+
+    if output_name:
+        output_path = os.path.join(original_xml_dir, output_name)
+    else:
+        # set the output_name to be input_name + '-scaled.xml'
+        output_path = os.path.join(original_xml_dir, os.path.basename(original_xml_path).replace('.xml', '-scaled.xml'))
+    tree.write(output_path)
 
         
 

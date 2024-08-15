@@ -7,6 +7,7 @@ import numpy as np
 from gamma.datasets.data_utilts import translate_pc_world_to_camera  
 from robosuite.utils.transform_utils import quat2mat
 import open3d as o3d
+from scipy.spatial.transform import Rotation
 
 
 def get_joint_param_main(
@@ -21,7 +22,8 @@ def get_joint_param_main(
         viz = False
 ):
     print("pcd_wf_path: ", pcd_wf_path)
-    print("camera_info_path: ", camera_info_path)
+    print("camera_info_path gamma got: ", camera_info_path)
+    
     
     model = gamma_model_net(in_channel=in_channels, num_point=int(num_point), num_classes=int(num_classes), device=device).to(device)
     assert os.path.exists(model_path)
@@ -30,8 +32,18 @@ def get_joint_param_main(
     pcd = o3d.io.read_point_cloud(pcd_wf_path)
     pcd_arr = np.array(pcd.points)
     camera_info = np.load(camera_info_path, allow_pickle=True)['data']['camera_config']
+    print("-----------------")
+    print("camera quat gamma got: ", camera_info['quat_for_gamma'])
+    print("-----------------")
     print(camera_info) 
-    R = quat2mat(camera_info['quat']) 
+    R = quat2mat(camera_info['quat_for_gamma']) 
+    # to euler
+    euler = Rotation.from_matrix(R).as_euler('xyz', degrees=True)
+    # euler = [euler[2], euler[1], -euler[0]]
+    # R = Rotation.from_euler('xyz', euler, degrees=True).as_matrix()
+    print("-----------------")
+    print("camera euler gamma got: ", euler)
+    print("-----------------")
     t = camera_info['trans_absolute']
 
     print("camera translation: ", t)

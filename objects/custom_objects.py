@@ -163,11 +163,14 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         return hinge_pos
     
 class EvalPrismaticObjects(MujocoXMLObject):
-    def __init__(self, name):
+    def __init__(self, name, scaled = True):
         self.available_obj_list = self.available_objects()
         assert name in self.available_obj_list, "Invalid object! Please use another name"
 
-        xml_path = f"{name}/{name}.xml"
+        if not scaled:
+            xml_path = f"{name}/{name}.xml"
+        else:
+            xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
             )
@@ -180,6 +183,18 @@ class EvalPrismaticObjects(MujocoXMLObject):
             'trashcan-1',
         ]
         return available_objects
+    
+    @property
+    def joint_range(self):
+        '''
+        Returns:
+            str: hinge ransge
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_range = joint.get("range")
+        joint_range = joint_range.split(" ")
+        joint_range = [float(x) for x in joint_range]
+        return joint_range
 
 
 
@@ -277,7 +292,7 @@ class TrainPrismaticObjects(MujocoXMLObject):
         
     def set_panel_size(self):
         self.panel_geom_size = {
-            "train-drawer-1": [(-0.3,0.3), (0, 0), (-0.1, 0.1)],
+            "train-drawer-1": [(-0.,0.), (-0.1, 0.1), (-0.3, 0.3)],
         }
 
     @staticmethod

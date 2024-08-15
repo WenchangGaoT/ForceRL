@@ -292,6 +292,18 @@ class RobotPrismaticEnv(SingleArmEnv):
             }
         }
 
+    def set_open_percentage(self, percent):
+        '''
+        Set the open percent of the drawer
+        Input:
+            -percent: float, the percent of the drawer to be opened
+        '''
+        # get the joint range
+        joint_range = self.prismatic_object.joint_range
+
+        self.sim.data.qpos[self.slider_qpos_addr] = percent * (joint_range[1] - joint_range[0]) + joint_range[0]
+        self.sim.forward()
+
     @classmethod
     def available_objects(cls):
         available_objects = {

@@ -5,7 +5,7 @@ import yaml
 import json
 
 from agent.td3 import TD3, ReplayBuffer
-from env.train_multiple_revolute_env import MultipleRevoluteEnv
+from env.train_prismatic_env import TrainPrismaticEnv
 from env.wrappers import ActionRepeatWrapperNew
 import time
 import os
@@ -21,21 +21,18 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
     max_timesteps = 200       # max timesteps in one episode
     rollouts = 5
     action_repeat = 1 
-    state_dim = 6
+    obs_dim = 6
     action_dim = 3
     max_action = float(5)
 
     cur_run_rewards = []
     cur_run_projections = [] 
-    cur_run_success_rates = []
     cur_run_eval_rwds = [] 
     cur_run_eval_projections = [] 
     cur_run_eval_success_rates = []
-    cur_run_eval_curricula_success_rates = [] 
-    cur_run_eval_curricula_rewards = []
 
 
-    policy = TD3(lr, state_dim, action_dim, max_action)
+    policy = TD3(lr, obs_dim, action_dim, max_action)
     replay_buffer = ReplayBuffer() 
 
     policy_noise_schedule = [
@@ -45,41 +42,22 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         0.1
     ]
 
-    # each curriculum is tuple (revolute_obj_pose, random_force_point, object_name)
-    # curriculas = [
-    #      ((-0.25, 0.25), True, "door-like"),
-    #      ((-np.pi / 2.0, 0), False, "single-obj"),
-    #      ((-np.pi / 2.0, np.pi / 2.0), False, "single-obj"),
-    #      ((-np.pi, 0), False, "single-obj"),
-    #      ((-np.pi, np.pi), False, "single-obj"),
-    #      ((-np.pi, np.pi), True, "single-obj"),
-    #      ((-np.pi, np.pi), True, "door-like"),
-    #      ((-np.pi, np.pi), True, "dishwasher-like"),
-    #      ((-np.pi, np.pi), True, "all"),
-    # ]
-
     curriculas = [
-         ((-0.25, 0.25), True, "door-like"),
-         ((-np.pi / 2.0, 0), True, "door-like"),
-         ((-np.pi / 2.0, np.pi / 2.0), True, "door-like"),
-         ((-np.pi, 0), True, "door-like"),
-         ((-np.pi, np.pi), True, "single-obj"),
-         ((-np.pi, np.pi), True, "single-obj"),
-         ((-np.pi, np.pi), True, "door-like"),
-         ((-np.pi, np.pi), True, "dishwasher-like"),
-         ((-np.pi, np.pi), True, "all"),
+        # ((-np.pi / 2 - 0.25, -np.pi / 2), True, "prismatic"),
+         ((-0.25, 0.25), True, "prismatic"),
+         ((-np.pi / 2.0, 0), True, "prismatic"),
+         ((-np.pi / 2.0, np.pi / 2.0), True, "prismatic"),
+         ((-np.pi, 0), True, "prismatic"),
+         ((-np.pi, np.pi), True, "prismatic"),
     ]
 
     episodes_schedule = [
-        100,
-        100,
-        200, 
-        200, 
-        300, 
-        300,
-        300, 
-        300,
-        300,
+        # 30,
+        50,
+        50,
+        100, 
+        100, 
+        100, 
     ]
 
     assert len(curriculas) == len(episodes_schedule), "The length of curriculas and episodes_schedule should be the same."
@@ -99,15 +77,16 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         for episodes in range(episodes_schedule[curriculum_idx]):
             
 
-            available_objects_dict = MultipleRevoluteEnv.available_objects()
+            available_objects_dict = TrainPrismaticEnv.available_objects()
             current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
+            print(f'available objects: {current_curriculum_available_objects}')
             # randomly choose an object from the available objects
             current_curriculum_object = np.random.choice(current_curriculum_available_objects)
             print(f'episode {episodes} is training with object {current_curriculum_object}')
 
 
             curriculum_env_kwargs = {
-                "init_door_angle": current_curriculum[0],
+                "init_object_angle": current_curriculum[0],
                 "has_renderer": False,
                 "has_offscreen_renderer": False,
                 "use_camera_obs": False,
@@ -120,20 +99,18 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
             # Environment initialization
             raw_env = suite.make(
-                "MultipleRevoluteEnv", 
+                "TrainPrismaticEnv", 
                 **curriculum_env_kwargs
                 )
         
-            env: MultipleRevoluteEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
+            env: TrainPrismaticEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
             cur_ep_rwds = [] 
             cur_ep_projections = []
             
-            state = env.reset()
-            h_point, f_point, h_direction = state['hinge_position'], state['force_point'], state['hinge_direction']
-            state = np.concatenate([
-                                    h_direction, 
-                                    f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                    ])
+            obs = env.reset()
+            # the prismatic training only needs the joint direction
+            obs = np.concatenate([obs["joint_direction"], obs["force_point_relative_to_start"]])
+
             done = False 
 
             if episodes % 20 == 0:
@@ -142,16 +119,11 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
             # training for each episodes
             for t in range(max_timesteps):
 
-                action = policy.select_action(state)
+                action = policy.select_action(obs)
 
-                next_state, reward, done, _ = env.step(action)  
+                next_obs, reward, done, _ = env.step(action)  
                 
-                # make our observation
-                h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
-                next_state = np.concatenate([
-                                             h_direction, 
-                                             f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                            ])
+                next_obs = np.concatenate([next_obs["joint_direction"], next_obs["force_point_relative_to_start"]])
                 
                 cur_ep_rwds.append(reward)
                 # env.render()
@@ -159,8 +131,8 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                 action_projection = env.current_action_projection
                 cur_ep_projections.append(action_projection)
 
-                replay_buffer.add((state, action, reward, next_state, float(done)))
-                state = next_state
+                replay_buffer.add((obs, action, reward, next_obs, float(done)))
+                obs = next_obs
 
                 if done or t==(max_timesteps-1):
 
@@ -192,7 +164,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                 for ep in range(rollouts):
 
                     # make the environments  
-                    available_objects_dict = MultipleRevoluteEnv.available_objects()
+                    available_objects_dict = TrainPrismaticEnv.available_objects()
 
                     current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
                     # randomly choose an object from the available objects
@@ -201,7 +173,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
 
                     curriculum_env_kwargs = {
-                        "init_door_angle": current_curriculum[0],
+                        "init_object_angle": current_curriculum[0],
                         "has_renderer": True,
                         "has_offscreen_renderer": True,
                         "use_camera_obs": False,
@@ -214,43 +186,35 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
                     # Environment initialization
                     raw_env = suite.make(
-                        "MultipleRevoluteEnv", 
+                        "TrainPrismaticEnv", 
                         **curriculum_env_kwargs
                         )
                 
-                    env: MultipleRevoluteEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
+                    env: TrainPrismaticEnv = ActionRepeatWrapperNew(raw_env, action_repeat) 
 
                     cur_ep_eval_ep_rwds = [] 
                     cur_ep_eval_projections = []
 
-                    state = env.reset()
-
-                    h_point, f_point, h_direction = state['hinge_position'], state['force_point'], state['hinge_direction']
-                    state = np.concatenate([
-                                            h_direction, 
-                                            f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                            ])                    
+                    obs = env.reset()
+                    obs = np.concatenate([obs["joint_direction"], obs["force_point_relative_to_start"]])               
+                    
                     done = False
                     
                     for t in range(max_timesteps):
 
-                        action = policy.select_action(state)
+                        action = policy.select_action(obs)
 
-                        next_state, reward, done, _ = env.step(action)
+                        next_obs, reward, done, _ = env.step(action)
 
                         # make our observation
-                        h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
-                        next_state = np.concatenate([
-                                                    h_direction, 
-                                                    f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                                    ]) 
+                        next_obs = np.concatenate([next_obs["joint_direction"], next_obs["force_point_relative_to_start"]])
                          
                         action_projection = env.current_action_projection
                         cur_ep_eval_ep_rwds.append(reward)
                         cur_ep_eval_projections.append(action_projection) 
                         env.render()
 
-                        state = next_state
+                        obs = next_obs
 
                         if done or t == max_timesteps-1:
 
@@ -267,23 +231,34 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         cur_run_rewards.extend(cur_curriculum_rewards)
         cur_run_projections.extend(cur_curriculum_projections)
 
-        with open(f'{json_dir}/{algo_name}_reward_train_{run_id}_curriculum_{curriculum_idx}.json', 'w') as f:
+        # make the current run json directory
+        current_run_json_dir = os.path.join(json_dir, f"run_{run_id}")
+        if not os.path.exists(current_run_json_dir):
+            os.makedirs(current_run_json_dir)
+
+
+        with open(f'{json_dir}/run_{run_id}/{algo_name}_reward_train_{run_id}_curriculum_{curriculum_idx}.json', 'w') as f:
             json.dump(cur_curriculum_rewards, f) 
         
-        with open(f'{json_dir}/{algo_name}_success_rate_train_{run_id}_curriculum_{curriculum_idx}.json', 'w') as f:
+        with open(f'{json_dir}/run_{run_id}/{algo_name}_success_rate_train_{run_id}_curriculum_{curriculum_idx}.json', 'w') as f:
             json.dump(cur_curriculum_success_rates, f) 
 
+
+        # make the current curriculum policy checkpoint directory
+        current_curriculum_checkpoint_dir = os.path.join(checkpoint_dir, f"run_{run_id}/curriculum_{curriculum_idx}")
+        if not os.path.exists(current_curriculum_checkpoint_dir):
+            os.makedirs(current_curriculum_checkpoint_dir)
         # save the checkpoint
         policy.save(
-            directory=checkpoint_dir,
+            directory=current_curriculum_checkpoint_dir,
             name=f"{algo_name}_{run_id}_curriculum_{curriculum_idx}")
 
     # record the evaluation results
-    with open(f'{json_dir}/{algo_name}_reward_eval_{run_id}.json', 'w') as f:
+    with open(f'{json_dir}/run_{run_id}/{algo_name}_reward_eval_{run_id}.json', 'w') as f:
         json.dump(cur_run_eval_rwds, f)
-    with open(f'{json_dir}/{algo_name}_projection_eval_{run_id}.json', 'w') as f:
+    with open(f'{json_dir}/run_{run_id}/{algo_name}_projection_eval_{run_id}.json', 'w') as f:
         json.dump(cur_run_eval_projections, f)
-    with open(f'{json_dir}/{algo_name}_success_rate_eval_{run_id}.json', 'w') as f:
+    with open(f'{json_dir}/run_{run_id}/{algo_name}_success_rate_eval_{run_id}.json', 'w') as f:
         json.dump(cur_run_eval_success_rates, f)
 
 
@@ -292,9 +267,12 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 if __name__ == "__main__":
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
+
+    algo_name = "prismatic_td3"
+
     project_dir = os.path.dirname(file_dir)
-    output_dir = os.path.join(file_dir, "force_training_outputs")
-    checkpoint_dir = os.path.join(project_dir, "checkpoints/force_policies")
+    output_dir = os.path.join(file_dir, f"force_training_outputs/{algo_name}")
+    checkpoint_dir = os.path.join(project_dir, f"checkpoints/force_policies/{algo_name}")
 
     # create the output directory if it does not exist
     if not os.path.exists(output_dir):
@@ -304,7 +282,7 @@ if __name__ == "__main__":
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    algo_name = "curriculum_door_continuous_random_point_td3"
+    
     for trial in range(20):
         train(trial, output_dir, algo_name, checkpoint_dir)
     
