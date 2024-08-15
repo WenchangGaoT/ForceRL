@@ -161,6 +161,26 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         hinge_pos = hinge_pos.split(" ")
         hinge_pos = [float(x) for x in hinge_pos]
         return hinge_pos
+    
+class EvalPrismaticObjects(MujocoXMLObject):
+    def __init__(self, name):
+        self.available_obj_list = self.available_objects()
+        assert name in self.available_obj_list, "Invalid object! Please use another name"
+
+        xml_path = f"{name}/{name}.xml"
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
+            )
+        self.prismatic_body = self.naming_prefix + "link_0"
+        self.joint = self.naming_prefix + "joint_0"
+
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'trashcan-1',
+        ]
+        return available_objects
+
 
 
 class TrainRevoluteObjects(MujocoXMLObject):
@@ -238,3 +258,64 @@ class TrainRevoluteObjects(MujocoXMLObject):
         hinge_range = hinge_range.split(" ")
         hinge_range = [float(x) for x in hinge_range]
         return hinge_range
+    
+
+class TrainPrismaticObjects(MujocoXMLObject):
+    def __init__(self, name):
+
+        self.available_obj_list = self.available_objects()
+        assert name in self.available_obj_list, "Invalid object! Please use another name"
+
+        xml_path = f"{name}/{name}.xml"
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
+            )
+        
+        self.set_panel_size()
+        self.prismatic_body = self.naming_prefix + "link_0"
+        self.joint = self.naming_prefix + "joint_0"
+        
+    def set_panel_size(self):
+        self.panel_geom_size = {
+            "train-drawer-1": [(-0.3,0.3), (0, 0), (-0.1, 0.1)],
+        }
+
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'train-drawer-1',
+        ]
+        return available_objects
+    
+    @property
+    def joint_pos_relative(self):
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_pos = joint.get("pos")
+        joint_pos = joint_pos.split(" ")
+        joint_pos = [float(x) for x in joint_pos]
+        return joint_pos
+    
+    @property
+    def joint_direction(self):
+        '''
+        Returns:
+            str: joint direction
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_direction = joint.get("axis")
+        joint_direction = joint_direction.split(" ")
+        joint_direction = [float(x) for x in joint_direction]
+        return joint_direction
+    
+    @property
+    def joint_range(self):
+        '''
+        Returns:
+            str: hinge ransge
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_range = joint.get("range")
+        joint_range = joint_range.split(" ")
+        joint_range = [float(x) for x in joint_range]
+        return joint_range
+        
