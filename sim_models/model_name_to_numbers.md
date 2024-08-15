@@ -4,6 +4,7 @@ microwave-1: 7310 TODO: disable contact, add panel name
 microwave-2: 7167
 microwave-3: 7263
 trashcan-1: 103013
+microwave-5: 7128
 train-door-counterclock-1: 8867
 train-microwave-1: 7265
 
