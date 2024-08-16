@@ -11,7 +11,7 @@ import mujoco
 import trimesh
 import numpy as np
 import argparse
-from dm_control import mjcf 
+# from dm_control import mjcf 
 import struct 
 import xml.etree.ElementTree as ET
 
@@ -130,9 +130,9 @@ def preprocess_meshes(file_dir, output_dir):
             # trimesh.Scene([extrude, mesh]).show()
 
             # extrude the mesh
-            extrude = extrude_single_2d_mesh(mesh, 0.001)
+            extrude = extrude_single_2d_mesh(mesh, 0.01)
             # show the extruded mesh
-            trimesh.Scene([extrude, mesh]).show()
+            # trimesh.Scene([extrude, mesh]).show()
 
             # save the extruded mesh
             extrude.export(file_obj=os.path.join(output_dir, obj_file.replace('.obj', '.stl')), file_type='stl')
@@ -142,9 +142,53 @@ def preprocess_meshes(file_dir, output_dir):
             mesh.export(file_obj=os.path.join(output_dir, obj_file).replace('.obj', '.stl'), file_type='stl')
 
 
+# def extrude_single_2d_mesh(mesh, extrusion_height):
+#     """
+#     Extrudes a 2D mesh along the z-axis by a specified height.
+
+#     Args:
+#         mesh (trimesh.Trimesh): The 2D mesh to be extruded.
+#         extrusion_height (float): The height of the extrusion.
+
+#     Returns:
+#         trimesh.Trimesh: The extruded 3D mesh.
+#     """
+#     # Get vertices and faces of the 2D mesh
+#     vertices = mesh.vertices
+#     faces = mesh.faces
+
+#     # Create a copy of the vertices and move them along the z-axis
+#     extruded_vertices = np.copy(vertices)
+#     extruded_vertices[:, 2] += extrusion_height
+
+#     # Create new faces for the extruded mesh
+#     extruded_faces = []
+#     for face in faces:
+#         # Original face
+#         original_face = list(face)
+#         # Extruded face
+#         extruded_face = [v + len(vertices) for v in face]
+#         # Faces connecting original vertices to extruded vertices
+#         for i in range(len(face)):
+#             next_i = (i + 1) % len(face)
+#             extruded_faces.append([original_face[i], original_face[next_i], extruded_face[next_i]])
+#             extruded_faces.append([original_face[i], extruded_face[next_i], extruded_face[i]])
+#         # Add the faces of the original mesh (optional, if you want to keep the base)
+#         extruded_faces.append([original_face[0], original_face[1], original_face[2]])
+    
+#     # Combine original vertices and extruded vertices
+#     combined_vertices = np.vstack([vertices, extruded_vertices])
+    
+#     # Create the extruded mesh
+#     extruded_mesh = trimesh.Trimesh(vertices=combined_vertices, faces=extruded_faces, process=False)
+
+#     return extruded_mesh
+
+
+
 def extrude_single_2d_mesh(mesh, extrusion_height):
     """
-    Extrudes a 2D mesh along the z-axis by a specified height.
+    Extrudes a 2D mesh along its normal direction by a specified height.
 
     Args:
         mesh (trimesh.Trimesh): The 2D mesh to be extruded.
@@ -153,13 +197,23 @@ def extrude_single_2d_mesh(mesh, extrusion_height):
     Returns:
         trimesh.Trimesh: The extruded 3D mesh.
     """
+    # Ensure the mesh is 2D
+    if mesh.is_watertight:
+        raise ValueError("Mesh is watertight. Please provide a valid 2D mesh.")
+    
     # Get vertices and faces of the 2D mesh
     vertices = mesh.vertices
     faces = mesh.faces
 
-    # Create a copy of the vertices and move them along the z-axis
+    # Compute the normal vector of the mesh (assumed to be uniform)
+    normal = mesh.face_normals[0]
+
+    # Determine extrusion direction
+    extrusion_direction = normal / np.linalg.norm(normal) * extrusion_height
+
+    # Create a copy of the vertices and move them along the extrusion direction
     extruded_vertices = np.copy(vertices)
-    extruded_vertices[:, 2] += extrusion_height
+    extruded_vertices += extrusion_direction
 
     # Create new faces for the extruded mesh
     extruded_faces = []
@@ -229,59 +283,7 @@ def read_stl(filepath):
         b_str = f.read()
     return b_str
 
-def scale_object(original_xml_path, output_name, scale=(0.3, 0.3, 0.3)):
-    dir_name = os.path.dirname(os.path.abspath(original_xml_path)) 
-    print(dir_name)
-    files = os.listdir(dir_name)
-    print(files) 
-    assets = {} 
-    for f in files:
-        if f.endswith('.stl'):
-            assets[f] = read_stl(os.path.join(dir_name, f))
-            # assets[f].replace('/', '//')
-    # print(dir_name) 
-    print(assets)
-    print(original_xml_path)
-    mjcf_model = mjcf.from_path(original_xml_path, assets=assets)
-    print(type(mjcf_model))
-    print(mjcf_model.asset.__dir__()) 
-    meshes = mjcf_model.find_all('mesh') 
-    print('num meshes: ', len(meshes))
-    for mesh in meshes:
-        mesh.scale = list(scale)
-        mesh.file.vfs_filename = mesh.name + '.stl'
-        print(mesh.file.get_vfs_filename())
-    
-    geoms = mjcf_model.find_all('geom')
-    for geom in geoms:
-        if isinstance(geom.pos, np.ndarray):
-            # print("modifying!")
-            geom.pos *= scale[0]
-    # print(geoms)
 
-    bodies = mjcf_model.find_all('body')
-    # print(bodies)
-    print('num bodies: ', len(bodies))
-    for body in bodies:
-        print(type(body.pos)) 
-        if isinstance(body.pos, np.ndarray):
-            body.pos *= scale[0]
-
-    joints = mjcf_model.find_all('joint') 
-    print('num joints: ', len(joints))
-    for joint in joints:
-        print(type(joint.pos)) 
-        if isinstance(joint.pos, np.ndarray):
-            joint.pos *= scale[0] 
-    
-    # print(mjcf_model.to_xml_string())
-    with open(output_name, 'w') as f:
-        f.write(mjcf_model.to_xml_string())
-    # return mjcf_model
-    # for asset in mjcf_model.asset._children:
-    #     print(type(asset))
-        # if asset['mesh'] is not None:
-        #     print(asset)
 
 def scale_object_new(original_xml_path, output_name = None, scale=[0.3, 0.3, 0.3]):
 
@@ -347,20 +349,20 @@ if __name__ == "__main__":
     #     print_usage()
     #     exit(0)
 
-    # parser = argparse.ArgumentParser(description='Process some integers.')
-    # parser.add_argument('-i', '--input', type=str, help='input directory')
-    # parser.add_argument('-o', '--output', type=str, help='output directory')
-    # parser.add_argument('-f', '--func', type=str, help='function to execute', default="preprocess_meshes")
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-i', '--input', type=str, help='input directory')
+    parser.add_argument('-o', '--output', type=str, help='output directory')
+    parser.add_argument('-f', '--func', type=str, help='function to execute', default="preprocess_meshes")
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
-    # if args.func == "preprocess_meshes":
-    #     preprocess_meshes(args.input, args.output)
-    # else:
-    #     raise NotImplementedError(f"Function {args.func} not implemented")
+    if args.func == "preprocess_meshes":
+        preprocess_meshes(args.input, args.output)
+    else:
+        raise NotImplementedError(f"Function {args.func} not implemented")
 
-    object_path = "./sim_models/microwave-2/microwave-2-original.xml"
-    scale_object_new(object_path, 'sim_models/microwave-2/microwave-2-test.xml')
+    # object_path = "./sim_models/microwave-2/microwave-2-original.xml"
+    # scale_object_new(object_path, 'sim_models/microwave-2/microwave-2-test.xml')
 
 
     # func_name = sys.argv[1]

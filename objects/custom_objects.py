@@ -1,7 +1,9 @@
 from robosuite.models.objects import MujocoXMLObject
 from utils.sim_utils import fill_custom_xml_path
+from utils.model_uilts import scale_object_new
 from robosuite.utils.mjcf_utils import array_to_string, find_elements, xml_path_completion
 import numpy as np
+import os
 
 
 class DrawerObject(MujocoXMLObject):
@@ -163,13 +165,17 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         return hinge_pos
     
 class EvalPrismaticObjects(MujocoXMLObject):
-    def __init__(self, name, scaled = True):
+    def __init__(self, name, scaled = True, scale = 1.0):
         self.available_obj_list = self.available_objects()
         assert name in self.available_obj_list, "Invalid object! Please use another name"
 
         if not scaled:
             xml_path = f"{name}/{name}.xml"
+        
         else:
+            # call function to scale the object
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            scale_object_new(xml_path_original, None, [scale, scale, scale])
             xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
@@ -181,6 +187,7 @@ class EvalPrismaticObjects(MujocoXMLObject):
     def available_objects():
         available_objects = [
             'trashcan-1',
+            'cabinet-1',
         ]
         return available_objects
     

@@ -46,7 +46,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                                pcd_wf_no_downsample_path='point_clouds/world_frame_pointclouds/world_frame_temp_door_no_downsample.npz',
                                device='cuda:0', denoise=True, 
                                viz = False , 
-                               need_o3d_viz = False):
+                               need_o3d_viz = False,):
     '''
     Get the segmented object point cloud from the environment in world frame and stores it in `pcd_wf_path`. This is in the format of "point_clouds/world_frame_pointclouds/world_frame_$(object_name).ply".
     Stores the camera information into `pcd_wf_path`. This is in the format of "infos/$(object_name)_camera_info.npz".

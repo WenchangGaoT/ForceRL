@@ -22,6 +22,8 @@ class RobotPrismaticEnv(SingleArmEnv):
         robots,
         object_name = "trashcan-1",
         object_model_idx = 1,
+        scale_object=False, 
+        object_scale=1.0,
         env_configuration="default",
         controller_configs=None,
         gripper_types="default",
@@ -70,6 +72,9 @@ class RobotPrismaticEnv(SingleArmEnv):
         self.x_range = x_range
         self.y_range = y_range
         self.move_robot_away = move_robot_away
+
+        self.scale_object = scale_object
+        self.object_scale = object_scale
 
         super().__init__(
             robots=robots,
@@ -161,7 +166,9 @@ class RobotPrismaticEnv(SingleArmEnv):
             quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
         )
 
-        self.prismatic_object = EvalPrismaticObjects(name=self.object_name)
+        self.prismatic_object = EvalPrismaticObjects(name=self.object_name, 
+                                                     scaled=self.scale_object,
+                                                     scale=self.object_scale,)
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -173,7 +180,7 @@ class RobotPrismaticEnv(SingleArmEnv):
                 mujoco_objects=self.prismatic_object,
                 x_range = self.x_range, #No randomization
                 y_range = self.y_range, #No randomization 
-                z_offset=0.1,
+                z_offset=0.0,
                 # x_range=[0, 0], #No randomization
                 # x_range=[-1, -1], #No randomization
                 # y_range=[-0.54,-0.54], #No randomization
@@ -307,6 +314,6 @@ class RobotPrismaticEnv(SingleArmEnv):
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "prismatic": "trashcan-1"
+            "prismatic": ["trashcan-1", "canbinet-1"]
         }
         return available_objects

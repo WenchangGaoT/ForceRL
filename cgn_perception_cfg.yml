@@ -1,0 +1,4 @@
+- trashcan-1:
+  - set_open_percentage: 0.4
+  - cam_distance: 0.5
+  - cam_angle: [45., 22., 3.]

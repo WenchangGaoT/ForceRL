@@ -19,8 +19,15 @@ def get_joint_param_main(
         num_classes = 3,
         ignore_label = 2,
         device = 'cuda',
-        viz = False
+        viz = False, 
+        return_results_list = False
 ):
+    '''
+    Get the joint parameters from the point cloud and camera info
+
+    args:
+        return_results_list: whether to return the results dict (used to filter joint types)
+    '''
     print("pcd_wf_path: ", pcd_wf_path)
     print("camera_info_path gamma got: ", camera_info_path)
     
@@ -65,7 +72,12 @@ def get_joint_param_main(
 
     # translate the joint parameters from camera frame to world frame
     result_trans, result_dir = translate_joint_param_camera_to_world(joint_translations, joint_directions, extrinsic)
-    return result_trans, result_dir, joint_types
+
+
+    if return_results_list:
+        return result_trans, result_dir, joint_types, results
+    else:
+        return result_trans, result_dir, joint_types
 
 def translate_joint_param_camera_to_world(joint_translations, joint_directions, extrinsic):
     joint_translations_world = []
