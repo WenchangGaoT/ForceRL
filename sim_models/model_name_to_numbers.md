@@ -5,6 +5,8 @@ microwave-2: 7167
 microwave-3: 7263
 trashcan-1: 103013
 cabinet-1: 44853
+cabinet-2: 45132
+cabinet-3: 45162
 microwave-5: 7128
 train-door-counterclock-1: 8867
 train-microwave-1: 7265

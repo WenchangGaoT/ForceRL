@@ -34,7 +34,7 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     robots="Panda",
     # robots="UR5e",
-    object_name = "cabinet-1",
+    object_name = "cabinet-3",
     # object_name = "trashcan-1",
     obj_rotation=(-np.pi/2, -np.pi/2),
     scale_object = True,
@@ -53,7 +53,7 @@ env_kwargs = dict(
     camera_widths = [1024,1024,1024,1024],
     move_robot_away = False,
     x_range = (0.5,0.5),
-    y_range = (0.4, 0.4),
+    y_range = (0.5, 0.5),
     # y_range = (0.5, 0.5),
     # y_range = (-2, -2),
 )
@@ -68,7 +68,7 @@ obs = env.reset()
 
 
 # set the open percentage
-env.set_open_percentage(0.3)
+env.set_open_percentage(0.4)
 
 
 robot_gripper_pos = obs["robot0_eef_pos"]
@@ -76,12 +76,12 @@ robot_gripper_pos = obs["robot0_eef_pos"]
 # get the joint qpos
 reset_joint_qpos = env.sim.data.qpos[env.slider_qpos_addr]
 
-sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  0.30146208]), scale_factor=3) 
+# sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  0.30146208]), scale_factor=3) 
 
 # if want to visualize the point cloud in open3d, the environment later will not work
 viz_imgs = False
 need_o3d_viz = False
-run_cgn = True
+run_cgn = False
 
 pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}.ply'
 pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}_no_downsample.ply'

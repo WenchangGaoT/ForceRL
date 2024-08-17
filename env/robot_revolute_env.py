@@ -7,7 +7,7 @@ from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
 
-from objects.custom_objects import SelectedMicrowaveObject 
+from objects.custom_objects import SelectedMicrowaveObject, SelectedDishwasherObject
 from scipy.spatial.transform import Rotation as R
 from copy import deepcopy
 
@@ -21,6 +21,9 @@ class RobotRevoluteOpening(SingleArmEnv):
         self,
         robots,
         object_type = "microwave",
+        object_name = "microwave-1",
+        scale_object=False, 
+        object_scale=1.0,
         object_model_idx = 1,
         env_configuration="default",
         controller_configs=None,
@@ -59,7 +62,7 @@ class RobotRevoluteOpening(SingleArmEnv):
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
-        self.available_objects = ["microwave"]
+        self.available_objects = ["microwave", "dishwasher",]
         assert object_type in self.available_objects, "Invalid object type! Choose from: {}".format(self.available_objects)
         self.object_type = object_type
         self.object_model_idx = object_model_idx 
@@ -67,6 +70,9 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.x_range = x_range
         self.y_range = y_range
         self.move_robot_away = move_robot_away
+        self.object_name = object_name
+        self.scale_object = scale_object
+        self.object_scale = object_scale
 
         super().__init__(
             robots=robots,
@@ -161,6 +167,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         # get the revolute object
         if self.object_type == "microwave":
             self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
+        elif self.object_type == "dishwasher":
+            self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
 
         # Create placement initializer
         if self.placement_initializer is not None:

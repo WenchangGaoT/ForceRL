@@ -132,7 +132,7 @@ def preprocess_meshes(file_dir, output_dir):
             # extrude the mesh
             extrude = extrude_single_2d_mesh(mesh, 0.01)
             # show the extruded mesh
-            # trimesh.Scene([extrude, mesh]).show()
+            trimesh.Scene([extrude, mesh]).show()
 
             # save the extruded mesh
             extrude.export(file_obj=os.path.join(output_dir, obj_file.replace('.obj', '.stl')), file_type='stl')

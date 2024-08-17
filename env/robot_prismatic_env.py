@@ -314,6 +314,7 @@ class RobotPrismaticEnv(SingleArmEnv):
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "prismatic": ["trashcan-1", "canbinet-1"]
+            "prismatic": ["trashcan-1", "canbinet-1"], 
+            "cabinet": ["cabinet-1", "cabinet-2", "cabinet-3"],
         }
         return available_objects

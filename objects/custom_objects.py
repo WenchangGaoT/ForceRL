@@ -164,6 +164,56 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         hinge_pos = [float(x) for x in hinge_pos]
         return hinge_pos
     
+
+class SelectedDishwasherObject(MujocoXMLObject):
+    """
+    Microwave with door (used in Microwave)
+
+    Args:
+    """
+
+    def __init__(self, name, scaled=False, scale=1.0,):
+
+
+        self.available_obj_list = self.available_objects()
+        assert name in self.available_obj_list, "Invalid object! Please use another name"
+        if not scaled:
+            xml_path = f"{name}/{name}.xml"
+        
+        else:
+            # call function to scale the object
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            scale_object_new(xml_path_original, None, [scale, scale, scale])
+            xml_path = f"{name}/{name}-scaled.xml"
+        
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
+            )
+        
+        # Set relevant body names
+        self.revolute_body = self.naming_prefix + "link_0"
+        self.hinge_joint = self.naming_prefix + "joint_0"
+    
+    @property
+    def hinge_pos_relative(self):
+        '''
+        Returns:
+            str: hinge position relative to the object
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_pos = hinge.get("pos")
+        hinge_pos = hinge_pos.split(" ")
+        hinge_pos = [float(x) for x in hinge_pos]
+        return hinge_pos
+
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'dishwasher-2',
+            'dishwasher-3',
+        ]
+        return available_objects
+   
 class EvalPrismaticObjects(MujocoXMLObject):
     def __init__(self, name, scaled = True, scale = 1.0):
         self.available_obj_list = self.available_objects()
@@ -188,6 +238,8 @@ class EvalPrismaticObjects(MujocoXMLObject):
         available_objects = [
             'trashcan-1',
             'cabinet-1',
+            'cabinet-2',
+            'cabinet-3',
         ]
         return available_objects
     
