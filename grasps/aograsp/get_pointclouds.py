@@ -56,6 +56,9 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     # set move_robot_away to true
     env_kwargs["move_robot_away"] = True
 
+    # disable rotate_around_robot
+    env_kwargs["rotate_around_robot"] = False
+    
     # use given x_range and y_range so that we can see the whole object. 
     env_kwargs["x_range"] = reset_x_range
     env_kwargs["y_range"] = reset_y_range

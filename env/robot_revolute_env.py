@@ -58,6 +58,11 @@ class RobotRevoluteOpening(SingleArmEnv):
         obj_rotation=(-np.pi/2, -np.pi / 2),
         x_range = (-1,-1),
         y_range = (0,0),
+        z_offset = 0.0,
+
+        rotate_around_robot = False,
+        object_robot_distance = (0.5, 0.5),
+
         move_robot_away=True,
     ):
         self.placement_initializer = placement_initializer
@@ -69,10 +74,16 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.obj_rotation = obj_rotation 
         self.x_range = x_range
         self.y_range = y_range
+        self.z_offset = z_offset
+
         self.move_robot_away = move_robot_away
         self.object_name = object_name
         self.scale_object = scale_object
         self.object_scale = object_scale
+
+        self.rotate_around_robot = rotate_around_robot
+        self.object_robot_distance = object_robot_distance
+
 
         super().__init__(
             robots=robots,
@@ -153,6 +164,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         else:
             xpos = (xpos[0], xpos[1] + 0.3, xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
+       
+        self.robot_base_xpos = deepcopy(xpos)
 
         # set empty arena
         mujoco_arena = EmptyArena()
@@ -169,6 +182,10 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
         elif self.object_type == "dishwasher":
             self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
+
+        # get the actual placement of the object
+        actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()   
+
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -192,17 +209,17 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
-                x_range = self.x_range, #No randomization
-                y_range = self.y_range, #No randomization 
-                z_offset=0.1,
+                x_range = actual_placement_x, #No randomization
+                y_range = actual_placement_y, #No randomization 
+                z_offset=self.z_offset,
                 # x_range=[0, 0], #No randomization
                 # x_range=[-1, -1], #No randomization
                 # y_range=[-0.54,-0.54], #No randomization
                 # y_range=[0,0], #No randomization
-                rotation=self.obj_rotation, #No randomization
+                rotation=actual_placement_rotation, #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
-                reference_pos=(-0.6, -1.0, 0.5)
+                reference_pos=actual_placement_reference_pos
                 # reference_pos=(0, 0, 0)
             )
 
@@ -212,6 +229,32 @@ class RobotRevoluteOpening(SingleArmEnv):
             mujoco_robots=[robot.robot_model for robot in self.robots],
             mujoco_objects=self.revolute_object)
     
+    def get_object_actual_placement(self):
+        if self.rotate_around_robot:
+            robot_pos = self.robot_base_xpos
+            # sample a rotation angle from obj_rotation
+            angle = np.random.uniform(self.obj_rotation[0], self.obj_rotation[1])
+            # sample a distance from object_robot_distance
+            distance = np.random.uniform(self.object_robot_distance[0], self.object_robot_distance[1])
+
+            # calculate correct x and y position using distance and angle
+            x = robot_pos[0] + distance * np.cos(angle)
+            y = robot_pos[1] + distance * np.sin(angle)
+
+            # we don't use the randomization for x and y
+            actual_placement_x = (x, x)
+            actual_placement_y = (y, y)
+            actual_placement_rotation = (angle, angle)
+            actual_placement_reference_pos = (0, 0, 0.5)
+        else:
+            actual_placement_x = self.x_range
+            actual_placement_y = self.y_range
+            actual_placement_rotation = self.obj_rotation
+            actual_placement_reference_pos = (-0.6, -1.0, 0.5)
+
+        return actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos
+
+
     def _setup_references(self):
         """
         Sets up references to important components. A reference is typically an
@@ -293,6 +336,15 @@ class RobotRevoluteOpening(SingleArmEnv):
 
     def _reset_internal(self):
         super()._reset_internal()
+
+        # if rotate_around_robot is True, need to reset the object placement parameters
+        if self.rotate_around_robot:
+            actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()
+            self.placement_initializer.x_range = actual_placement_x
+            self.placement_initializer.y_range = actual_placement_y
+            self.placement_initializer.rotation = actual_placement_rotation
+            self.placement_initializer.reference_pos = actual_placement_reference_pos
+
         object_placements = self.placement_initializer.sample()
 
         # We know we're only setting a single object (the drawer), so specifically set its pose
