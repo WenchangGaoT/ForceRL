@@ -130,7 +130,7 @@ def display_camera_pose(env, camera_name):
     print(f'{camera_name} pose: {env.sim.model.cam_pos[cam_id]}') 
     print(f'{camera_name} quat: {env.sim.model.cam_quat[cam_id]}') 
 
-def init_camera_pose(env, camera_pos, scale_factor):
+def init_camera_pose(env, camera_pos, scale_factor, camera_quat=None):
     '''
     Converts the camera pose to the fixed relative pose of the object in the environment
     '''
@@ -143,8 +143,11 @@ def init_camera_pose(env, camera_pos, scale_factor):
     rotation_euler_cam = np.array([rotation_euler_world[2], 0,0])
     
     m3_world = quat2mat(obj_quat)
-    m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously    
-    m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
+    m3 = euler2mat(rotation_euler_cam)# Turn camera and microwave simultaneously  
+    if camera_quat is not None:
+        m2 = quat2mat(camera_quat)  
+    else:
+        m2 = quat2mat(np.array([-0.005696068282031459, 0.19181093598117868, 0.02913152799094475, 0.9809829120433564])) # Turn camera to microwave
 
     M = np.dot(m1,m2)
     M = np.dot(M, m3.T) 

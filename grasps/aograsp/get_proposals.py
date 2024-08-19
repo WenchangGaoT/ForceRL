@@ -75,7 +75,7 @@ def get_pts_from_zfront_to_wf(pts_cf_arr, camera_info_path):
     if not isinstance(camera_info_dict, dict):
         camera_info_dict = camera_info_dict.item()
     cam_pos = camera_info_dict["camera_config"]["trans"]
-    cam_quat = camera_info_dict["camera_config"]["quat"] 
+    cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"] 
 
     # Transform points from world to camera frame
     H_cam2world_xfront = r_utils.get_H(r_utils.get_matrix_from_quat(cam_quat), cam_pos)
@@ -107,7 +107,7 @@ def get_quat_from_zfront_to_wf(pts_quat_cf, camera_info_path):
     if not isinstance(camera_info_dict, dict):
         camera_info_dict = camera_info_dict.item()
     cam_pos = camera_info_dict["camera_config"]["trans"]
-    cam_quat = camera_info_dict["camera_config"]["quat"] 
+    cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"] 
 
     # Transform points from world to camera frame
     H_cam2world_xfront = r_utils.get_H(r_utils.get_matrix_from_quat(cam_quat), cam_pos)

@@ -24,7 +24,7 @@ env:TrainPrismaticEnv = suite.make(
 obs = env.reset()
 env.render()
 for _ in range(1000):
-    action = np.array([1,0.0,0.0])
+    action = np.array([5,0.0,0.0])
     obs, _,_,_ = env.step(action)
     print(obs["joint_qpos"])
     env.render()

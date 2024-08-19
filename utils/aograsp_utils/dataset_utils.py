@@ -121,7 +121,7 @@ def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, info_path):
     if not isinstance(info_dict, dict):
         info_dict = info_dict.item()
     cam_pos = info_dict["camera_config"]["trans"]
-    cam_quat = info_dict["camera_config"]["quat"] 
+    cam_quat = info_dict["camera_config"]["quat_for_gamma"] 
     print('camera pos: ', cam_pos) 
     print('camera_quat: ', cam_quat)
 

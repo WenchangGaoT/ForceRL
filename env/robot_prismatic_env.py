@@ -16,12 +16,19 @@ os.environ['MUJOCO_GL'] = 'osmesa'
 
 
 class RobotPrismaticEnv(SingleArmEnv):
+    '''
+    Environment for the prismatic object manipulation task.
 
+    Args:
+        rotate_around_robot: bool, whether to rotate the object around the robot (when True, x_range and y_range are ignored)
+    '''
     def __init__(
         self,
         robots,
         object_name = "trashcan-1",
         object_model_idx = 1,
+        scale_object=False, 
+        object_scale=1.0,
         env_configuration="default",
         controller_configs=None,
         gripper_types="default",
@@ -55,6 +62,11 @@ class RobotPrismaticEnv(SingleArmEnv):
         obj_rotation=(-np.pi/2, -np.pi / 2),
         x_range = (-1,-1),
         y_range = (0,0),
+        z_offset = 0.0,
+
+        rotate_around_robot = False,
+        object_robot_distance = (0.5, 0.5),
+
         move_robot_away=True,
     ):
         
@@ -69,7 +81,16 @@ class RobotPrismaticEnv(SingleArmEnv):
         self.obj_rotation = obj_rotation 
         self.x_range = x_range
         self.y_range = y_range
+        self.z_offset = z_offset
+
         self.move_robot_away = move_robot_away
+
+        self.scale_object = scale_object
+        self.object_scale = object_scale
+
+        self.rotate_around_robot = rotate_around_robot
+        self.object_robot_distance = object_robot_distance
+
 
         super().__init__(
             robots=robots,
@@ -151,6 +172,8 @@ class RobotPrismaticEnv(SingleArmEnv):
             xpos = (xpos[0], xpos[1] + 0.3, xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
 
+        self.robot_base_xpos = deepcopy(xpos)
+
         # set empty arena
         mujoco_arena = EmptyArena()
 
@@ -161,7 +184,12 @@ class RobotPrismaticEnv(SingleArmEnv):
             quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
         )
 
-        self.prismatic_object = EvalPrismaticObjects(name=self.object_name)
+        self.prismatic_object = EvalPrismaticObjects(name=self.object_name, 
+                                                     scaled=self.scale_object,
+                                                     scale=self.object_scale,)
+
+        # get the actual placement of the object
+        actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()   
 
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -171,17 +199,13 @@ class RobotPrismaticEnv(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.prismatic_object,
-                x_range = self.x_range, #No randomization
-                y_range = self.y_range, #No randomization 
-                z_offset=0.1,
-                # x_range=[0, 0], #No randomization
-                # x_range=[-1, -1], #No randomization
-                # y_range=[-0.54,-0.54], #No randomization
-                # y_range=[0,0], #No randomization
-                rotation=self.obj_rotation, #No randomization
+                x_range = actual_placement_x, #No randomization
+                y_range = actual_placement_y, #No randomization 
+                z_offset=self.z_offset,
+                rotation=actual_placement_rotation, #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
-                reference_pos=(-0.6, -1.0, 0.5)
+                reference_pos=actual_placement_reference_pos
                 # reference_pos=(0, 0, 0)
             )
 
@@ -191,6 +215,31 @@ class RobotPrismaticEnv(SingleArmEnv):
             mujoco_robots=[robot.robot_model for robot in self.robots],
             mujoco_objects=self.prismatic_object)
     
+    def get_object_actual_placement(self):
+        if self.rotate_around_robot:
+            robot_pos = self.robot_base_xpos
+            # sample a rotation angle from obj_rotation
+            angle = np.random.uniform(self.obj_rotation[0], self.obj_rotation[1])
+            # sample a distance from object_robot_distance
+            distance = np.random.uniform(self.object_robot_distance[0], self.object_robot_distance[1])
+
+            # calculate correct x and y position using distance and angle
+            x = robot_pos[0] + distance * np.cos(angle)
+            y = robot_pos[1] + distance * np.sin(angle)
+
+            # we don't use the randomization for x and y
+            actual_placement_x = (x, x)
+            actual_placement_y = (y, y)
+            actual_placement_rotation = (angle, angle)
+            actual_placement_reference_pos = (0, 0, 0.5)
+        else:
+            actual_placement_x = self.x_range
+            actual_placement_y = self.y_range
+            actual_placement_rotation = self.obj_rotation
+            actual_placement_reference_pos = (-0.6, -1.0, 0.5)
+
+        return actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos
+
     def _setup_references(self):
         """
         Sets up references to important components. A reference is typically an
@@ -252,6 +301,15 @@ class RobotPrismaticEnv(SingleArmEnv):
 
     def _reset_internal(self):
         super()._reset_internal()
+
+        # if rotate_around_robot is True, need to reset the object placement parameters
+        if self.rotate_around_robot:
+            actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()
+            self.placement_initializer.x_range = actual_placement_x
+            self.placement_initializer.y_range = actual_placement_y
+            self.placement_initializer.rotation = actual_placement_rotation
+            self.placement_initializer.reference_pos = actual_placement_reference_pos
+
         object_placements = self.placement_initializer.sample()
 
         # We know we're only setting a single object (the drawer), so specifically set its pose
@@ -292,9 +350,22 @@ class RobotPrismaticEnv(SingleArmEnv):
             }
         }
 
+    def set_open_percentage(self, percent):
+        '''
+        Set the open percent of the drawer
+        Input:
+            -percent: float, the percent of the drawer to be opened
+        '''
+        # get the joint range
+        joint_range = self.prismatic_object.joint_range
+
+        self.sim.data.qpos[self.slider_qpos_addr] = percent * (joint_range[1] - joint_range[0]) + joint_range[0]
+        self.sim.forward()
+
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "prismatic": "trashcan-1"
+            "prismatic": ["trashcan-1", "canbinet-1"], 
+            "cabinet": ["cabinet-1", "cabinet-2", "cabinet-3"],
         }
         return available_objects

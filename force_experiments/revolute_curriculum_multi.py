@@ -5,7 +5,6 @@ import yaml
 import json
 
 from agent.td3 import TD3, ReplayBuffer
-from env.original_door_env import OriginalDoorEnv 
 from env.train_multiple_revolute_env import MultipleRevoluteEnv
 from env.wrappers import ActionRepeatWrapperNew
 import time
