@@ -1,9 +1,16 @@
-experiment: revolute_object_general
-train_objects: 'microwave-1', 'dishwasher-1'
-test_objects: 'microwave-2', 'microwave-3', 'microwave-4'
+experiment_name: revolute_object_general
+train_objects: ['microwave-1', 'dishwasher-1']
+test_objects: ['microwave-2', 'microwave-3', 'microwave-4']
+
 force_policy: 
   gamma: 0.99
   algorithm: ddpg
   lr: 1.0e-4
   batch_size: 200
-  polyak: 0.995
+  polyak: 0.995 
+  noise_clip: 1. 
+  policy_decay: 2. 
+
+environment:
+  max_timesteps: 200
+  action_repeat: 1 

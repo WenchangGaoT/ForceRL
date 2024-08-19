@@ -23,7 +23,8 @@ from robosuite.utils.transform_utils import *
 import utils.sim_utils as s_utils
 import time
 import robosuite.utils.camera_utils as robo_cam_utils
-import robosuite.utils.transform_utils as transform_utils
+import robosuite.utils.transform_utils as transform_utils 
+import termcolor
 
 def set_camera_pose(env, camera_name, position, quaternion):
     sim = env.sim
@@ -78,7 +79,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     env.sim.forward()
 
     cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
-    display_camera_pose(env, 'sideview') 
+    # display_camera_pose(env, 'sideview') 
 
     low, high = env.action_spec
     obs, reward, done, _ = env.step(np.zeros_like(low))
@@ -93,11 +94,8 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     
     pointcloud = get_pointcloud(env, obs, ['sideview'], [256], [256], [object_name]) 
     
-    print(f'Before denoising: {len(pointcloud.points)}')
-    
     if denoise:
         pointcloud, ind = pointcloud.remove_statistical_outlier(nb_neighbors=200, std_ratio=2.0)
-    print(f'After denoising: {len(pointcloud.points)}') 
     
     obs_arr_without_downsample = np.asarray(pointcloud.points) - np.array(env.obj_pos)
     obs_arr_without_downsample = obs_arr_without_downsample / scale_factor
@@ -115,17 +113,9 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     pts_arr = np.array(pointcloud.points)
 
     o3d.io.write_point_cloud(pcd_wf_path, pointcloud) 
-    print(f'World frame point cloud saved to {pcd_wf_path}') 
+    print(termcolor.colored(f'World frame point cloud saved to {pcd_wf_path}', 'blue')) 
 
     extrinsic = robo_cam_utils.get_camera_extrinsic_matrix(env.sim, 'sideview')
-    # print(extrinsic)
-    # camera_rotation = extrinsic[:3,:3]
-    # camera_quat = transform_utils.mat2quat(camera_rotation)
-    # cam_id = env.sim.model.camera_name2id("sideview")
-    # camera_quat = env.sim.model.cam_quat[cam_id]
-    # cam_rot = transform_utils.quat2mat(camera_quat).T
-    # cam_quat_t = transform_utils.mat2quat(cam_rot)
-
     camera_rot_90 = transform_utils.euler2mat(np.array([0,0,env_kwargs['obj_rotation'][0]])) @ transform_utils.quat2mat(camera_quat) 
     camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
     
@@ -147,7 +137,9 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
                     }
                 } 
     with open(camera_info_path, 'wb') as f:
-        pickle.dump(camera_config, f)
+        pickle.dump(camera_config, f) 
+
+    print(termcolor.colored(f'world frame camera information saved to {camera_info_path}', 'blue'))
     # env.close()
     
     # need to close the environment if want to visualize the point cloud in open3d

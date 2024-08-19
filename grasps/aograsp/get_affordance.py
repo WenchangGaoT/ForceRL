@@ -14,7 +14,8 @@ import aograsp.viz_utils as v_utils
 import aograsp.model_utils as m_utils 
 import utils.aograsp_utils.dataset_utils as d_utils 
 import utils.aograsp_utils.rotation_utils as r_utils
-import copy
+import copy 
+import termcolor
 
 
 
@@ -57,20 +58,18 @@ def inference_affordance(model, pcd_wf_path, camera_info_path, device):
 
     # Get pts as tensor and create input dict for model
     pts = torch.from_numpy(pts_arr).float().to(device) 
-
-    print('Number of points: ', pts.shape[0])
     pts = torch.unsqueeze(pts, dim=0)
     input_dict = {"pcs": pts} 
     # print(pts) 
 
     # Run inference
-    print("Computing heatmap")
+    print("-------------------Computing heatmap-------------------")
     model.eval()
     with torch.no_grad():
         test_dict = model.test(input_dict, None)
 
     # Save heatmap point cloud 
-    print(f'inference result: {test_dict.keys()}')
+    print(termcolor.colored(f'inference result: {test_dict.keys()}', 'yellow'))
     scores = test_dict["point_score_heatmap"][0].cpu().numpy() 
     heatmap_dict = {
         "pts": pts_arr,  # Save original un-centered data
@@ -79,11 +78,6 @@ def inference_affordance(model, pcd_wf_path, camera_info_path, device):
 
     # Save the converted points and the mean into a npz.
     data_name = os.path.splitext(os.path.basename(pcd_wf_path))[0].replace('world_frame_', '')
-    print(data_name)
-    # points_cf_dict = {
-    #     'pts_arr': pts_arr_backup, 
-    #     'mean': mean
-    # } 
 
     cf_points = o3d.geometry.PointCloud() 
     cf_points.points = o3d.utility.Vector3dVector(pts_arr_backup)
@@ -92,12 +86,12 @@ def inference_affordance(model, pcd_wf_path, camera_info_path, device):
     pcd_cf_path = 'point_clouds/camera_frame_pointclouds/'+'camera_frame_'+data_name+'.ply'
 
     o3d.io.write_point_cloud(pcd_cf_path, cf_points) 
-    print('Saved camera frame point cloud to: ', pcd_cf_path) 
+    print(termcolor.colored(f'Saved camera frame point cloud to: {pcd_cf_path}', "blue")) 
 
     affordance_path = 'outputs/point_score/'+'camera_frame_'+data_name+'_affordance.npz'
 
     np.savez_compressed(affordance_path, data=heatmap_dict)
-    print('Saved heatmap to ', affordance_path)
+    print(termcolor.colored(f'Saved heatmap to {affordance_path}', 'blue'))
     return test_dict, pts_arr, pcd_cf_path, affordance_path
 
 def get_affordance_main(pcd_wf_path, camera_info_path, device="cuda:0", viz=False):
@@ -131,8 +125,6 @@ def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data
         "pts": pts_arr,  # Save original un-centered data
         "labels": scores,
     }
-    # np.savez_compressed(pcd_path, data=heatmap_dict) 
-    # print(pcd_path)
 
     # Save image of heatmap
     if point_score_img_dir:
@@ -160,7 +152,7 @@ def visualize_heatmap(test_dict, pts, point_score_dir, point_score_img_dir, data
         scale_cmap_to_heatmap_range=True,
     )
     # print(f"Heatmap saved to: {pcd_path}")
-    print(f"Visualization saved to: {fig_path}")
+    print(termcolor.colored(f"Visualization saved to: {fig_path}", 'blue'))
 
 
 def parse_args():

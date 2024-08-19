@@ -20,7 +20,7 @@ import matplotlib
 # import utils.mesh_utils as mesh_utils 
 
 import utils.cgn_utils.vis_utils as cgn_v_utils
-
+import termcolor
 
 def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, camera_info_path):
     """
@@ -239,7 +239,7 @@ def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path,
     # store the proposals in the world frame
     world_frame_proposal_path = f'outputs/grasp_proposals/world_frame_proposals/world_frame_{object_name}_grasp.npz'
     store_world_frame_grasp_proposals(g_pos_wf, g_quat_wf, scores, cgn_gs, world_frame_proposal_path)
-    print(f"World frame proposals saved to {world_frame_proposal_path}")
+    print(termcolor.colored(f"World frame proposals saved to {world_frame_proposal_path}", 'blue'))
 
 
     sorted_grasp_tuples = [(g_pos_wf[i], g_quat_wf[i], scores[i]) for i in range(len(g_pos_wf))]
@@ -266,7 +266,7 @@ def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path,
         pcd_wf.points = o3d.utility.Vector3dVector(pts_wf_arr)
         pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{object_name}_back.ply'
         o3d.io.write_point_cloud(pcd_wf_path, pcd_wf)
-        print(f'World frame point cloud saved to {pcd_wf_path}')
+        print(termcolor.colored(f'World frame point cloud saved to {pcd_wf_path}', 'blue'))
 
     top_k_pos_wf = [g[0] for g in sorted_grasp_tuples][:top_k]
     top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]

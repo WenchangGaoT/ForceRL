@@ -19,6 +19,9 @@ from gamma.get_joint_param import get_joint_param_main
 from agent.td3 import TD3
 from termcolor import colored, cprint
 import termcolor
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 
 controller_name = "OSC_POSE"
@@ -28,7 +31,6 @@ controller_configs = suite.load_controller_config(custom_fpath = controller_cfg_
 
 with open(controller_cfg_path, 'r') as f:
     controller_configs = json.load(f)
-# print(controller_configs)
 
 
 env_kwargs = dict(
@@ -92,13 +94,10 @@ camera_euler = np.array([ 45., 22., 3.])
 camera_euler_for_pos = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]])
 camera_rotation = R.from_euler("xyz", camera_euler_for_pos, degrees=True)
 camera_quat = R.from_euler("xyz", camera_euler, degrees=True).as_quat()
-print("camera quat: ", camera_quat)
 camera_forward = np.array([1, 0, 0])
 world_forward = camera_rotation.apply(camera_forward)
 distance = 1.5
 camera_pos = -distance * world_forward
-
-print("camera pos: ", camera_pos)
 
 reset_x_range = (1,1)
 reset_y_range = (1,1)
@@ -119,9 +118,6 @@ pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_co
                         reset_x_range = reset_x_range, 
                         reset_y_range = reset_y_range,
                         )
-
-print(pcd_wf_path)
-print(camera_info_path)
 
 # get the affordance heatmap
 pcd_cf_path, affordance_path = get_affordance_main(pcd_wf_path, camera_info_path, 
@@ -162,13 +158,8 @@ for i in range(len(resuts_list)):
 
 # if not found, use the first joint
 if joint_pose_selected is None:
-    print(termcolor.colored("No joint with type 1 found, using the first joint", "red"))
     joint_pose_selected = joint_poses[0]
     joint_direction_selected = joint_directions[0]
-
-print("-----------------")
-print("object pos: ", object_pos)
-print("-----------------")
 
 
 # failed direction like this:[-6.41057711e-01 -8.01612643e-05  7.67492674e-01]
@@ -193,20 +184,10 @@ max_action = float(5)
 
 
 # load the trained policy
-policy_dir = 'checkpoints/force_policies/prismatic_td3/run_0/curriculum_5'
+policy_dir = '/home/wgao22/projects/ForceRL/checkpoints/force_policies/prismatic_td3/run_0/curriculum_5'
 policy_name = 'prismatic_td3_0_curriculum_5'
 policy = TD3(lr, obs_dim, action_dim, max_action)
 policy.load(policy_dir, policy_name)
-
-
-# world frame proposals need to be offset by the object's position
-print("object pos: ", env.obj_pos)
-object_pos = np.array(env.obj_pos)
-
-# scale the proposals
-print("raw grasp pose: ", top_k_pos_wf[0])
-
-print("scaled grasp pose: ", top_k_pos_wf[0])
 
 top_k_pos_wf = top_k_pos_wf + object_pos
 
@@ -214,8 +195,6 @@ top_k_pos_wf = top_k_pos_wf + object_pos
 
 grasp_pos = top_k_pos_wf[1]
 grasp_quat = top_k_quat_wf[1]
-
-print("Grasp Pos: ", grasp_pos)
 
 # change quat to euler
 sci_rotation = R.from_quat(grasp_quat)
@@ -250,9 +229,6 @@ for i in range(50):
 
 # move the robot according to the policy
 
-# use the ground truth hinge position and direction
-print("object pos: ", env.obj_pos)
-
 
 done = False
 last_grasp_pos = final_grasp_pos
@@ -263,8 +239,6 @@ obs = np.concatenate([joint_direction_selected, np.array(obs["robot0_eef_pos"]) 
 for i in range(200):
     # action = np.zeros_like(env.action_spec[0])
     action = policy.select_action(obs)
-    # print("action: ", action)
-    print("action: ", action)
     action = action * 0.01
 
     # action[2] = 0

@@ -19,6 +19,8 @@ from grasps.aograsp.get_proposals import get_grasp_proposals_main
 from gamma.get_joint_param import get_joint_param_main
 from agent.td3 import TD3
 import termcolor
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 object_name = "temp_door" # A microwave called "drawer"!!!

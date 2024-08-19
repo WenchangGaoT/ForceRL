@@ -18,23 +18,30 @@ import os
 def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
     with open('cfg/train_config.yaml', 'r') as f:
         config = yaml.safe_load(f)
+
+    # Experiment Settings
     experiment_name = config['experiment_name']
     train_objects = config['train_objects'] 
     test_objects = config['test_objects'] 
-    force_policy_config = config['force_policy'] 
 
-    rl_config = force_policy_config['algorithm'] 
+    # Force RL agent hyperparameters
+    rl_config = config['force_policy'] 
     gamma = rl_config['gamma']
-
     if rl_config['algorithm'] == 'ddpg':
         lr = rl_config['lr']
         batch_size = rl_config['batch_size']
-    polyak = 0.995              # target policy update parameter (1-tau)
-    noise_clip = 1
-    policy_delay = 2            # delayed policy updates parameter
-    max_timesteps = 200       # max timesteps in one episode
+        polyak = rl_config['polyak']              
+        noise_clip = 1
+        policy_delay = 2            
+    else:
+        raise Exception(f'{rl_config["algorithm"]} is not implemented')
+
+    # Environment settings
+    env_config = config['environment']
+    max_timesteps = env_config['max_timesteps']
+    action_repeat = env_config['action_repeat'] 
+
     rollouts = 5
-    action_repeat = 1 
     state_dim = 6
     action_dim = 3
     max_action = float(5)
@@ -87,8 +94,6 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
 
     for curriculum_idx, current_curriculum in enumerate(curriculas):
-
-
         # some list to record training data
         cur_curriculum_rewards = []
         cur_curriculum_successes = []
