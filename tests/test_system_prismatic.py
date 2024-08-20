@@ -185,7 +185,7 @@ max_action = float(5)
 
 
 # load the trained policy
-policy_dir = '/home/wgao22/projects/ForceRL/checkpoints/force_policies/prismatic_td3/run_0/curriculum_5'
+policy_dir = 'checkpoints/force_policies/prismatic_td3/run_0/curriculum_5'
 policy_name = 'prismatic_td3_0_curriculum_5'
 policy = TD3(lr, obs_dim, action_dim, max_action)
 policy.load(policy_dir, policy_name)
