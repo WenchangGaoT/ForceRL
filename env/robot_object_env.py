@@ -133,20 +133,6 @@ class RobotRevoluteOpening(SingleArmEnv):
 
 
         ################################################################################################
-        
-    # def move_robot_away(self): 
-    #     print('Moving robot away')
-    #     xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
-    #     xpos = (20, xpos[1], xpos[2]) 
-    #     self.robots[0].robot_model.set_base_xpos(xpos) 
-    #     # self.sim.data.qpos[self.robots[0].robot_model.joint_qposadr[:3]] = xpos
-    #     # self.robots[0].set_robot_joint_positions(xpos) 
-    #     self.sim.forward()
-
-    # def move_robot_back(self): 
-    #     print('Moving robot back')
-    #     self.robots[0].robot_model.set_base_xpos(self.robot_init_xpos)
-    #     self.sim.forward()
 
     def _load_model(self):
         """
@@ -192,38 +178,18 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.placement_initializer.reset()
             self.placement_initializer.add_objects(self.revolute_object)
         else:
-            # self.placement_initializer = UniformRandomSampler(
-            #     name="ObjectSampler",
-            #     mujoco_objects=self.revolute_object,
-            #     # x_range=[-1.2, -1.2], #No randomization
-            #     # y_range=[-1, -1], #No randomization
-            #     x_range=[0.1, 0.1], #No randomization
-            #     y_range=[-1,-1], #No randomization
-            #     rotation=(-np.pi/2, -np.pi/2 ), #No randomization
-            #     rotation_axis="z",
-            #     ensure_object_boundary_in_range=False, 
-            #     reference_pos=(-0.6, -1.0, 0.5)
-            # )
-            # self.obj_pos = np.array([-0.6, -1, 0.6])
-
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
                 x_range = actual_placement_x, #No randomization
                 y_range = actual_placement_y, #No randomization 
                 z_offset=self.z_offset,
-                # x_range=[0, 0], #No randomization
-                # x_range=[-1, -1], #No randomization
-                # y_range=[-0.54,-0.54], #No randomization
-                # y_range=[0,0], #No randomization
                 rotation=actual_placement_rotation, #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=actual_placement_reference_pos
                 # reference_pos=(0, 0, 0)
             )
-
-        # Create task
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots],
@@ -307,7 +273,7 @@ class RobotRevoluteOpening(SingleArmEnv):
             return obs_cache[f"{pf}eef_quat"] if f"{pf}eef_quat" in obs_cache else np.zeros(3)
         @sensor(modality=modality)
         def handle_pos(obs_cache):
-            return np.array(self.sim.data.body_xpos[self.revolute_object_handle_site_id])       
+            return np.array(self.sim.data.body_xpos[self.revolute_object_handle_site_id])
         @sensor(modality=modality) 
         def handle_quat(obs_cache):
             return convert_quat(np.array(self.sim.data.body_xquat[self.revolute_object_handle_site_id]), to="xyzw")

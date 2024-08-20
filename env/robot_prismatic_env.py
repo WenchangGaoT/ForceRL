@@ -9,7 +9,8 @@ from robosuite.utils.transform_utils import convert_quat
 
 from objects.custom_objects import EvalPrismaticObjects 
 from scipy.spatial.transform import Rotation as R
-from copy import deepcopy
+from copy import deepcopy 
+import imageio
 
 import os 
 os.environ['MUJOCO_GL'] = 'osmesa'
@@ -67,7 +68,12 @@ class RobotPrismaticEnv(SingleArmEnv):
         rotate_around_robot = False,
         object_robot_distance = (0.5, 0.5),
 
-        move_robot_away=True,
+        move_robot_away=True, 
+
+        # video stuff
+        cache_video=False,
+        video_width=256,
+        video_height=256,
     ):
         
         available_objects = EvalPrismaticObjects.available_objects()
@@ -89,7 +95,11 @@ class RobotPrismaticEnv(SingleArmEnv):
         self.object_scale = object_scale
 
         self.rotate_around_robot = rotate_around_robot
-        self.object_robot_distance = object_robot_distance
+        self.object_robot_distance = object_robot_distance 
+        self.cache_video=cache_video 
+        self.video_width = video_width
+        self.video_height = video_height 
+        self.frames = []
 
 
         super().__init__(
@@ -117,8 +127,6 @@ class RobotPrismaticEnv(SingleArmEnv):
             camera_segmentations=camera_segmentations,
             renderer=renderer,
             renderer_config=renderer_config,
-            # agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
-            # agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
         )
         
         self.reward_scale = reward_scale
@@ -137,23 +145,6 @@ class RobotPrismaticEnv(SingleArmEnv):
                 'quat': np.array(self.agentview_camera_quat)
             }
         }
-
-
-        ################################################################################################
-        
-    # def move_robot_away(self): 
-    #     print('Moving robot away')
-    #     xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
-    #     xpos = (20, xpos[1], xpos[2]) 
-    #     self.robots[0].robot_model.set_base_xpos(xpos) 
-    #     # self.sim.data.qpos[self.robots[0].robot_model.joint_qposadr[:3]] = xpos
-    #     # self.robots[0].set_robot_joint_positions(xpos) 
-    #     self.sim.forward()
-
-    # def move_robot_back(self): 
-    #     print('Moving robot back')
-    #     self.robots[0].robot_model.set_base_xpos(self.robot_init_xpos)
-    #     self.sim.forward()
 
     def _load_model(self):
         """
@@ -273,16 +264,10 @@ class RobotPrismaticEnv(SingleArmEnv):
             return obs_cache[f"{pf}eef_quat"] if f"{pf}eef_quat" in obs_cache else np.zeros(3)
         @sensor(modality=modality)
         def handle_pos(obs_cache):
-            return np.array(self.sim.data.body_xpos[self.prismatic_object_handle_site_id])
-
-        # @sensor(modality=modality)
-        # def cube_quat(obs_cache):
-        #     return convert_quat(np.array(self.sim.data.body_xquat[self.cube_body_id]), to="xyzw")
-        
+            return np.array(self.sim.data.body_xpos[self.prismatic_object_handle_site_id])     
         @sensor(modality=modality) 
         def handle_quat(obs_cache):
             return convert_quat(np.array(self.sim.data.body_xquat[self.prismatic_object_handle_site_id]), to="xyzw")
-        # sensors = [gripper_pos, gripper_quat,handle_pos,handle_quat]
         sensors = []
         names = [s.__name__ for s in sensors]
 
@@ -297,10 +282,14 @@ class RobotPrismaticEnv(SingleArmEnv):
         return observables
     
     def _pre_action(self, action, policy_step=False):
-        super()._pre_action(action, policy_step)
+        super()._pre_action(action, policy_step) 
+        if self.cache_video and self.has_offscreen_renderer:
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
+                self.frames.append(frame)
 
     def _reset_internal(self):
         super()._reset_internal()
+        self.frames = [] 
 
         # if rotate_around_robot is True, need to reset the object placement parameters
         if self.rotate_around_robot:
@@ -368,4 +357,7 @@ class RobotPrismaticEnv(SingleArmEnv):
             "prismatic": ["trashcan-1", "canbinet-1"], 
             "cabinet": ["cabinet-1", "cabinet-2", "cabinet-3"],
         }
-        return available_objects
+        return available_objects 
+    
+    def save_video(self, video_path='videos/robot_prismatic.mp4'):
+        imageio.mimsave(video_path, self.frames, fps=30)

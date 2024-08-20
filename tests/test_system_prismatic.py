@@ -55,7 +55,8 @@ env_kwargs = dict(
     camera_widths = [1024,1024,1024,1024],
     move_robot_away = False,
     x_range = (0.5,0.5),
-    y_range = (0.5, 0.5),
+    y_range = (0.5, 0.5), 
+    cache_video = True
     # y_range = (0.5, 0.5),
     # y_range = (-2, -2),
 )
@@ -211,7 +212,7 @@ for i in range(80):
     # action = np.zeros_like(env.action_spec[0])
     action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
 
@@ -219,13 +220,13 @@ for i in range(50):
     # action = np.zeros_like(env.action_spec[0])
     action = np.concatenate([final_grasp_pos, rotation_vector, [-1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 # close the gripper
 for i in range(50):
     action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 # move the robot according to the policy
 
@@ -248,8 +249,9 @@ for i in range(200):
     next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
 
     obs = next_obs
-    env.render()
+    # env.render()
 
+env.save_video("videos/prismatic_grasp.mp4")
 env.close()
 
 
