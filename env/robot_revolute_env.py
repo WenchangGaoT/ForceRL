@@ -179,7 +179,7 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # get the revolute object
         if self.object_type == "microwave":
-            self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
+            self.revolute_object = SelectedMicrowaveObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
         elif self.object_type == "dishwasher":
             self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
 
