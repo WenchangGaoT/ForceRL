@@ -177,7 +177,7 @@ joint_direction_selected = joint_direction_selected / np.linalg.norm(joint_direc
 
 print(termcolor.colored("joint pose selected: ", "green"), joint_pose_selected)
 print(termcolor.colored("joint direction selected: ", "green"), joint_direction_selected)
-joint_direction_selected = -joint_direction_selected
+joint_direction_selected = joint_direction_selected
 
 
 obs_dim = 6
@@ -234,7 +234,8 @@ for i in range(80):
     env.step(action)
     env.render()
 
-final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
+# final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
+final_grasp_pos = grasp_pos + np.array([0, 0, -0.02])
 
 for i in range(50):
     # action = np.zeros_like(env.action_spec[0])

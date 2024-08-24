@@ -2,13 +2,8 @@ from env.robot_revolute_env import RobotRevoluteOpening
 import open3d as o3d
 import robosuite as suite
 from env.robot_revolute_env import RobotRevoluteOpening
-from utils.sim_utils import get_pointcloud, flip_image
-from utils.gpd_utils import gpd_get_grasp_pose
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.sim_utils import initialize_robot_position
-import robosuite.utils.transform_utils as transform
-from utils.control_utils import PathPlanner, Linear, Gaussian
 import os 
 import json
 from scipy.spatial.transform import Rotation as R 
@@ -17,14 +12,13 @@ from grasps.aograsp.get_pointclouds import get_aograsp_ply_and_config
 from grasps.aograsp.get_affordance import get_affordance_main
 from grasps.aograsp.get_proposals import get_grasp_proposals_main
 from gamma.get_joint_param import get_joint_param_main
-from agent.td3 import TD3
 import termcolor
 
 
-object_name = "temp_door" # A microwave called "drawer"!!!
 
 controller_name = "OSC_POSE"
-controller_cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"controller_configs")
+
+controller_cfg_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"controller_configs")
 controller_cfg_path = os.path.join(controller_cfg_dir, "osc_pose_absolute.json")
 controller_configs = suite.load_controller_config(custom_fpath = controller_cfg_path,default_controller=controller_name)
 
@@ -36,8 +30,8 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     robots="Panda",
     # robots="Kinova3",
-    object_type = "dishwasher",
-    object_name = "dishwasher-3",
+    object_type = "microwave",
+    object_name = "microwave-3",
     scale_object = True,
     object_scale = 0.3,
     obj_rotation=(-np.pi/2, -np.pi/2),
@@ -81,7 +75,7 @@ sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  
 # need_o3d_viz = True
 # run_cgn = True
 
-viz_imgs = False
+viz_imgs = True
 need_o3d_viz = False
 run_cgn = False
 
@@ -152,17 +146,18 @@ joint_pose_selected = None
 joint_direction_selected = None
 
 
-for i in range(len(resuts_list)):
-    if joint_types[i] == 0:
-        joint_pose_selected = joint_poses[i]
-        joint_direction_selected = joint_directions[i]
-        break
+correct_type_joints = [joint_poses[i] for i in range(len(resuts_list)) if joint_types[i] == 0]
+correct_type_directions = [joint_directions[i] for i in range(len(resuts_list)) if joint_types[i] == 0]
 
-# if not found, use the first joint
-if joint_pose_selected is None:
+if len(correct_type_joints) == 0:
     print(termcolor.colored("No revolute found, using the first joint", "red"))
     joint_pose_selected = joint_poses[0]
     joint_direction_selected = joint_directions[0]
+else:
+    # randomly select one joint
+    idx = np.random.randint(len(correct_type_joints))
+    joint_pose_selected = correct_type_joints[idx]
+    joint_direction_selected = correct_type_directions[idx]
 
 
 print("-----------------")
@@ -177,39 +172,19 @@ print(termcolor.colored("joint direction selected: ", "green"), joint_direction_
 
 
 
-obs_dim = 6
-action_dim = 3
-gamma = 0.99 
-lr = 0.001
-lr_critic = 0.0001 
-K_epochs = 4 
-eps_clip = 0.2 
-action_std = 0.5 
-has_continuous_action_space = True
-max_action = float(5)
-
-
-# load the trained policy
-policy_dir = 'checkpoints/force_policies'
-policy_name = 'curriculum_door_continuous_random_point_td3_0_curriculum_8'
-policy = TD3(lr, obs_dim, action_dim, max_action)
-policy.load(policy_dir, policy_name)
 
 
 # world frame proposals need to be offset by the object's position
 print("object pos: ", env.obj_pos)
 object_pos = np.array(env.obj_pos)
-# object_pos = np.array([0.2, -1.,   0.9])
 
 # scale the proposals
 print("raw grasp pose: ", top_k_pos_wf[0])
-# top_k_pos_wf = np.array(top_k_pos_wf) * 3
 
 print("scaled grasp pose: ", top_k_pos_wf[0])
 
 top_k_pos_wf = top_k_pos_wf + object_pos
 
-# top_k_pos_wf = top_k_pos_wf + np.array([0, 0.1, 0.])
 
 grasp_pos = top_k_pos_wf[0]
 grasp_quat = top_k_quat_wf[0]
@@ -233,20 +208,7 @@ for i in range(80):
     env.step(action)
     env.render()
 
-
-# rortation_correction = np.array([-0.5, 0, 0])
-
-# rotation_original = sci_rotation.as_matrix()
-# rotation_correction = R.from_euler("z", np.pi/6).as_matrix()
-
-# rotation_final = rotation_correction @ rotation_original
-# rotation_final = R.from_matrix(rotation_final).as_rotvec()
-
-
-# grasp_pos -= np.array([0, 0.2, 0.])
-# grasp_pos += np.array([0, -0.01, 0.05])
 final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
-final_grasp_pos = grasp_pos
 
 for i in range(50):
     # action = np.zeros_like(env.action_spec[0])
@@ -269,7 +231,7 @@ print("object pos: ", env.obj_pos)
 hinge_direction = np.array([0,0,1])
 
 last_grasp_pos = obs['robot0_eef_pos']
-# h_point, f_point, h_direction = hinge_pos, obs['robot0_eef_pos'], hinge_direction
+
 h_point, f_point, h_direction = joint_pose_selected, obs['robot0_eef_pos'], joint_direction_selected
 obs = np.concatenate([
                         h_direction, 
@@ -278,14 +240,17 @@ obs = np.concatenate([
 done = False
 # last_grasp_pos = final_grasp_pos
 for i in range(200):
-    # action = np.zeros_like(env.action_spec[0])
-    action = policy.select_action(obs)
+    # action is vertical to both the hinge direction and the direction from the hinge to the finger
+    # use cross product to get the vertical direction
+    action = -np.cross(obs[:3], obs[3:])
+    action = action / np.linalg.norm(action)
+    
+    
     print("action: ", action)
     action = action * 0.01
-    # action[2] = 0
     action = np.concatenate([last_grasp_pos + action,rotation_vector, [1]])
     next_obs, reward, done, _ = env.step(action)
-    # h_point, f_point, h_direction = hinge_pos, next_obs['robot0_eef_pos'], hinge_direction
+
     h_point, f_point, h_direction = joint_pose_selected, next_obs['robot0_eef_pos'], joint_direction_selected
     last_grasp_pos = next_obs['robot0_eef_pos']
     next_obs = np.concatenate([
