@@ -253,10 +253,14 @@ interaction_action_sequence = []
 eef_pose_sequence = []
 
 
-for i in range(20):
+for i in range(80):
     action_direction = robot_xpos - last_grasp_pos
+    # action_direction = [final_grasp_pos[0],final_grasp_pos[1],1]
+    # action_direction = np.array([10,final_grasp_pos[1],final_grasp_pos[2]])
     action_direction = action_direction / np.linalg.norm(action_direction)
-    action = action_direction * 1.1
+    if i <=5:
+        action = action_direction * 0.01
+    else: action = action_direction * 0.2
     print("action: ", action)
     action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
     next_obs,_,_,_=env.step(action)
@@ -269,7 +273,7 @@ for i in range(20):
     obs = next_obs
 
 # print("interaction action sequence: ", interaction_action_sequence)
-print("eef pose sequence: ", len(eef_pose_sequence))
+print("eef pose sequence: ", eef_pose_sequence)
 
 eef_pose_sequence = np.array(eef_pose_sequence)
 # calculate eef pose change each step
@@ -277,7 +281,7 @@ delta_eef_pose = eef_pose_sequence[1:] - eef_pose_sequence[:-1]
 
 critic = policy.critic_2_target
 
-axis_position_bonds = np.array([[-1, -1, -1], [1, 1, 1]])
+axis_position_bonds = np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]])
 # bounds relative to grasp position
 axis_position_bonds = axis_position_bonds + final_grasp_pos
 print("Axis Position Bounds: ", axis_position_bonds)

@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import copy
 
 
 class StateInference:
@@ -60,7 +61,7 @@ class StateInference:
         '''
         delta_eef_pose = eef_pose_sequence[1:] - eef_pose_sequence[:-1]
 
-
+        axis_samples_original = copy.deepcopy(self.axis_samples)
         # make state-action pairs
         axis_samples = np.repeat(self.axis_samples, len(delta_eef_pose), axis=0)
         actions = np.tile(delta_eef_pose, (self.num_samples+1, 1))
@@ -68,7 +69,7 @@ class StateInference:
         actions = actions / np.linalg.norm(actions, axis=1)[:, None] * 5
         eef_pose_sequence= np.tile(eef_pose_sequence[:-1], (self.num_samples+1, 1))
 
-        print("Axis Samples: ", axis_samples)
+        # print("Axis Samples: ", axis_samples)
 
         # calculate the observations
         obs_samples = []
@@ -86,7 +87,7 @@ class StateInference:
         states = torch.tensor(obs_samples, dtype=torch.float32).to(self.device)
         actions = torch.tensor(actions, dtype=torch.float32).to(self.device)
         
-        print("States: ", states)
+        # print("States: ", states)
 
         values = self.critic(states,actions).detach().cpu().numpy()
 
@@ -98,7 +99,7 @@ class StateInference:
         # choose the state with the highest value
         max_value_idx = np.argmax(values)
         print("Max Value: ", values[max_value_idx])
-        axis = axis_samples[max_value_idx]
+        axis = axis_samples_original[max_value_idx]
 
         return axis
     
