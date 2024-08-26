@@ -1,4 +1,5 @@
 from env.robot_prismatic_env import RobotPrismaticEnv 
+from env.robot_revolute_env import RobotRevoluteOpening
 import open3d as o3d
 import robosuite as suite
 from utils.sim_utils import get_pointcloud, flip_image
@@ -27,7 +28,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 controller_name = "OSC_POSE"
 controller_cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"controller_configs")
-controller_cfg_path = os.path.join(controller_cfg_dir, "osc_pose_absolute.json")
+controller_cfg_path = os.path.join(controller_cfg_dir, "osc_pose_absolute_small_kp.json")
 controller_configs = suite.load_controller_config(custom_fpath = controller_cfg_path,default_controller=controller_name)
 
 with open(controller_cfg_path, 'r') as f:
@@ -37,11 +38,13 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     robots="Panda",
     # robots="UR5e",
-    object_name = "cabinet-3",
+    # object_name = "cabinet-3",
     # object_name = "trashcan-1",
-    obj_rotation=(-np.pi/2, -np.pi/2),
+    object_name = "microwave-3",
+    object_type = "microwave",
+    obj_rotation=(-np.pi/4, -np.pi/4),
     scale_object = True,
-    object_scale = 0.5,
+    object_scale = 0.3,
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
@@ -57,11 +60,14 @@ env_kwargs = dict(
     move_robot_away = False,
     x_range = (0.5,0.5),
     y_range = (0.5, 0.5), 
-    cache_video = True
+    cache_video = False,
+    rotate_around_robot = True,
+    object_robot_distance = (0.7, 0.7),
     # y_range = (0.5, 0.5),
     # y_range = (-2, -2),
 )
-env_name = "RobotPrismaticEnv"
+# env_name = "RobotPrismaticEnv"
+env_name = "RobotRevoluteOpening"
 
 env:RobotPrismaticEnv = suite.make(
     env_name,
@@ -170,6 +176,7 @@ joint_direction_selected = joint_direction_selected / np.linalg.norm(joint_direc
 
 print(termcolor.colored("joint pose selected: ", "green"), joint_pose_selected)
 print(termcolor.colored("joint direction selected: ", "green"), joint_direction_selected)
+print(termcolor.colored("gt: ", "green"), env.hinge_position)
 joint_direction_selected = -joint_direction_selected
 
 
@@ -239,23 +246,34 @@ obs = np.concatenate([joint_direction_selected, np.array(obs["robot0_eef_pos"]) 
 
 trajectory = [last_grasp_pos ]
 
+action_direction = env.robot_base_xpos - final_grasp_pos
+print("start angle", env.sim.data.qpos[env.slider_qpos_addr])
 # INTERACTIVE PERCEPTION
-for i in range(50):
-    action = policy.select_action(obs)
-    action = -action * 0.01
+for i in range(160):
+    # action = policy.select_action(obs)
+    action = action_direction / np.linalg.norm(action_direction)
+    action = action * 0.2
+    # action = -action * 0.01
 
     action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
+    # print(action)
     next_obs, reward, done, _ = env.step(action)
+    # env.render()
     last_grasp_pos = next_obs['robot0_eef_pos'] 
+    print("eef pos", next_obs['robot0_eef_pos'])
     trajectory.append(last_grasp_pos)
     next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
     obs = next_obs
-
-
+print("end angle", env.sim.data.qpos[env.slider_qpos_addr])
+print(termcolor.colored("gt: ", "green"), env.hinge_position)
+print("gt radius:", np.linalg.norm(env.hinge_position - final_grasp_pos))
+# env.save_video('videos/prismatic_shake_perc.mp4')
+trajectory = trajectory[:100]
 ip = InteractivePerception(np.array(trajectory))
 
 # print(trajectory) 
 print('prismatic log likelihood: ', ip.prismatic_error())
+print('revolute error: ', ip.revolute_error())
 
 
 # move the robot according to the policy
