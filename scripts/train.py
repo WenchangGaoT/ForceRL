@@ -9,11 +9,21 @@ import yaml
 import json
 
 from agent.td3 import TD3, ReplayBuffer
-from env.train_multiple_revolute_env import MultipleRevoluteEnv
+from env.train_multiple_revolute_env import MultipleRevoluteEnv 
+from env.train_prismatic_env import TrainPrismaticEnv 
+from env.object_env import GeneralObjectEnv
 from env.wrappers import ActionRepeatWrapperNew
 import time
+import random
 import os
 
+
+revolute_state = lambda state: np.concatenate([
+    state['hinge_direction'], 
+    state['force_point']-state['hinge_position']-np.dot(state['force_point']-state['hinge_position'], state['hinge_direction'])*state['hinge_direction']
+    ]) 
+
+prismatic_state = lambda obs: np.concatenate([obs["joint_direction"], obs["force_point_relative_to_start"]])
 
 def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
     with open('cfg/train_config.yaml', 'r') as f:
@@ -65,9 +75,10 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         0.2, 
         0.1
     ]
-
+    # Curriculum for training 
+    # Each curriculum is a tuple of (object pose range, use random point, object type)
     curriculas = [
-         ((-0.25, 0.25), True, "door-like"),
+         ((-0.25, 0.25), True, "prismatic"),
          ((-np.pi / 2.0, 0), True, "door-like"),
          ((-np.pi / 2.0, np.pi / 2.0), True, "door-like"),
          ((-np.pi, 0), True, "door-like"),
@@ -105,15 +116,13 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
         for episodes in range(episodes_schedule[curriculum_idx]):
             
 
-            available_objects_dict = MultipleRevoluteEnv.available_objects()
-            current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
-            # randomly choose an object from the available objects
-            current_curriculum_object = np.random.choice(current_curriculum_available_objects)
+            available_objects_dict = GeneralObjectEnv.available_objects() 
+            current_curriculum_available_objects = np.random.choice(available_objects_dict[current_curriculum[2]])
+            current_curriculum_object = random.choice(current_curriculum_available_objects) if not isinstance(current_curriculum_available_objects, str) else current_curriculum_available_objects
             print(f'episode {episodes} is training with object {current_curriculum_object}')
 
-
             curriculum_env_kwargs = {
-                "init_door_angle": current_curriculum[0],
+                "init_object_angle": current_curriculum[0],
                 "has_renderer": False,
                 "has_offscreen_renderer": False,
                 "use_camera_obs": False,
@@ -122,11 +131,11 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                 "reward_scale": 1.0,
                 "random_force_point": current_curriculum[1],
                 "object_name": current_curriculum_object
-            }
+            } 
 
             # Environment initialization
             raw_env = suite.make(
-                "MultipleRevoluteEnv", 
+                "GeneralObjectEnv", 
                 **curriculum_env_kwargs
                 )
         
@@ -134,12 +143,8 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
             cur_ep_rwds = [] 
             cur_ep_projections = []
             
-            state = env.reset()
-            h_point, f_point, h_direction = state['hinge_position'], state['force_point'], state['hinge_direction']
-            state = np.concatenate([
-                                    h_direction, 
-                                    f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                    ])
+            state = env.reset() 
+            state = prismatic_state(state) if env.is_prismatic else revolute_state(state)
             done = False 
 
             if episodes % 20 == 0:
@@ -147,39 +152,23 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
             # training for each episodes
             for t in range(max_timesteps):
-
                 action = policy.select_action(state)
-
                 next_state, reward, done, _ = env.step(action)  
-                
-                # make our observation
-                h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
-                next_state = np.concatenate([
-                                             h_direction, 
-                                             f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                            ])
+                next_state = prismatic_state(next_state) if env.is_prismatic else revolute_state(next_state)
                 
                 cur_ep_rwds.append(reward)
-                # env.render()
-
                 action_projection = env.current_action_projection
                 cur_ep_projections.append(action_projection)
-
                 replay_buffer.add((state, action, reward, next_state, float(done)))
                 state = next_state
-
                 if done or t==(max_timesteps-1):
-
                     policy.update(replay_buffer, t, batch_size, gamma, polyak, policy_noise_schedule[cur_noise_idx], noise_clip, policy_delay)
-
                     print(f'Episode {episodes}: rwd: {np.sum(cur_ep_rwds)}') 
-
                     episode_success = env.success
                     # add current episode data to the list
                     cur_curriculum_rewards.append(np.sum(cur_ep_rwds))
                     cur_curriculum_successes.append(episode_success) # The task is considered success if reward >= 800.
                     cur_curriculum_projections.append(np.mean(cur_ep_projections))
-
                     env.close()
                     break
 
@@ -193,23 +182,22 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
             # do the rollouts
             if episodes >= episodes_schedule[curriculum_idx] - 1: # Current curriculum is finished
+                # TODO: Switch to robot environment for evaluation
                 print(f'Curriculum {curriculum_idx} is finished training. Evaluating.') 
 
                 for ep in range(rollouts):
-
                     # make the environments  
-                    available_objects_dict = MultipleRevoluteEnv.available_objects()
+                    available_objects_dict = GeneralObjectEnv.available_objects()
 
                     current_curriculum_available_objects = available_objects_dict[current_curriculum[2]]
-                    # randomly choose an object from the available objects
                     current_curriculum_object = np.random.choice(current_curriculum_available_objects)
-                    print(f'episode {episodes} is training with object {current_curriculum_object}')
+                    print(f'Evaluation episode {ep} is evaluating with object {current_curriculum_object}')
 
 
                     curriculum_env_kwargs = {
-                        "init_door_angle": current_curriculum[0],
-                        "has_renderer": True,
-                        "has_offscreen_renderer": True,
+                        "init_object_angle": current_curriculum[0],
+                        "has_renderer": False,
+                        "has_offscreen_renderer": False,
                         "use_camera_obs": False,
                         "control_freq": 20,
                         "horizon": max_timesteps,
@@ -220,7 +208,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
                     # Environment initialization
                     raw_env = suite.make(
-                        "MultipleRevoluteEnv", 
+                        "GeneralObjectEnv", 
                         **curriculum_env_kwargs
                         )
                 
@@ -231,11 +219,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
                     state = env.reset()
 
-                    h_point, f_point, h_direction = state['hinge_position'], state['force_point'], state['hinge_direction']
-                    state = np.concatenate([
-                                            h_direction, 
-                                            f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                            ])                    
+                    state = prismatic_state(state) if env.is_prismatic else revolute_state(state)                 
                     done = False
                     
                     for t in range(max_timesteps):
@@ -243,18 +227,12 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                         action = policy.select_action(state)
 
                         next_state, reward, done, _ = env.step(action)
-
-                        # make our observation
-                        h_point, f_point, h_direction = next_state['hinge_position'], next_state['force_point'], next_state['hinge_direction']
-                        next_state = np.concatenate([
-                                                    h_direction, 
-                                                    f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction
-                                                    ]) 
+                        next_state = prismatic_state(next_state) if env.is_prismatic else revolute_state(next_state)
                          
                         action_projection = env.current_action_projection
                         cur_ep_eval_ep_rwds.append(reward)
                         cur_ep_eval_projections.append(action_projection) 
-                        env.render()
+                        # env.render()
 
                         state = next_state
 
@@ -267,7 +245,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                             cur_run_eval_success_rates.append(current_episode_success)
                             env.close()
                             break
-
+                env.save_video('videos/temp_prismatic.mp4')
                 print(f'Curriculum {curriculum_idx} gets {np.mean(cur_run_eval_rwds[-rollouts:])} average rewards per episode, {np.mean(cur_run_eval_success_rates[-rollouts:])} success rates')
 
         cur_run_rewards.extend(cur_curriculum_rewards)

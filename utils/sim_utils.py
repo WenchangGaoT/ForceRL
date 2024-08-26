@@ -37,7 +37,9 @@ def get_pointcloud(env, obs, camera_names,
         
         # get geom id corresponding to geom_name
         # pc_geom_id = [env.sim.model.geom_name2id(pc_geo) for pc_geo in env.sim.model.geom_names if 'cube' in pc_geo or 'table' in pc_geo]
-        pc_geom_id = [env.sim.model.geom_name2id(pc_geo) for pc_geo in env.sim.model.geom_names if any(name in pc_geo for name in geom_name)]
+        pc_geom_id = [env.sim.model.geom_name2id(pc_geo) for pc_geo in env.sim.model.geom_names if any(name in pc_geo for name in geom_name)] 
+        print('geom name: ', geom_name)
+        print('pc_geom_id:', pc_geom_id)
 
         # create mask using geom_id and segmentation image
         masked_segmentation = np.isin(seg_image, pc_geom_id)

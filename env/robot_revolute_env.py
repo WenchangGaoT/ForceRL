@@ -7,9 +7,10 @@ from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
 
-from objects.custom_objects import SelectedMicrowaveObject, SelectedDishwasherObject
+from objects.custom_objects import SelectedMicrowaveObject, SelectedDishwasherObject, TrainRevoluteObjects, EvalRevoluteObjects
 from scipy.spatial.transform import Rotation as R
-from copy import deepcopy
+from copy import deepcopy 
+import imageio
 
 import os 
 os.environ['MUJOCO_GL'] = 'osmesa'
@@ -63,7 +64,11 @@ class RobotRevoluteOpening(SingleArmEnv):
         rotate_around_robot = False,
         object_robot_distance = (0.5, 0.5),
 
-        move_robot_away=True,
+        move_robot_away=True, 
+
+        cache_video=False, 
+        video_width=256,
+        video_height=256,
     ):
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -82,7 +87,13 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.object_scale = object_scale
 
         self.rotate_around_robot = rotate_around_robot
-        self.object_robot_distance = object_robot_distance
+        self.object_robot_distance = object_robot_distance 
+
+        # Save video stuff
+        self.frames = [] 
+        self.cache_video = cache_video
+        self.video_width = video_width
+        self.video_height = video_height
 
 
         super().__init__(
@@ -133,20 +144,6 @@ class RobotRevoluteOpening(SingleArmEnv):
 
 
         ################################################################################################
-        
-    # def move_robot_away(self): 
-    #     print('Moving robot away')
-    #     xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
-    #     xpos = (20, xpos[1], xpos[2]) 
-    #     self.robots[0].robot_model.set_base_xpos(xpos) 
-    #     # self.sim.data.qpos[self.robots[0].robot_model.joint_qposadr[:3]] = xpos
-    #     # self.robots[0].set_robot_joint_positions(xpos) 
-    #     self.sim.forward()
-
-    # def move_robot_back(self): 
-    #     print('Moving robot back')
-    #     self.robots[0].robot_model.set_base_xpos(self.robot_init_xpos)
-    #     self.sim.forward()
 
     def _load_model(self):
         """
@@ -183,6 +180,7 @@ class RobotRevoluteOpening(SingleArmEnv):
         elif self.object_type == "dishwasher":
             self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
 
+        self.revolute_object = EvalRevoluteObjects(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
         # get the actual placement of the object
         actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()   
 
@@ -192,35 +190,16 @@ class RobotRevoluteOpening(SingleArmEnv):
             self.placement_initializer.reset()
             self.placement_initializer.add_objects(self.revolute_object)
         else:
-            # self.placement_initializer = UniformRandomSampler(
-            #     name="ObjectSampler",
-            #     mujoco_objects=self.revolute_object,
-            #     # x_range=[-1.2, -1.2], #No randomization
-            #     # y_range=[-1, -1], #No randomization
-            #     x_range=[0.1, 0.1], #No randomization
-            #     y_range=[-1,-1], #No randomization
-            #     rotation=(-np.pi/2, -np.pi/2 ), #No randomization
-            #     rotation_axis="z",
-            #     ensure_object_boundary_in_range=False, 
-            #     reference_pos=(-0.6, -1.0, 0.5)
-            # )
-            # self.obj_pos = np.array([-0.6, -1, 0.6])
-
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.revolute_object,
                 x_range = actual_placement_x, #No randomization
                 y_range = actual_placement_y, #No randomization 
                 z_offset=self.z_offset,
-                # x_range=[0, 0], #No randomization
-                # x_range=[-1, -1], #No randomization
-                # y_range=[-0.54,-0.54], #No randomization
-                # y_range=[0,0], #No randomization
                 rotation=actual_placement_rotation, #No randomization
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=actual_placement_reference_pos
-                # reference_pos=(0, 0, 0)
             )
 
         # Create task
@@ -327,10 +306,17 @@ class RobotRevoluteOpening(SingleArmEnv):
     
     def _pre_action(self, action, policy_step=False):
         super()._pre_action(action, policy_step)
-        self.hinge_position = self.calculate_hinge_pos_absolute()
+        self.hinge_position = self.calculate_hinge_pos_absolute() 
+        if self.cache_video and self.has_offscreen_renderer:
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='agentview')
+                # print(frame.shape)
+                frame = np.flip(frame, 0)
+                
+                self.frames.append(frame)
 
     def _reset_internal(self):
         super()._reset_internal()
+        self.frames = []
 
         # if rotate_around_robot is True, need to reset the object placement parameters
         if self.rotate_around_robot:
@@ -380,4 +366,7 @@ class RobotRevoluteOpening(SingleArmEnv):
                 'trans': camera_pos, 
                 'quat': camera_quat
             }
-        }
+        } 
+    
+    def save_video(self, video_path='videos/robot_revolute.mp4'):
+        imageio.mimsave(video_path, self.frames, fps=120)

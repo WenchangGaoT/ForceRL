@@ -19,6 +19,8 @@ from gamma.get_joint_param import get_joint_param_main
 from agent.td3 import TD3
 from termcolor import colored, cprint
 import termcolor
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 controller_name = "OSC_POSE"
@@ -49,7 +51,8 @@ env_kwargs = dict(
     camera_widths = [1024,1024,1024,1024],
     move_robot_away = False,
     x_range = (0.5, 0.5),
-    y_range = (0.4, 0.4),
+    y_range = (0.4, 0.4), 
+    cache_video=True
 )
 env_name = "RobotPrismaticEnv"
 env:RobotPrismaticEnv = suite.make(
@@ -173,7 +176,7 @@ max_action = float(5)
 
 # load the trained policy
 policy_dir = 'checkpoints/force_policies/prismatic_td3/run_0/curriculum_5'
-policy_name = 'prismatic_td3_0_curriculum_5.pth'
+policy_name = 'prismatic_td3_0_curriculum_5'
 policy = TD3(lr, obs_dim, action_dim, max_action)
 policy.load(policy_dir, policy_name)
 
@@ -194,7 +197,7 @@ top_k_pos_wf = top_k_pos_wf + object_pos
 grasp_pos = top_k_pos_wf[1]
 grasp_quat = top_k_quat_wf[1]
 
-print("Grasp Pos: ", grasp_pos)
+# print("Grasp Pos: ", grasp_pos)
 
 # change quat to euler
 sci_rotation = R.from_quat(grasp_quat)
@@ -210,25 +213,68 @@ action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]])
 for i in range(80):
     action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
 
 for i in range(50):
     action = np.concatenate([final_grasp_pos, rotation_vector, [-1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 # close the gripper
 for i in range(50):
     action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
     env.step(action)
-    env.render()
+    # env.render()
 
 done = False
 last_grasp_pos = final_grasp_pos
 
 obs = np.concatenate([joint_direction_selected, np.array(obs["robot0_eef_pos"]) - final_grasp_pos])
+
+
+# Interaction section
+
+# Shake the object 
+trajectory = [last_grasp_pos ]
+
+for i in range(40):
+    action = policy.select_action(obs)
+    action = -action * 0.01
+
+    action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
+    next_obs, reward, done, _ = env.step(action)
+    last_grasp_pos = next_obs['robot0_eef_pos'] 
+    trajectory.append(last_grasp_pos)
+    next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
+    obs = next_obs
+
+for i in range(40):
+    action = policy.select_action(obs)
+    action = action * 0.01
+
+    action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
+    next_obs, reward, done, _ = env.step(action)
+    last_grasp_pos = next_obs['robot0_eef_pos'] 
+    trajectory.append(last_grasp_pos)
+    next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
+    obs = next_obs
+
+for i in range(40):
+    action = policy.select_action(obs)
+    action = -action * 0.01
+
+    action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
+    next_obs, reward, done, _ = env.step(action)
+    last_grasp_pos = next_obs['robot0_eef_pos'] 
+    trajectory.append(last_grasp_pos)
+    next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
+    obs = next_obs
+
+
+
+## Interaction finished
 
 for i in range(200):
     action = policy.select_action(obs)
@@ -240,8 +286,9 @@ for i in range(200):
     next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
 
     obs = next_obs
-    env.render()
+    # env.render()
 
+env.save_video('videos/robot_prismatic_shake.mp4')
 env.close()
 
 

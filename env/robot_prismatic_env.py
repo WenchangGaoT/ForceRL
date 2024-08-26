@@ -284,7 +284,10 @@ class RobotPrismaticEnv(SingleArmEnv):
     def _pre_action(self, action, policy_step=False):
         super()._pre_action(action, policy_step) 
         if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='agentview')
+                # print(frame.shape)
+                frame = np.flip(frame, 0)
+                
                 self.frames.append(frame)
 
     def _reset_internal(self):
@@ -309,8 +312,12 @@ class RobotPrismaticEnv(SingleArmEnv):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
 
     def _check_success(self):
-        # TODO: modify this to check if the drawer is fully open
-        return 0
+        # TODO: modify this to check if the drawer is fully open 
+        joint_qpos = self.sim.data.qpos[self.joint_qpos_addr]
+
+        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        # open 30 degrees
+        return joint_pos_relative_to_range > 0.8
     
     def reward(self, action):
         return 0
@@ -360,4 +367,5 @@ class RobotPrismaticEnv(SingleArmEnv):
         return available_objects 
     
     def save_video(self, video_path='videos/robot_prismatic.mp4'):
-        imageio.mimsave(video_path, self.frames, fps=30)
+        imageio.mimsave(video_path, self.frames, fps=120)
+        # imageio.imwrite(video_path, self.frames[0])

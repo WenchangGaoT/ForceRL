@@ -27,7 +27,7 @@ import imageio
 class MultipleRevoluteEnv(MujocoEnv):
     def __init__(self, 
                  object_name = "door_original",
-                 init_door_angle=(-np.pi / 2.0 - 0.25, 0),
+                 init_object_angle=(-np.pi / 2.0 - 0.25, 0),
                  use_camera_obs=False, 
                  placement_initializer=None,
                  random_force_point = False,
@@ -62,7 +62,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         Door environment with new parameters for curriculum learning.
 
         New parameters:
-            - init_door_angle: tuple, the initial rotation angle of the door. Increase the range as the curricula proceeds.
+            - init_object_angle: tuple, the initial rotation angle of the door. Increase the range as the curricula proceeds.
         '''
         
         self.action_scale = action_scale
@@ -71,7 +71,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.use_camera_obs = use_camera_obs
         self.placement_initializer = placement_initializer
         self.debug_mode = debug_mode 
-        self.init_door_angle = init_door_angle 
+        self.init_object_angle = init_object_angle 
         self.progress_scale = progress_scale
 
         self.frames = []
@@ -230,7 +230,7 @@ class MultipleRevoluteEnv(MujocoEnv):
                 x_range=[-1.07, -1.09],
                 y_range=[-0.01, 0.01],
                 # rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
-                rotation=self.init_door_angle,
+                rotation=self.init_object_angle,
 
                 # rotation=(-np.pi , np.pi),
                 # rotation = (-np.pi, -np.pi),

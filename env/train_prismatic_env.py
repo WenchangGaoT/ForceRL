@@ -84,7 +84,8 @@ class TrainPrismaticEnv(MujocoEnv):
         
 
         self.use_object_obs = True # always use low-level object obs for this environment
-        self.random_force_point = random_force_point
+        self.random_force_point = random_force_point 
+        self.is_prismatic = True
         super().__init__(
             has_renderer=self.has_renderer,
             has_offscreen_renderer=self.has_offscreen_renderer,

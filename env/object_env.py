@@ -1,6 +1,4 @@
-'''
-Force policy training environment for both prismatic objects and revolute objects without real robots.
-'''
+
 from copy import deepcopy
 
 import numpy as np
@@ -8,7 +6,7 @@ import robosuite as suite
 from robosuite.utils.mjcf_utils import IMAGE_CONVENTION_MAPPING
 import robosuite.macros as macros
 from robosuite.models.arenas import EmptyArena
-from objects.custom_objects import TrainPrismaticObjects
+from objects.custom_objects import TrainPrismaticObjects, TrainRevoluteObjects
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.mjcf_utils import CustomMaterial
@@ -58,7 +56,12 @@ class GeneralObjectEnv(MujocoEnv):
                  video_width=256,
                  video_height=256,
                  ): 
-        available_objects = TrainPrismaticObjects.available_objects()
+        '''
+        General object environment for all objects for force policy training
+        '''
+        available_prismatic_objects = TrainPrismaticObjects.available_objects() 
+        available_revolute_objects = TrainRevoluteObjects.available_objects() 
+        available_objects = available_prismatic_objects + available_revolute_objects
         assert object_name in available_objects, "Invalid object!"
         
         self.action_scale = action_scale
@@ -78,9 +81,11 @@ class GeneralObjectEnv(MujocoEnv):
         
         self.object_name = object_name
         # save bounds for relative force point for each object, (lower bound, upper bound, axis)
+        
 
         self.use_object_obs = True # always use low-level object obs for this environment
-        self.random_force_point = random_force_point
+        self.random_force_point = random_force_point 
+        self.is_prismatic = object_name in available_prismatic_objects
         super().__init__(
             has_renderer=self.has_renderer,
             has_offscreen_renderer=self.has_offscreen_renderer,
