@@ -263,7 +263,9 @@ for i in range(200):
     obs = next_obs
     # env.render()
 
-env.save_video()
+print(trajectory)
+
+# env.save_video()
 env.close()
 
 

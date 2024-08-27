@@ -71,15 +71,15 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
     ]
 
     episodes_schedule = [
-        100,
-        100,
-        200, 
-        200, 
-        300, 
-        300,
-        300, 
-        300,
-        300,
+        1000,
+        1000,
+        2000, 
+        2000, 
+        3000, 
+        3000,
+        3000, 
+        3000,
+        3000,
     ]
 
     assert len(curriculas) == len(episodes_schedule), "The length of curriculas and episodes_schedule should be the same."
@@ -107,7 +107,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
 
             curriculum_env_kwargs = {
-                "init_door_angle": current_curriculum[0],
+                "init_object_angle": current_curriculum[0],
                 "has_renderer": False,
                 "has_offscreen_renderer": False,
                 "use_camera_obs": False,
@@ -201,8 +201,8 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
 
 
                     curriculum_env_kwargs = {
-                        "init_door_angle": current_curriculum[0],
-                        "has_renderer": True,
+                        "init_object_angle": current_curriculum[0],
+                        "has_renderer": False,
                         "has_offscreen_renderer": True,
                         "use_camera_obs": False,
                         "control_freq": 20,
@@ -248,7 +248,7 @@ def train(run_id, json_dir, algo_name, checkpoint_dir = "outputs"):
                         action_projection = env.current_action_projection
                         cur_ep_eval_ep_rwds.append(reward)
                         cur_ep_eval_projections.append(action_projection) 
-                        env.render()
+                        # env.render()
 
                         state = next_state
 

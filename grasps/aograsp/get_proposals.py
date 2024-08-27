@@ -224,10 +224,12 @@ def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path,
 
     # run the get_cf_proposals.sh script
     if run_cgn:
+        print(f"bash grasps/aograsp/get_cf_proposals.sh {pcd_heatmap_path}  {object_name}")
         os.system(f"bash grasps/aograsp/get_cf_proposals.sh {pcd_heatmap_path}  {object_name}")
 
     prop_save_dir = 'outputs/grasp_proposals/camera_frame_proposals'
     prop_file_name = f'camera_frame_{object_name}_affordance.npz'
+    # prop_file_name = f'camera_frame_{object_name}_grasp.npz'
     prop_cf_path = os.path.join(prop_save_dir, prop_file_name)
 
     # recover the point cloud from camera frame to world frame

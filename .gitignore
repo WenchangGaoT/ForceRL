@@ -10,4 +10,6 @@ gpd/build/
 test.py
 # *.pth
 *.json
-.vscode/
+.vscode/ 
+*.mp4
+videos/*
