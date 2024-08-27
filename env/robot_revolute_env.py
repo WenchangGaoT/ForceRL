@@ -369,4 +369,11 @@ class RobotRevoluteOpening(SingleArmEnv):
         } 
     
     def save_video(self, video_path='videos/robot_revolute.mp4'):
-        imageio.mimsave(video_path, self.frames, fps=120)
+        imageio.mimsave(video_path, self.frames, fps=120) 
+
+    def set_open_percentage(self, percentage):
+        '''
+        Set the opening percentage of the drawer
+        '''
+        self.sim.data.qpos[self.slider_qpos_addr] = percentage* np.pi / 3
+        self.sim.forward()
