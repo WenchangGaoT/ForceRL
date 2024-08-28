@@ -1,4 +1,5 @@
 from env.robot_prismatic_env import RobotPrismaticEnv 
+from env.robot_revolute_env import RobotRevoluteOpening
 import open3d as o3d
 import robosuite as suite
 from utils.sim_utils import get_pointcloud, flip_image
@@ -37,7 +38,7 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     robots="Panda",
     # robots="UR5e",
-    object_name = "cabinet-3",
+    object_name = "microwave-2",
     # object_name = "trashcan-1",
     obj_rotation=(-np.pi/2, -np.pi/2),
     scale_object = True,
@@ -61,7 +62,8 @@ env_kwargs = dict(
     # y_range = (0.5, 0.5),
     # y_range = (-2, -2),
 )
-env_name = "RobotPrismaticEnv"
+# env_name = "RobotPrismaticEnv" 
+env_name = "RobotRevoluteOpening"
 
 env:RobotPrismaticEnv = suite.make(
     env_name,
@@ -85,7 +87,7 @@ reset_joint_qpos = env.sim.data.qpos[env.slider_qpos_addr]
 # if want to visualize the point cloud in open3d, the environment later will not work
 viz_imgs = False
 need_o3d_viz = False
-run_cgn = False
+run_cgn = True
 
 pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}.ply'
 pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}_no_downsample.ply'
@@ -207,8 +209,9 @@ rotation_vector = sci_rotation.as_rotvec()
 mid_point_pos = (grasp_pos + robot_gripper_pos) / 2
 prepaer_grasp_pos = grasp_pos + np.array([-0., 0, 0.1])
 
-action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]])
+action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]]) 
 
+# GRASPING
 for i in range(80):
     # action = np.zeros_like(env.action_spec[0])
     action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
@@ -242,7 +245,18 @@ trajectory = [last_grasp_pos ]
 # INTERACTIVE PERCEPTION
 for i in range(50):
     action = policy.select_action(obs)
-    action = -action * 0.01
+    action = -action * 0.04
+
+    action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
+    next_obs, reward, done, _ = env.step(action)
+    last_grasp_pos = next_obs['robot0_eef_pos'] 
+    trajectory.append(last_grasp_pos)
+    next_obs = np.concatenate([joint_direction_selected, np.array(next_obs["robot0_eef_pos"]) - final_grasp_pos])
+    obs = next_obs
+
+for i in range(50):
+    action = policy.select_action(obs)
+    action = action * 0.04
 
     action = np.concatenate([last_grasp_pos + action, rotation_vector, [1]])
     next_obs, reward, done, _ = env.step(action)
@@ -255,14 +269,18 @@ for i in range(50):
 ip = InteractivePerception(np.array(trajectory))
 
 # print(trajectory) 
-print('prismatic log likelihood: ', ip.prismatic_error())
+print('prismatic error: ', ip.prismatic_error())
+print('revolute error: ', ip.revolute_error()) 
 
 
 # move the robot according to the policy
+old_controller_config = env.robots[0].controller_config 
+env.robots[0].controller_config['kp'] = 150 
+env.robots[0].controller = suite.controllers.controller_factory(env.robots[0].controller_config['type'], env.robots[0].controller_config)
 for i in range(200):
     # action = np.zeros_like(env.action_spec[0])
     action = policy.select_action(obs)
-    action = action * 0.01
+    action = -action * 0.01
 
     # action[2] = 0
     action = np.concatenate([last_grasp_pos + action,rotation_vector, [1]])
@@ -272,7 +290,7 @@ for i in range(200):
 
     obs = next_obs
     # env.render()
-# env.save_video('videos/prismatic_shake_perc.mp4')
+env.save_video('videos/prismatic_ip.mp4')
 env.close()
 
 

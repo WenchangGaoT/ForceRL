@@ -112,15 +112,15 @@ class InteractivePerception:
         for i in range(len(self.trajectory)):
             e2 += np.log(np.sqrt(np.abs((np.sum((self.trajectory[i] - circle_center_3d)**2) - radius**2))))
             # e2 += np.log(np.sqrt(np.sum((self.trajectory[i] - circle_center_3d)**2) - radius**2))
-        e2 /= len(self.trajectory)
+        e2 /= len(self.trajectory) * 3
         return e2
 
 
 if __name__ == '__main__': 
-    angles = np.linspace(0, 2*np.pi, 1000) 
+    angles = np.linspace(0, 0.05*np.pi, 1000) 
     radius = 10
     trajectory = np.zeros((1000, 3)) 
-    trajectory = np.random.randn(1000, 3)
+    # trajectory = np.random.randn(1000, 3)
     trajectory[:, 0] += np.cos(angles) * radius 
     trajectory[:, 1] += np.sin(angles) * radius
     ip = InteractivePerception(trajectory)
