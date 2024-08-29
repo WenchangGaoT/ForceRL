@@ -46,7 +46,7 @@ def get_aograsp_pts_in_cam_frame_z_front_with_info(pts_wf, camera_info_path):
     camera_info_dict = np.load(camera_info_path, allow_pickle=True)["data"] 
     if not isinstance(camera_info_dict, dict):
         camera_info_dict = camera_info_dict.item()
-    cam_pos = camera_info_dict["camera_config"]["trans"]
+    cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
     cam_quat = camera_info_dict["camera_config"]["quat"]
 
     # Transform points from world to camera frame
@@ -74,7 +74,7 @@ def get_pts_from_zfront_to_wf(pts_cf_arr, camera_info_path):
     camera_info_dict = np.load(camera_info_path, allow_pickle=True)["data"] 
     if not isinstance(camera_info_dict, dict):
         camera_info_dict = camera_info_dict.item()
-    cam_pos = camera_info_dict["camera_config"]["trans"]
+    cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
     cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"] 
 
     # Transform points from world to camera frame
@@ -106,7 +106,7 @@ def get_quat_from_zfront_to_wf(pts_quat_cf, camera_info_path):
     camera_info_dict = np.load(camera_info_path, allow_pickle=True)["data"] 
     if not isinstance(camera_info_dict, dict):
         camera_info_dict = camera_info_dict.item()
-    cam_pos = camera_info_dict["camera_config"]["trans"]
+    cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
     cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"] 
 
     # Transform points from world to camera frame
