@@ -3,6 +3,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error 
 from sklearn.decomposition import PCA 
 from scipy.optimize import minimize
+from scipy.optimize import least_squares
 
 
 def project_points_onto_plane(points, normal_vector, origin):
@@ -74,7 +75,7 @@ class InteractivePerception:
             """ Calculate the loss as the sum of squared differences from the mean radius """
             Ri = calc_R(c)
             return np.sum((Ri - Ri.mean()) ** 2)
-
+        
         # Perform PCA to project the 3D points onto a 2D plane
 
         # A rough initial estimate for the circle center could be the centroid of the arc points
@@ -88,8 +89,17 @@ class InteractivePerception:
 
         return circle_center_3d, radius
 
-
-    def revolute_error(self):
+    def residuals(self,params, points):
+        center = np.array([params[0], params[1], params[2]])
+        radius = params[3]
+        distance = np.linalg.norm(points - center, axis=1) - radius
+        return distance
+    
+    def revolute_error(self): 
+        '''
+        Returns the posterior error of the revolute joint estimation and the estimated parameters
+        error, center, radius, direction
+        '''
         mean = np.mean(self.trajectory, axis=0) 
         X = self.trajectory - mean
         pca = PCA(n_components=3)
@@ -97,6 +107,8 @@ class InteractivePerception:
 
         # Normal vector and point on the plane
         normal_vector = pca.components_[-1]
+        hinge_axis = pca.components_[1]
+        # print('estimated axis direction: ', hinge_axis)
         point_on_plane = np.mean(X, axis=0)
 
         # Project points onto the plane
@@ -105,27 +117,34 @@ class InteractivePerception:
         # Step 4: Fit the circle to the projected points
         circle_center_3d, radius = self.fit_circle_to_arc(projected_points)
 
-        print("Estimated Circle Center in 3D:", circle_center_3d)
-        print("Estimated Radius:", radius) 
-        # error = np.sum((self.trajectory - circle_center_3d)**2) 
-        e2 = 0
-        for i in range(len(self.trajectory)):
-            e2 += np.log(np.sqrt(np.abs((np.sum((self.trajectory[i] - circle_center_3d)**2) - radius**2))))
-            # e2 += np.log(np.sqrt(np.sum((self.trajectory[i] - circle_center_3d)**2) - radius**2))
-        e2 /= len(self.trajectory) * 3
-        return e2
+        # print("Estimated Circle Center in 3D:", circle_center_3d + mean)
+        # print("Estimated Radius:", radius) 
+
+        p1 = self.trajectory[0]
+        p2 = self.trajectory[-1]
+        mid_point = (p1 + p2) / 2
+        hinge_position = mid_point + np.cross(hinge_axis, p1-p2)
+        # print('new estimated hinge position: ', hinge_position)
+
+        result = least_squares(self.residuals, np.concatenate([circle_center_3d, np.array([radius])]), args=(self.trajectory,))
+        # print('result: ', result.x)
+        # print('cost: ', result.cost/len(self.trajectory))
+        return result.cost*2/len(self.trajectory), result.x[:-1], result.x[-1], hinge_axis
 
 
 if __name__ == '__main__': 
-    angles = np.linspace(0, 0.05*np.pi, 1000) 
-    radius = 10
-    trajectory = np.zeros((1000, 3)) 
-    # trajectory = np.random.randn(1000, 3)
+    angles = np.linspace(0, np.pi/18, 80) 
+    radius = 0.3
+    trajectory = np.zeros((80, 3)) 
+    # trajectory = np.random.randn(10, 3) * 0.001
     trajectory[:, 0] += np.cos(angles) * radius 
     trajectory[:, 1] += np.sin(angles) * radius
     ip = InteractivePerception(trajectory)
-    error = ip.revolute_error() 
-    print(trajectory)
-    print('revolute error: ', error) 
-    pris_error = ip.prismatic_error() 
-    print('prismatic error: ', pris_error)
+    error = ip.prismatic_error() 
+    # print(trajectory)
+    print('prismatic error: ', error) 
+    pris_error, c, r, h = ip.revolute_error() 
+    print('revolute error: ', pris_error)
+    print('estimated center: ', c) 
+    print('estimated radius: ', r) 
+    print('estimated axis: ', h)

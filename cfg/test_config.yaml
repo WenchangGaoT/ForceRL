@@ -1,11 +1,6 @@
-experiment_name: force-train-general
+experiment_name: revolute_object_general_test
 train_objects: ['microwave-1', 'dishwasher-1']
-test_objects: ['microwave-2', 'microwave-3', 'microwave-4'] 
-
-output_dir: outputs/
-
-rotate_around_robot: False 
-save_policy_freq: 1000
+test_objects: ['microwave-2', 'microwave-3', 'microwave-4']
 
 force_policy: 
   gamma: 0.99
@@ -15,6 +10,7 @@ force_policy:
   polyak: 0.995 
   noise_clip: 1. 
   policy_decay: 2. 
+  checkpoint_path: 'checkpoints/revolute_object_general_test'
 
 environment:
   max_timesteps: 200

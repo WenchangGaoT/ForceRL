@@ -319,7 +319,12 @@ class RobotRevoluteOpening(SingleArmEnv):
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
-        return 0
+        joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+
+        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        # open 30 degrees
+        return joint_pos_relative_to_range > 0.8
+        # return 0
     
     def reward(self, action):
         return 0

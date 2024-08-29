@@ -6,6 +6,8 @@ import copy
 from scipy.spatial.transform import Rotation as R 
 from robosuite.utils.transform_utils import quat2mat, mat2euler, convert_quat, euler2mat
 import copy
+from perceptions.interactive_perception import InteractivePerception 
+import robosuite as suite
 # import mujoco_py
 
 def flip_image(image):
@@ -164,31 +166,131 @@ def init_camera_pose(env, camera_pos, scale_factor, camera_quat=None):
     set_camera_pose(env, 'sideview', obj_pos + camera_trans, quat) 
     return res
 
+def get_close_to_grasp_point(env, grasp_pos, grasp_quat, robot_gripper_pos):
+    '''
+    Get close to the grasp point and quaternion 
+    Returns the final grasp position
+    ''' 
+    # change quat to euler
+    sci_rotation = R.from_quat(grasp_quat)
+    further_rotation = R.from_euler('z', 90, degrees=True)
+    sci_rotation = sci_rotation * further_rotation
+    rotation_vector = sci_rotation.as_rotvec()
 
+    mid_point_pos = (grasp_pos + robot_gripper_pos) / 2
+    prepaer_grasp_pos = grasp_pos + np.array([-0., 0, 0.1])
 
-# def scale_object(model, object_name, scale_factor):
-#     # Scale all the meshes associated with the object
-#     for mesh in model.meshes:
-#         if mesh.name.startswith(object_name):
-#             mesh.vert[:] *= scale_factor
+    action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]]) 
 
-#     # Scale all geoms associated with the object
-#     for geom in model.geoms:
-#         if geom.name.startswith(object_name):
-#             geom.size[:] *= scale_factor
-#             geom.pos[:] *= scale_factor
+    for i in range(80):
+        action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
+        env.step(action)
 
-#     # Scale all joints associated with the object
-#     for joint in model.joints:
-#         if joint.name.startswith(object_name):
-#             joint.pos[:] *= scale_factor
-#             if joint.type in (mujoco_py.mj.JNT_SLIDE):
-#                 joint.range[:] *= scale_factor
+    final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
 
-#     # If the object has a global position or orientation, scale those too
-#     for body in model.bodies:
-#         if body.name == object_name:
-#             body.pos[:] *= scale_factor
+    for i in range(50):
+        action = np.concatenate([final_grasp_pos, rotation_vector, [-1]])
+        env.step(action)
 
-#     # Reload the model to apply the changes
-#     model.forward()
+    for i in range(50):
+        action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
+        obs = env.step(action) 
+    
+    return final_grasp_pos, rotation_vector, obs
+
+def interact_estimate_params(env, 
+                             interaction_kp, 
+                             interaction_action_scale, 
+                             interaction_timesteps, 
+                             rotation_vector, 
+                             final_grasp_pos,
+                             obs, 
+                             directions=['forward', 'backward', 'left', 'right']):
+    '''
+    Interacts with the object shortly to estimate the joint type and parameters
+    Returns a diction of type and corresponding parameters
+    '''
+    trajectory = []
+
+    # Update the robot controller to interact mode 
+    # old_controller_config = env.robots[0].controller_config 
+    env.robots[0].controller_config['kp'] = interaction_kp
+    env.robots[0].controller = suite.controllers.controller_factory(env.robots[0].controller_config['type'], env.robots[0].controller_config)
+
+    # Get the robot base position
+    robot = env.robots[0]
+    base_position = robot.sim.data.get_body_xpos(robot.robot_model.root_body) 
+    # last_grasp_pos = obs["robot0_eef_pos"] 
+    # print('eef: ', obs)
+    last_grasp_pos = final_grasp_pos
+    print(last_grasp_pos)
+    trajectory.append(last_grasp_pos)
+
+    if 'forward' in directions:
+        for i in range(interaction_timesteps):
+            direction = last_grasp_pos - base_position 
+            # print('direction: ', direction)
+            direction[2] = 0 # NO Z-AXIS MOVEMENT 
+            direction *= interaction_action_scale
+            action = np.concatenate([last_grasp_pos + direction, rotation_vector, [1]])
+            # action = np.concatenate([obs, [0, 0, 0.1]])
+            obs, reward, done, _ = env.step(action)
+            trajectory.append(obs["robot0_eef_pos"])
+            # env.render() 
+
+    if 'backward' in directions:
+        for i in range(interaction_timesteps):
+            direction = -(last_grasp_pos - base_position)
+            direction[2] = 0 # NO Z-AXIS MOVEMENT
+            direction *= interaction_action_scale
+            action = np.concatenate([last_grasp_pos + direction, rotation_vector, [1]])
+            # action = np.concatenate([obs, [0, 0, 0.1]])
+            obs, reward, done, _ = env.step(action)
+            trajectory.append(obs["robot0_eef_pos"])
+
+    if 'left' in directions:
+        for i in range(interaction_timesteps):
+            direction = last_grasp_pos - base_position
+            direction[2] = 0 
+            z = np.array([0, 0, 1])
+            direction = np.cross(z, direction) * interaction_action_scale
+            action = np.concatenate([last_grasp_pos + direction, rotation_vector, [1]])
+            # action = np.concatenate([obs, [0, 0, 0.1]])
+            obs, reward, done, _ = env.step(action)
+            trajectory.append(obs["robot0_eef_pos"]) 
+    
+    if 'right' in directions:
+        for i in range(interaction_timesteps):
+            direction = last_grasp_pos - base_position
+            direction[2] = 0 
+            z = np.array([0, 0, 1])
+            direction = np.cross(direction, z) * interaction_action_scale
+            action = np.concatenate([last_grasp_pos + direction, rotation_vector, [1]])
+            # action = np.concatenate([obs, [0, 0, 0.1]])
+            obs, reward, done, _ = env.step(action)
+            trajectory.append(obs["robot0_eef_pos"]) 
+    # print(base_position)
+    # Interact
+    ip = InteractivePerception(np.array(trajectory)) 
+
+    prismatic_error = ip.prismatic_error() 
+    revolute_error, center, radius, axis = ip.revolute_error()
+    print('prismatic error: ', ip.prismatic_error())
+    print('revolute error: ', ip.revolute_error()[0])
+    print('revolute radius: ', ip.revolute_error()[2]) 
+
+    # Compare the mse error between the prismatic and revolute joint estimation
+    # The revolute is considered overfitted if the estimated radius is too large
+    if prismatic_error < revolute_error or radius > 1.: 
+        estimation_dict = {
+            'joint_type': 'prismatic',
+            'joint_direction': axis
+        }
+    else: 
+        estimation_dict = {
+            'joint_type': 'revolute',
+            'joint_center': center,
+            'joint_radius': radius,
+            'joint_direction': axis
+        } 
+    return obs, estimation_dict

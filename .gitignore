@@ -13,3 +13,5 @@ test.py
 .vscode/ 
 *.mp4
 videos/*
+*.pyc 
+*.ply

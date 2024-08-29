@@ -243,6 +243,7 @@ class RobotPrismaticEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        self.joint_range = self.prismatic_object.joint_range
 
 
 
@@ -313,10 +314,9 @@ class RobotPrismaticEnv(SingleArmEnv):
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open 
-        joint_qpos = self.sim.data.qpos[self.joint_qpos_addr]
+        joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
 
         joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
-        # open 30 degrees
         return joint_pos_relative_to_range > 0.8
     
     def reward(self, action):

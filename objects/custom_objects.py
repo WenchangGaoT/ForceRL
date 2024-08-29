@@ -258,9 +258,14 @@ class EvalPrismaticObjects(MujocoXMLObject):
 
 class EvalRevoluteObjects(MujocoXMLObject):
     def __init__(self, name, scaled = True, scale = 1.0):
-        self.available_obj_list = self.available_objects()
-        assert name in self.available_obj_list, "Invalid object! Please use another name"
+        # available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"]
+        assert name in self.available_objects(), "Object name must be one of {}".format(self.available_objects())
 
+        # xml_path = f"{name}/{name}.xml"
+        # super().__init__(
+        #     fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
+        # )
+        
         if not scaled:
             xml_path = f"{name}/{name}.xml"
         
@@ -271,9 +276,56 @@ class EvalRevoluteObjects(MujocoXMLObject):
             xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
-            ) 
-        self.revolute_body = self.naming_prefix + "link_0"
-        self.hinge_joint = self.naming_prefix + "joint_0"
+            )
+
+        # Set relevant body names
+        if not name == "door_original":
+            self.revolute_body = self.naming_prefix + "link_0"
+            self.hinge_joint = self.naming_prefix + "joint_0"
+        else:
+            self.revolute_body = self.naming_prefix + "door"
+            # self.frame_body = self.naming_prefix + "frame"
+            self.hinge_joint = self.naming_prefix + "hinge"
+            self.lock = False
+            # set the door friction and damping to 0 for training
+        self._set_door_friction(0.0)
+        self._set_door_damping(0.0) 
+    
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'microwave-1', 
+            'microwave-2',
+            'microwave-3',
+            'microwave-4',
+            'microwave-5',
+            # 'dishwasher-1',
+            'dishwasher-2',
+            'dishwasher-3',
+        ]
+        return available_objects
+
+    def _set_door_friction(self, friction):
+      
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge.set("frictionloss", array_to_string(np.array([friction])))
+
+    def _set_door_damping(self, damping):
+
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge.set("damping", array_to_string(np.array([damping])))
+    
+    @property
+    def hinge_direction(self):
+        '''
+        Returns:
+            str: hinge direction
+        '''
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_direction_text = hinge.get("axis")
+        hinge_direction = hinge_direction_text.split(" ")
+        hinge_direction = [float(x) for x in hinge_direction]
+        return hinge_direction 
     
     @property
     def hinge_pos_relative(self):
@@ -285,34 +337,19 @@ class EvalRevoluteObjects(MujocoXMLObject):
         hinge_pos = hinge.get("pos")
         hinge_pos = hinge_pos.split(" ")
         hinge_pos = [float(x) for x in hinge_pos]
-        return hinge_pos
-
-    @staticmethod
-    def available_objects():
-        available_objects = [
-            # 'microwave-1', 
-            'microwave-2', 
-            'microwave-3',
-            'microwave-4',
-            'microwave-5', 
-
-            # TODO: TRAIN DISHWASHER POLICIES
-            # 'dishwasher-2', 
-            # 'dishwasher-3'
-        ]
-        return available_objects
+        return hinge_pos 
     
     @property
-    def joint_range(self):
+    def hinge_range(self):
         '''
         Returns:
             str: hinge ransge
         '''
-        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
-        joint_range = joint.get("range")
-        joint_range = joint_range.split(" ")
-        joint_range = [float(x) for x in joint_range]
-        return joint_range
+        hinge = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.hinge_joint}, return_first=True)
+        hinge_range = hinge.get("range")
+        hinge_range = hinge_range.split(" ")
+        hinge_range = [float(x) for x in hinge_range]
+        return hinge_range
 
 
 
@@ -323,14 +360,25 @@ class TrainRevoluteObjects(MujocoXMLObject):
         name (str): Name of the object
     """
 
-    def __init__(self, name):
+    def __init__(self, name, scaled=True, scale=1.0):
         available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"]
         assert name in available_names, "Object name must be one of {}".format(available_names)
 
-        xml_path = f"{name}/{name}.xml"
+        # xml_path = f"{name}/{name}.xml"
+        # super().__init__(
+        #     fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
+        # )
+        if not scaled:
+            xml_path = f"{name}/{name}.xml"
+        
+        else:
+            # call function to scale the object
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            scale_object_new(xml_path_original, None, [scale, scale, scale])
+            xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
-            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
-        )
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
+            )
 
         # Set relevant body names
         if not name == "door_original":
@@ -403,7 +451,7 @@ class TrainRevoluteObjects(MujocoXMLObject):
     
 
 class TrainPrismaticObjects(MujocoXMLObject):
-    def __init__(self, name):
+    def __init__(self, name, scaled=True, scale=1.0):
 
         self.available_obj_list = self.available_objects()
         assert name in self.available_obj_list, "Invalid object! Please use another name"

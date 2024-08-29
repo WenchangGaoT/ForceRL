@@ -56,7 +56,7 @@ class RobotRevoluteOpening(SingleArmEnv):
         agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349], 
 
         # Object rotation
-        obj_rotation=(-np.pi/2, -np.pi / 2),
+        obj_rotation=(-np.pi/2, -np.pi/2),
         x_range = (-1,-1),
         y_range = (0,0),
         z_offset = 0.0,
@@ -93,7 +93,8 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.frames = [] 
         self.cache_video = cache_video
         self.video_width = video_width
-        self.video_height = video_height
+        self.video_height = video_height 
+        self.is_prismatic = False
 
 
         super().__init__(
@@ -175,10 +176,10 @@ class RobotRevoluteOpening(SingleArmEnv):
         )
 
         # get the revolute object
-        if self.object_type == "microwave":
-            self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
-        elif self.object_type == "dishwasher":
-            self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
+        # if self.object_type == "microwave":
+        #     self.revolute_object = SelectedMicrowaveObject(name="microwave", microwave_number=self.object_model_idx, scale=False)
+        # elif self.object_type == "dishwasher":
+        #     self.revolute_object = SelectedDishwasherObject(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
 
         self.revolute_object = EvalRevoluteObjects(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
         # get the actual placement of the object
@@ -252,7 +253,10 @@ class RobotRevoluteOpening(SingleArmEnv):
         self.obj_quat = self.sim.data.body_xquat[obj_id]
 
         self.hinge_position_rel = self.revolute_object.hinge_pos_relative
-        self.hinge_position = self.calculate_hinge_pos_absolute()
+        self.hinge_position = self.calculate_hinge_pos_absolute() 
+        # self.hinge_position = self.calculate_hinge_pos_absolute()
+        # self.hinge_direction = self.calculate_hinge_direction_absolute()
+        self.joint_range = self.revolute_object.hinge_range
         # self.obj_pos = self.sim.data.body_xpos[self.object_body_ids[self.revolute_object.revolute_body]]
 
     def calculate_hinge_pos_absolute(self):
@@ -339,7 +343,12 @@ class RobotRevoluteOpening(SingleArmEnv):
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
-        return 0
+        joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+
+        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        # open 30 degrees
+        return joint_pos_relative_to_range > 0.8
+        # return 0
     
     def reward(self, action):
         return 0
