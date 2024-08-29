@@ -63,6 +63,10 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     # use given x_range and y_range so that we can see the whole object. 
     env_kwargs["x_range"] = reset_x_range
     env_kwargs["y_range"] = reset_y_range
+    env_kwargs["has_renderer"] = True
+    env_kwargs["has_offscreen_renderer"] = True
+    env_kwargs["use_camera_obs"] = True
+    env_kwargs["camera_depths"] = True
     env_kwargs["camera_names"] = "sideview"
     env_kwargs["camera_heights"] = 256
     env_kwargs["camera_widths"] = 256

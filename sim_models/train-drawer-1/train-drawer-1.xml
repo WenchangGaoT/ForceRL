@@ -84,11 +84,11 @@
                     <joint name="joint_0" pos="0 0 0" axis="0 -1 0" type="slide" limited="true" range="0 0.6" damping="1" frictionloss="1"/>
                     <body name="foo">
                         <geom type="mesh" mesh="convex-42" group="0" name="panel"/>
-                        <geom type="mesh" mesh="convex-38" group="0" name="foo-38"/>
-                        <geom type="mesh" mesh="convex-39" group="0" name="foo-39"/>
-                        <geom type="mesh" mesh="convex-36" group="0" name="foo-36"/>
-                        <geom type="mesh" mesh="convex-37" group="0" name="foo-37"/>
-                        <geom type="mesh" mesh="convex-41" group="0" name="foo-41"/>
+                        <geom type="mesh" mesh="convex-38" group="0" name="foo-38-panel"/>
+                        <geom type="mesh" mesh="convex-39" group="0" name="foo-39-panel"/>
+                        <geom type="mesh" mesh="convex-36" group="0" name="foo-36-panel"/>
+                        <geom type="mesh" mesh="convex-37" group="0" name="foo-37-panel"/>
+                        <geom type="mesh" mesh="convex-41" group="0" name="foo-41-panel"/>
                         <geom type="mesh" mesh="convex-28" group="0" name="fo-28"/>
                         <geom type="mesh" mesh="convex-27" group="0" name="fo-27"/>
                         <geom type="mesh" mesh="convex-32" group="0" name="fo-32"/>

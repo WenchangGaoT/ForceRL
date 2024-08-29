@@ -214,7 +214,7 @@ def store_world_frame_grasp_proposals(grasp_pos_wf, grasp_quat_wf, scores, cgn_g
 
 def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path, 
                              object_name='temp_door', top_k=10, run_cgn=True, viz=False, 
-                             save_wf_pointcloud=False):
+                             save_wf_pointcloud=False, store_proposals=True):
     '''
     main function for getting grasp proposals
 
@@ -240,8 +240,9 @@ def get_grasp_proposals_main(pcd_cf_path, pcd_heatmap_path, camera_info_path,
 
     # store the proposals in the world frame
     world_frame_proposal_path = f'outputs/grasp_proposals/world_frame_proposals/world_frame_{object_name}_grasp.npz'
-    store_world_frame_grasp_proposals(g_pos_wf, g_quat_wf, scores, cgn_gs, world_frame_proposal_path)
-    print(termcolor.colored(f"World frame proposals saved to {world_frame_proposal_path}", 'blue'))
+    if store_proposals:
+        store_world_frame_grasp_proposals(g_pos_wf, g_quat_wf, scores, cgn_gs, world_frame_proposal_path)
+        print(termcolor.colored(f"World frame proposals saved to {world_frame_proposal_path}", 'blue'))
 
 
     sorted_grasp_tuples = [(g_pos_wf[i], g_quat_wf[i], scores[i]) for i in range(len(g_pos_wf))]
