@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 100_000):
     controller_name = "OSC_POSE"
     controller_configs = suite.load_controller_config(default_controller=controller_name)
-
+    print(controller_configs)
     # with open(controller_cfg_path, 'r') as f:
     #     controller_configs = json.load(f)
 
@@ -78,9 +78,9 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
     eps_clip = 0.2 
     action_std = 0.5 
     has_continuous_action_space = True
-    max_action = float(0.05)
-    max_timesteps = 10000
-    rollout_timesteps = 20
+    max_action = float(1)
+    max_timesteps = 1000
+    rollout_timesteps = 50
 
     rollout_every = 100
     rollouts = 1
@@ -91,8 +91,10 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
 
     log_path = os.path.join(logdir, f"{algo_name}_{run_id}")
     logger = Logger(log_path, step=0)
+    average_episode_reward = []
 
     for ep in range(max_episodes):
+        
         obs = env.reset()
         print(obs["open_progress"])
         obs = np.concatenate([obs["gripper_pos"], obs["gripper_quat"], obs["grasp_pos"],  obs["grasp_quat"], obs["joint_direction"], np.array([obs["open_progress"]])])
@@ -107,14 +109,16 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
             episode_reward += reward
             # print(t, reward)
             if done or t == max_timesteps - 1:
+                average_episode_reward.append(episode_reward)
                 policy.update(replay_buffer, t, batch_size,gamma, polyak, 0.2, noise_clip, policy_delay)
                 break
         print(f"Episode: {ep}, Reward: {episode_reward}")
 
         # log the reward
         if ep % log_every == 0:
-            logger.scalar("reward", episode_reward)
+            logger.scalar("reward", np.mean(np.array(average_episode_reward)))
             logger.write(step=ep)
+            average_episode_reward = []
 
         if ep % rollout_every == 0:
 
@@ -128,9 +132,9 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
                 env_name,
                 **rollout_env_kwargs
             )
-
+            rollout_rewards = []
             for _ in range(rollouts):
-                rollout_rewards = []
+                
                 obs = rollout_env.reset()
                 obs = np.concatenate([obs["gripper_pos"], obs["gripper_quat"], obs["grasp_pos"],  obs["grasp_quat"], obs["joint_direction"], np.array([obs["open_progress"]])])
                 done = False
