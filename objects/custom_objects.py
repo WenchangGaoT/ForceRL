@@ -139,12 +139,19 @@ class SelectedMicrowaveObject(MujocoXMLObject):
     Args:
     """
 
-    def __init__(self, name, microwave_number, scale=False):
+    def __init__(self, name, scaled=False, scale=1.0,):
 
-        available_numbers = [1, 2, 3, 4, 5]
-        assert microwave_number in available_numbers, "Microwave number must be one of {}".format(available_numbers)
+        self.available_obj_list = self.available_objects()
+        assert name in self.available_obj_list, "Invalid object! Please use another name"
 
-        xml_path = f"microwave-{microwave_number}/microwave-{microwave_number}.xml" if not scale else f'microwave-{microwave_number}/rescaled-microwave-{microwave_number}.xml'
+        if not scaled:
+            xml_path = f"{name}/{name}.xml"
+        
+        else:
+            # call function to scale the object
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            scale_object_new(xml_path_original, None, [scale, scale, scale])
+            xml_path = f"{name}/{name}-scaled.xml"        
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
         )
@@ -163,6 +170,17 @@ class SelectedMicrowaveObject(MujocoXMLObject):
         hinge_pos = hinge_pos.split(" ")
         hinge_pos = [float(x) for x in hinge_pos]
         return hinge_pos
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'microwave-1',
+            'microwave-2',
+            'microwave-3',
+            'microwave-4',
+            'microwave-5',
+        ]
+        return available_objects
+
     
 
 class SelectedDishwasherObject(MujocoXMLObject):
@@ -297,8 +315,8 @@ class EvalRevoluteObjects(MujocoXMLObject):
             'microwave-5', 
 
             # TODO: TRAIN DISHWASHER POLICIES
-            # 'dishwasher-2', 
-            # 'dishwasher-3'
+            'dishwasher-2', 
+            'dishwasher-3'
         ]
         return available_objects
     

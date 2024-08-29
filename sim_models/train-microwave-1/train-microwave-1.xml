@@ -72,7 +72,7 @@
             <joint name="joint_0" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.523599 1.39626" />
             <!-- <site name="hinge_site" pos="0 0 0" rgba="0 0 0 0" size="0.005" /> -->
             <geom name="panel" pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="new-6" />
-            <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="new-5" />
+            <geom name="panel-2" pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="new-5" />
             <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="original-3" />
             <geom pos="0.618785 0 -0.359218" type="mesh" group="0" mesh="original-4" />
         </body>

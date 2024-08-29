@@ -38,11 +38,11 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     robots="Panda",
     # robots="Kinova3",
-    object_type = "microwave",
-    object_name = "microwave-1",
+    object_type = "dishwasher",
+    object_name = "dishwasher-2",
     scale_object = True,
     object_scale = 0.3,
-    obj_rotation=(-np.pi/2, -np.pi/2),
+    obj_rotation=(-3*np.pi/4, -3*np.pi/4),
     has_renderer=True,
     use_camera_obs=True,
     has_offscreen_renderer=True,
@@ -52,12 +52,14 @@ env_kwargs = dict(
     control_freq = 20,
     horizon=10000,
     camera_names = ["birdview", "agentview", "frontview", "sideview"],
-    render_camera = "birdview",
+    # render_camera = "birdview",
     camera_heights = [1024,256,512,1024],
     camera_widths = [1024,1024,1024,1024],
     move_robot_away = False,
     x_range = (0.8,0.8),
     y_range = (0.5, 0.5),
+    rotate_around_robot = True,
+    object_robot_distance = (0.7, 0.7),
     # y_range = (-2, -2),
 )
 env_name = "RobotRevoluteOpening"
@@ -85,7 +87,7 @@ sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  
 
 viz_imgs = False
 need_o3d_viz = False
-run_cgn = False
+run_cgn = True
 
 pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}.ply'
 pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}_no_downsample.ply'

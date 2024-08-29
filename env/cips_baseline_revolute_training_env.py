@@ -2,21 +2,21 @@ import numpy as np
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models.arenas import EmptyArena
 from robosuite.models.tasks import ManipulationTask
-from robosuite.utils.mjcf_utils import CustomMaterial
 from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
-import utils.baseline_utils as b_utils
 
-from objects.baseline_objects import BaselineTrainPrismaticObjects
+from objects.baseline_objects import BaselineTrainRevoluteObjects
 from scipy.spatial.transform import Rotation as R
 
+from utils import baseline_utils as b_utils
 from grasps.aograsp.get_pointclouds import get_aograsp_ply_and_config
 from grasps.aograsp.get_affordance import get_affordance_main
 from grasps.aograsp.get_proposals import get_grasp_proposals_main
 
 from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
+
 
 from copy import deepcopy 
 import imageio
@@ -25,18 +25,13 @@ import os
 os.environ['MUJOCO_GL'] = 'osmesa'
 
 
+class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
 
-class BaselineTrainPrismaticEnv(SingleArmEnv):
-    '''
-    Environment for the prismatic object manipulation task.
-
-    Args:
-        rotate_around_robot: bool, whether to rotate the object around the robot (when True, x_range and y_range are ignored)
-    '''
     def __init__(
         self,
         robots,
-        object_name = "trashcan-1",
+        object_name = "train-dishwasher-1",
+        object_type="dishwasher",
         scale_object=False, 
         object_scale=1.0,
         env_configuration="default",
@@ -75,7 +70,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         z_offset = 0.0,
         open_percentage = 0.4,
         rotate_around_robot = False,
-        object_robot_distance = (0.5, 0.5),
+        object_robot_distance = (0.7, 0.7),
 
         move_robot_away=True, 
 
@@ -86,11 +81,11 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         # params to avoid infinite recursion
         get_grasp_proposals_flag=False,
-    ):
-        
-        available_objects = BaselineTrainPrismaticObjects.available_objects()
-        assert object_name in available_objects, "Invalid object!"
 
+        # for grasp states
+        use_grasp_states=False,
+        number_of_grasp_states=4,
+    ):
         self.object_name = object_name
         self.placement_initializer = placement_initializer
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -112,8 +107,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         self.video_width = video_width
         self.video_height = video_height 
         self.get_grasp_proposals_flag = get_grasp_proposals_flag
+        self.use_grasp_states = use_grasp_states
+        self.number_of_grasp_states = number_of_grasp_states
         self.frames = []
-
 
         self.env_kwargs = {
             'robots': robots,
@@ -136,6 +132,8 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             'object_robot_distance': object_robot_distance,
             'move_robot_away': move_robot_away,
             'open_percentage': open_percentage,
+            'get_grasp_proposals_flag': get_grasp_proposals_flag,
+            'move_robot_away': move_robot_away,
         }
 
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -150,6 +148,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_grasp.npz")
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
         self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_affordance.npz")
+
+        self.grasp_states_dir = os.path.join(self.project_dir, "baselines/states")
+        self.grasp_states_path = os.path.join(self.grasp_states_dir, f"grasp_states_{object_name}_{object_scale}.npy")
 
         super().__init__(
             robots=robots,
@@ -176,6 +177,8 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             camera_segmentations=camera_segmentations,
             renderer=renderer,
             renderer_config=renderer_config,
+            # agentview_camera_pos=[0.5986131746834771, -4.392035683362857e-09, 1.5903500240372423], 
+            # agentview_camera_quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
         )
         
         self.reward_scale = reward_scale
@@ -195,7 +198,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             }
         }
 
-        self.joint_range = self.prismatic_object.joint_range
+        self.joint_range = self.revolute_object.joint_range
+
+        ################################################################################################
 
     def _load_model(self):
         """
@@ -213,7 +218,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         else:
             xpos = (xpos[0], xpos[1] + 0.3, xpos[2]) # Move the robot away
             self.robots[0].robot_model.set_base_xpos(xpos)
-
+       
         self.robot_base_xpos = deepcopy(xpos)
 
         # set empty arena
@@ -226,21 +231,20 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
         )
 
-        self.prismatic_object = BaselineTrainPrismaticObjects(name=self.object_name, 
-                                                     scaled=self.scale_object,
-                                                     scale=self.object_scale,)
-        # print("contact geom: ", self.prismatic_object.geom_check_grasp)
+        
+        self.revolute_object = BaselineTrainRevoluteObjects(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
         # get the actual placement of the object
         actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()   
+
 
         # Create placement initializer
         if self.placement_initializer is not None:
             self.placement_initializer.reset()
-            self.placement_initializer.add_objects(self.prismatic_object)
+            self.placement_initializer.add_objects(self.revolute_object)
         else:
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
-                mujoco_objects=self.prismatic_object,
+                mujoco_objects=self.revolute_object,
                 x_range = actual_placement_x, #No randomization
                 y_range = actual_placement_y, #No randomization 
                 z_offset=self.z_offset,
@@ -248,14 +252,13 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False, 
                 reference_pos=actual_placement_reference_pos
-                # reference_pos=(0, 0, 0)
             )
 
         # Create task
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots],
-            mujoco_objects=self.prismatic_object)
+            mujoco_objects=self.revolute_object)
     
     def get_object_actual_placement(self):
         if self.rotate_around_robot:
@@ -282,6 +285,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         return actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos
 
+
     def _setup_references(self):
         """
         Sets up references to important components. A reference is typically an
@@ -290,18 +294,25 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         """
         super()._setup_references()
 
-        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.prismatic_object.joint) 
-        obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')
+        # self.revolute_object_handle_site_id = self.sim.model.site_name2id(self.revolute_object.important_sites["handle"])
+        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joints[0]) 
+        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        # obj_euler = R.from_quat(self.obj_quat).as_euler('xyz', degrees=False)
+        # obj_euler = np.array((-np.pi - obj_euler[0], obj_euler[1], obj_euler[2]))
+        # self.obj_quat = R.from_euler('xyz', obj_euler).as_quat()
 
     def calculate_joint_pos_absolute(self):
         '''
-        calculate the joint position in the world frame
+        calculate the hinge position in the world frame
         '''
         joint_pos = np.array(self.joint_position_rel)
+        # hinge_pos[2] -= 0.5
     
-        joint_pos += deepcopy(self.sim.data.get_body_xpos(self.prismatic_object.prismatic_body))
+        # hinge_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_pos)
+        # print("body xpos for hinge: ", self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        joint_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
 
         return joint_pos
     
@@ -310,14 +321,14 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         calculate the joint direction in the world frame
         '''
         joint_dir = np.array(self.joint_direction_rel)
-        joint_dir = np.dot(self.sim.data.get_body_xmat(self.prismatic_object.prismatic_body), joint_dir)
+        joint_dir = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), joint_dir)
         return joint_dir
 
     def get_grasp_proposals(self):
         '''
         Get the grasp proposals for the object
         '''
-        camera_euler = np.array([ 30., 22., 3.])
+        camera_euler = np.array([ 45., 22., 3.])
         camera_euler_for_pos = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]])
         camera_rotation = R.from_euler("xyz", camera_euler_for_pos, degrees=True)
         camera_quat = R.from_euler("xyz", camera_euler, degrees=True).as_quat()
@@ -330,14 +341,13 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         reset_y_range = (1,1)
 
         reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
-        # print("entering get_grasp_proposals")
 
         if not os.path.exists(self.proposal_path):
         # if True:
             # get the point clouds and affordance
             print("Getting point clouds and affordance")
             pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(
-                                env_name = "BaselineTrainPrismaticEnv", 
+                                env_name = "CipsBaselineTrainRevoluteEnv", 
                                 env_kwargs=self.env_kwargs,
                                 object_name=self.object_name, 
                                 camera_pos=camera_pos,
@@ -352,14 +362,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                                 reset_x_range = reset_x_range, 
                                 reset_y_range = reset_y_range,
             )
-            # print("Getting affordance")
-            # print("pcd_wf_path: ", pcd_wf_path)
-            # print("camera_info_path: ", camera_info_path)
             pcd_cf_path, affordance_path = get_affordance_main(pcd_wf_path, camera_info_path, 
                                                     viz=False)
             
-            # print("Getting grasp proposals")
-            # print("pcd_cf_path: ", pcd_cf_path)
             run_cgn = True
             store_proposals = True
 
@@ -378,16 +383,18 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 self.camera_info_path, 
                 run_cgn=run_cgn, 
                 viz=False, 
-                save_wf_pointcloud=False,
+                save_wf_pointcloud=True,
                 object_name=f"{self.object_name}_{self.object_scale}",
                 top_k=10,
                 store_proposals=store_proposals,
         )
+
+        print("world_frame_proposal_path: ", world_frame_proposal_path)
         
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
-        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.03])
+        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.05])
         sci_rotation = R.from_quat(grasp_quat)
         further_rotation = R.from_euler('z', 90, degrees=True)
         sci_rotation = sci_rotation * further_rotation
@@ -395,7 +402,42 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         self.grasp_quat = sci_rotation.as_quat()
 
         # get the relative position of the grasp against the object
-        self.grasp_pos_relative = grasp_pos - deepcopy(self.prismatic_body_pos)
+        self.grasp_pos_relative = grasp_pos - deepcopy(self.revolute_body_pos)
+    
+    def get_grasp_states(self):
+        '''
+        function for getting the grasp states
+        '''
+        grasp_states_path = self.grasp_states_path
+
+        if not os.path.exists(grasp_states_path):
+            print("Getting grasp states")
+            print("obj rotation: ", self.obj_rotation)
+            b_utils.get_grasp_env_states(
+                env_name = "CipsBaselineTrainRevoluteEnv",
+                env_kwargs = self.env_kwargs,
+                grasp_pos = self.final_grasp_pose,
+                grasp_rot_vec = self.grasp_rotation_vector,
+                grasp_states_save_path = grasp_states_path,
+                object_rotation_range = self.obj_rotation,
+                object_robot_distance_range=self.object_robot_distance,
+                number_of_grasp_states = self.number_of_grasp_states,
+            )
+        # load the grasp states
+        # with open(grasp_states_path, 'rb') as f:
+        print("loading grasp states")
+        data = np.load(grasp_states_path)
+        # print(data)
+            # print(data.keys())
+            # print(data['arr_0'])
+            # data = data['state']
+        grasp_states = data
+        # randomly sample a grasp state
+        # grasp_state_idx = np.random.randint(0, len(grasp_states))
+        grasp_state_idx = 0
+        return grasp_states[grasp_state_idx]
+
+            
 
     def _setup_observables(self):
         """
@@ -404,7 +446,6 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         Returns:
             OrderedDict: Dictionary mapping observable names to its corresponding Observable object
         """
-
         observables = super()._setup_observables()
         modality = "object"
         pf = self.robots[0].robot_model.naming_prefix
@@ -427,13 +468,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             @sensor(modality=modality)
             def joint_direction(obs_cache):
                 return self.joint_direction
-            @sensor(modality=modality)
-            def open_progress(obs_cache):
-                return np.array([(self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])])
-            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction, open_progress]
+            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction]
         else:
             sensors = [gripper_pos, gripper_quat]
-
         names = [s.__name__ for s in sensors]
 
         # Create observables
@@ -447,11 +484,30 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         return observables
     
     def _pre_action(self, action, policy_step=False):
-        super()._pre_action(action, policy_step) 
+        super()._pre_action(action, policy_step)
+
+    def step(self, action):
+        '''
+        step function, terminate the episode if the drawer is hit
+        '''
+        obs, reward, done, info = super().step(action)
+        if self.cache_video and self.has_offscreen_renderer:
+                # print("caching video")
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
+                # print(frame.shape)
+                frame = np.flip(frame, 0)
+                
+                self.frames.append(frame)
         
+        
+        return obs, reward, done, info
+
 
     def _reset_internal(self):
         super()._reset_internal()
+
+        
+
         self.frames = [] 
 
         # if rotate_around_robot is True, need to reset the object placement parameters
@@ -465,201 +521,62 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         object_placements = self.placement_initializer.sample()
 
         # We know we're only setting a single object (the drawer), so specifically set its pose
-        drawer_pos, drawer_quat, _ = object_placements[self.prismatic_object.name]
-        drawer_body_id = self.sim.model.body_name2id(self.prismatic_object.root_body)
+        drawer_pos, drawer_quat, _ = object_placements[self.revolute_object.name]
+        drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
         self.sim.model.body_pos[drawer_body_id] = drawer_pos
         self.sim.model.body_quat[drawer_body_id] = drawer_quat
+        # print("actual placement rotation: ", actual_placement_rotation)
+        # print("euler angle reset:", R.from_quat(drawer_quat).as_euler('xyz', degrees=True))
         
         self.set_open_percentage(self.open_percentage)
         self.sim.forward()
 
+        self._update_reference_values()
+
+        if self.get_grasp_proposals_flag:
+            self.get_grasp_proposals()
+        
+        if self.use_grasp_states:
+            grasp_state = self.get_grasp_states()
+            # self.grasp_state = grasp_state
+            print("grasp state: ", grasp_state)
+            self.sim.set_state_from_flattened(grasp_state)
+            self.sim.forward()
+            self._update_reference_values()
+
+    def _update_reference_values(self):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
         self.last_slider_qpos = deepcopy(self.handle_current_progress)
         self.initial_slider_qpos = deepcopy(self.handle_current_progress)
         
-        obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')   
+        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')   
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        # obj_euler = R.from_quat(self.obj_quat).as_euler('xyz', degrees=False)
+        # obj_euler = np.array((-np.pi - obj_euler[0], obj_euler[1], obj_euler[2]))
+        # self.obj_quat = R.from_euler('xyz', obj_euler).as_quat()
 
-        self.prismatic_body = self.prismatic_object.prismatic_body
-        self.prismatic_body_pos = self.sim.data.body_xpos[self.sim.model.body_name2id(self.prismatic_body)]
+        self.revolute_body = self.revolute_object.revolute_body
+        self.revolute_body_pos = self.sim.data.body_xpos[self.sim.model.body_name2id(self.revolute_body)]
         
-        self.joint_position_rel = self.prismatic_object.joint_pos_relative
-        self.joint_direction_rel = self.prismatic_object.joint_direction / np.linalg.norm(self.prismatic_object.joint_direction)
+        self.joint_position_rel = self.revolute_object.joint_pos_relative
+        self.joint_direction_rel = self.revolute_object.joint_direction / np.linalg.norm(self.revolute_object.joint_direction)
 
         self.joint_position = self.calculate_joint_pos_absolute()
+        print("joint position: ", self.joint_position)
         self.joint_direction = self.calculate_joint_direction_absolute()
-
-        if self.get_grasp_proposals_flag:
-            self.get_grasp_proposals()
-
         
 
     def _check_success(self):
-        # TODO: modify this to check if the drawer is fully open 
-        joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
-
-        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0]) - self.open_percentage
-        # open 30 degrees
-        return joint_pos_relative_to_range > 0.8
-    
-    def _check_grasp(self, gripper, object_geoms):
-        """
-        Checks whether the specified gripper as defined by @gripper is grasping the specified object in the environment.
-
-        Modified version, return true if one of the gripper geom group is in contact with the object geom group
-
-        Args:
-            gripper (GripperModel or str or list of str or list of list of str): If a MujocoModel, this is specific
-            gripper to check for grasping (as defined by "left_fingerpad" and "right_fingerpad" geom groups). Otherwise,
-                this sets custom gripper geom groups which together define a grasp. This can be a string
-                (one group of single gripper geom), a list of string (multiple groups of single gripper geoms) or a
-                list of list of string (multiple groups of multiple gripper geoms). At least one geom from each group
-                must be in contact with any geom in @object_geoms for this method to return True.
-            object_geoms (str or list of str or MujocoModel): If a MujocoModel is inputted, will check for any
-                collisions with the model's contact_geoms. Otherwise, this should be specific geom name(s) composing
-                the object to check for contact.
-
-        Returns:
-            bool: True if the gripper is grasping the given object
-        """
-        # Convert object, gripper geoms into standardized form
-        if isinstance(object_geoms, MujocoModel):
-            o_geoms = object_geoms.contact_geoms
-        else:
-            o_geoms = [object_geoms] if type(object_geoms) is str else object_geoms
-        if isinstance(gripper, GripperModel):
-            g_geoms = [gripper.important_geoms["left_fingerpad"], gripper.important_geoms["right_fingerpad"]]
-        elif type(gripper) is str:
-            g_geoms = [[gripper]]
-        else:
-            # Parse each element in the gripper_geoms list accordingly
-            g_geoms = [[g_group] if type(g_group) is str else g_group for g_group in gripper]
-            
-        # Search for collisions between each gripper geom group and the object geoms group
-        for g_group in g_geoms:
-            if self.check_contact(g_group, o_geoms):
-                return True
-        return False
-
-
-    def check_grasp(self):
-        '''
-        Check if robot successfully grasps the object
-        '''
-        return self._check_grasp(self.robots[0].gripper, self.prismatic_object.geom_check_grasp)
-
-    def reward(self, action):
-        '''
-        staged reward function
-        '''
-        return self.staged_reward(action)
-    
-    def get_stage(self):
-        '''
-        get the stage of the current task
-
-        stage 0: check_grasp is False
-        stage 1: check_grasp is True, handle_current_progress < 0.8
-        stage 2: check_grasp is True, handle_current_progress >= 0.8
-        '''
-        # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
-        # print("handle_current_progress: ", self.handle_current_progress)
-        task_percentage = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
-
-        if task_percentage >= 0.8:
-            return 2
-        elif not self.check_grasp():
-            return 0
-        # elif task_percentage >= 0.8:
-        #     return 2
-        else:
-            return 1
-        # elif self.check_grasp() and task_percentage < 0.8:
-        #     return 1
-        
-        
-
-    def staged_reward(self, action):
-        '''
-        three part of the reward function
-        reward_stage: 0, 1, 2
-        reward_end_effector: reward for the end effector, encourage the end effector to be close to the grasp position
-        reward_drawer: reward for the drawer, encourage the drawer to be opened
-        '''
-        eef_mult = 1.0
-        stage_mult = 1.0
-        drawer_mult = 1.0
-
-        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
-        stage = self.get_stage()
-        # print("stage: ", stage)
-
-        reward_stage_list = [0,1,2]
-        reward_stage = reward_stage_list[stage] * stage_mult
-
-        gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
-        # print(self.grasp_pos_relative + self.prismatic_body_pos)
-        # print(self.final_grasp_pose)
-        dist = np.linalg.norm(gripper_pos - np.array(self.grasp_pos_relative + self.prismatic_body_pos))
-        reward_end_effector = (1 - np.tanh(5.0 * dist)) * eef_mult
-        
-        reward_drawer = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
-        reward_drawer = reward_drawer * drawer_mult
-
-        reward_stop = self._check_success() * 10
-
-        if stage == 0:
-            reward = reward_stage + reward_end_effector
-        elif stage == 1:
-            reward_end_effector = 1
-            reward = reward_stage + reward_end_effector + reward_drawer
-        else:
-            reward_end_effector = 1
-            reward = reward_stage + reward_end_effector + reward_drawer + reward_stop
-        
-        self.last_slider_qpos = deepcopy(self.handle_current_progress)
-        # print("reward: ", reward)
-        # print("reward drawer: ", reward_drawer) 
-        return reward
-        
-    def penalty(self, action):
-        '''
-        penalty function
-        '''
-        stage = self.get_stage()
-        if stage == 0:
-            drawer_movement = np.abs(self.handle_current_progress - self.initial_slider_qpos)
-            # print("drawer_movement: ", drawer_movement)
-            if drawer_movement > 0.01:
-                # if hit drawer, then task is failed
-                return -1
+        # TODO: modify this to check if the drawer is fully open
         return 0
+    
+    def reward(self, action):
+        return 0
+    
+    def save_video(self, video_path='videos/robot_revolute.mp4'):
+        imageio.mimsave(video_path, self.frames, fps=120) 
 
-
-    def step(self, action):
-        '''
-        step function, terminate the episode if the drawer is hit
-        '''
-        obs, reward, done, info = super().step(action)
-        if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
-                # print(frame.shape)
-                frame = np.flip(frame, 0)
-                
-                self.frames.append(frame)
-        reward = self.reward(action)
-
-        # check penalty
-        penalty = self.penalty(action)
-        if penalty != 0:
-            done = True
-            self.done = True
-            reward = -10
-
-        # print("reward: ", reward)
-
-        return obs, reward, done, info
 
     def _get_camera_config(self, camera_name):
         '''
@@ -685,26 +602,17 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             }
         }
 
-    def set_open_percentage(self, percent):
+    def set_open_percentage(self, percentage):
         '''
-        Set the open percent of the drawer
-        Input:
-            -percent: float, the percent of the drawer to be opened
+        Set the opening percentage of the drawer
         '''
-        # get the joint range
-        joint_range = self.prismatic_object.joint_range
-        self.joint_qpos_range = joint_range
-
-        self.sim.data.qpos[self.slider_qpos_addr] = percent * (joint_range[1] - joint_range[0]) + joint_range[0]
-        # self.sim.forward()
+        self.sim.data.qpos[self.slider_qpos_addr] = percentage* np.pi / 3
+        self.sim.forward()
 
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "prismatic": ["train-drawer-1"],
+            "microwave": ["train-microwave-1"],
+            "dishwasher": ["train-dishwasher-1"],
         }
         return available_objects 
-    
-    def save_video(self, video_path='videos/robot_prismatic.mp4'):
-        imageio.mimsave(video_path, self.frames, fps=120)
-        # imageio.imwrite(video_path, self.frames[0])

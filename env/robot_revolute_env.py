@@ -250,6 +250,7 @@ class RobotRevoluteOpening(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        # print("obj euler: ", R.from_quat(self.obj_quat).as_euler("xyz", degrees=True))
 
         self.hinge_position_rel = self.revolute_object.hinge_pos_relative
         self.hinge_position = self.calculate_hinge_pos_absolute()

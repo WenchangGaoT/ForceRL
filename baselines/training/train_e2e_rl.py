@@ -26,6 +26,8 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
         # robots="Panda",
         robots="UR5e",
         object_name = "train-drawer-1",
+        # obj_rotation=(-np.pi/2, -np.pi/2),
+        # obj_rotation=(0, 0),
         obj_rotation=(-np.pi/2, -np.pi/2),
         scale_object = True,
         object_scale = 0.5,
@@ -80,7 +82,7 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
     has_continuous_action_space = True
     max_action = float(1)
     max_timesteps = 1000
-    rollout_timesteps = 50
+    rollout_timesteps = 100
 
     rollout_every = 100
     rollouts = 1
@@ -145,7 +147,7 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
                     next_obs = np.concatenate([next_obs["gripper_pos"], next_obs["gripper_quat"], next_obs["grasp_pos"],  next_obs["grasp_quat"], next_obs["joint_direction"], np.array([next_obs["open_progress"]])])
                     obs = next_obs
                     episode_reward += reward
-                    print(t, reward)
+                    # print(t, reward)
                     if done or t == rollout_timesteps - 1:
                         rollout_rewards.append(episode_reward)
                         break
@@ -160,7 +162,7 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
 if __name__ == "__main__":
     baseline_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     logs_dir = os.path.join(baseline_dir, "logs")
-    train(1, logs_dir, "baseline_td3_test",max_episodes = 100_000)
+    train(1, logs_dir, "baseline_td3_test",max_episodes = 10_000)
     
 
 

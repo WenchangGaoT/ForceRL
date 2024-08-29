@@ -75,7 +75,7 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
     if 'get_grasp_proposals_flag' in env_kwargs:
         env_kwargs["get_grasp_proposals_flag"] = False
         env_kwargs["use_grasp_states"] = False
-    # env_kwargs["obj_rotation"] = (-np.pi/2,-np.pi/2)
+    env_kwargs["obj_rotation"] = (0,0)
 
     env = suite.make(
         env_name,
