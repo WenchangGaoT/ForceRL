@@ -146,7 +146,7 @@ def train(run_id, logdir, algo_name, checkpoint_dir = "outputs", max_episodes = 
                     obs = next_obs
                     episode_reward += reward
                     print(t, reward)
-                    if done or t == max_timesteps - 1:
+                    if done or t == rollout_timesteps - 1:
                         rollout_rewards.append(episode_reward)
                         break
             average_reward = np.mean(rollout_rewards)
