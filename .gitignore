@@ -12,4 +12,5 @@ test.py
 *.json
 .vscode/ 
 *.mp4
+logs/
 videos/*
