@@ -446,12 +446,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
     
     def _pre_action(self, action, policy_step=False):
         super()._pre_action(action, policy_step) 
-        if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
-                # print(frame.shape)
-                frame = np.flip(frame, 0)
-                
-                self.frames.append(frame)
+        
 
     def _reset_internal(self):
         super()._reset_internal()
@@ -645,6 +640,13 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         step function, terminate the episode if the drawer is hit
         '''
         obs, reward, done, info = super().step(action)
+        if self.cache_video and self.has_offscreen_renderer:
+                # print("caching video")
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
+                # print(frame.shape)
+                frame = np.flip(frame, 0)
+                
+                self.frames.append(frame)
         reward = self.reward(action)
 
         # check penalty
