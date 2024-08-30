@@ -245,17 +245,18 @@ class RobotRevoluteOpening(SingleArmEnv):
 
         # Additional object references from this env
         self.object_body_ids = dict()
-        self.object_body_ids["drawer"] = self.sim.model.body_name2id(self.revolute_object.revolute_body)
+        self.object_body_ids["revolute"] = self.sim.model.body_name2id(self.revolute_object.revolute_body)
         # self.revolute_object_handle_site_id = self.sim.model.site_name2id(self.revolute_object.important_sites["handle"])
         self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joints[0]) 
-        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
+        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main') 
+        self.hinge_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.hinge_joint)
+        self.hinge_position_rel = self.revolute_object.hinge_pos_relative
+        self.hinge_direction_rel = self.revolute_object.hinge_direction / np.linalg.norm(self.revolute_object.hinge_direction)
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
-
-        self.hinge_position_rel = self.revolute_object.hinge_pos_relative
         self.hinge_position = self.calculate_hinge_pos_absolute() 
         # self.hinge_position = self.calculate_hinge_pos_absolute()
-        # self.hinge_direction = self.calculate_hinge_direction_absolute()
+        self.hinge_direction = self.calculate_hinge_direction_absolute()
         self.joint_range = self.revolute_object.hinge_range
         # self.obj_pos = self.sim.data.body_xpos[self.object_body_ids[self.revolute_object.revolute_body]]
 
@@ -270,7 +271,15 @@ class RobotRevoluteOpening(SingleArmEnv):
         # print("body xpos for hinge: ", self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
         hinge_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
 
-        return hinge_pos
+        return hinge_pos 
+    
+    def calculate_hinge_direction_absolute(self):
+        '''
+        calculate the hinge direction in the world frame
+        '''
+        hinge_dir = np.array(self.hinge_direction_rel)
+        hinge_dir = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), hinge_dir)
+        return hinge_dir
 
     def _setup_observables(self):
         """
@@ -307,11 +316,12 @@ class RobotRevoluteOpening(SingleArmEnv):
         def hinge_direction(obs_cache):
             return self.hinge_direction
 
-        @sensor(modality=modality)
-        def force_point(obs_cache):
-            return self.relative_force_point_to_world(self.force_point)
+        # Robot envs don't have force points
+        # @sensor(modality=modality)
+        # def force_point(obs_cache):
+        #     return self.relative_force_point_to_world(self.force_point)
 
-        sensors = [door_pos, hinge_qpos, hinge_position, force_point, hinge_direction]
+        sensors = [hinge_qpos, hinge_position, hinge_direction]
         names = [s.__name__ for s in sensors]
 
         # Create observables

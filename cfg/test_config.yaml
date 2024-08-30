@@ -22,7 +22,7 @@ robot:
   action_scale: 0.1 # The scale of action execution 
   # interaction stuff
   kp_interaction: 5
-  interaction_timesteps: 10 
+  interaction_timesteps: 20 
   interaction_action_scale: 0.05
   kp_execution: 150 
   interaction_directions: ['forward', 'backward', 'left', 'right']

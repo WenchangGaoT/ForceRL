@@ -178,7 +178,7 @@ def get_close_to_grasp_point(env, grasp_pos, grasp_quat, robot_gripper_pos):
     rotation_vector = sci_rotation.as_rotvec()
 
     mid_point_pos = (grasp_pos + robot_gripper_pos) / 2
-    prepaer_grasp_pos = grasp_pos + np.array([-0., 0, 0.1])
+    prepaer_grasp_pos = grasp_pos + np.array([-0., 0, 0.05])
 
     action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]]) 
 
@@ -186,7 +186,7 @@ def get_close_to_grasp_point(env, grasp_pos, grasp_quat, robot_gripper_pos):
         action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
         env.step(action)
 
-    final_grasp_pos = grasp_pos + np.array([0, 0, -0.05])
+    final_grasp_pos = grasp_pos + np.array([0, 0, -0.2])
 
     for i in range(50):
         action = np.concatenate([final_grasp_pos, rotation_vector, [-1]])
@@ -289,8 +289,8 @@ def interact_estimate_params(env,
     else: 
         estimation_dict = {
             'joint_type': 'revolute',
-            'joint_center': center,
+            'joint_position': center,
             'joint_radius': radius,
-            'joint_direction': axis
+            'joint_direction': -axis
         } 
     return obs, estimation_dict

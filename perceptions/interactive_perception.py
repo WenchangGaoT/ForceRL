@@ -25,7 +25,7 @@ class InteractivePerception:
         self.prismatic_model = LinearRegression()
 
     def prismatic_error(self):
-        print(self.trajectory)
+        # print(self.trajectory)
         X = self.trajectory[:, 1:] 
         y = self.trajectory[:, 0]   
         self.prismatic_model.fit(X, y)
