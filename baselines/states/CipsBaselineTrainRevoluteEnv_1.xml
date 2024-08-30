@@ -121,7 +121,7 @@
     <camera name="frontview" pos="1.6 0 1.45" quat="0.560842 0.430646 0.430646 0.560842"/>
     <camera name="birdview" pos="-0.2 0 3" quat="0.707107 0 0 0.707107"/>
     <camera name="agentview" pos="0.598613 -4.39204e-09 1.59035" quat="0.638018 0.30485 0.30485 0.638018"/>
-    <camera name="sideview" pos="0.823427 0.483427 1.36191" quat="0.297101 0.227444 0.510848 0.773973"/>
+    <camera name="sideview" pos="-0.343427 1.28343 1.36191" quat="-0.3372 -0.200397 0.522052 0.757364"/>
     <light pos="1 1 1.5" dir="-0.19245 -0.19245 -0.96225" directional="true" castshadow="false"/>
     <body name="robot0_base" pos="-0.16 0.3 0.912">
       <inertial pos="0 0 0" mass="0" diaginertia="0 0 0"/>
@@ -260,7 +260,7 @@
         </body>
       </body>
     </body>
-    <body name="train-microwave-1_main" pos="-0.16 -0.5 0.8" quat="0.707107 0 0 -0.707107">
+    <body name="train-microwave-1_main" pos="0.64 0.3 0.8">
       <geom name="train-microwave-1_g0" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.5 0 0 1" mesh="train-microwave-1_original-12"/>
       <geom name="train-microwave-1_g1" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.5 0 0 1" mesh="train-microwave-1_new-4"/>
       <geom name="train-microwave-1_g2" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.5 0 0 1" mesh="train-microwave-1_original-49"/>

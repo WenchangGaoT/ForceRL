@@ -85,6 +85,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         # for grasp states
         use_grasp_states=False,
         number_of_grasp_states=4,
+        skip_object_initialization=False, # skip object initialization for reset_from_xml
     ):
         self.object_name = object_name
         self.placement_initializer = placement_initializer
@@ -109,6 +110,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         self.get_grasp_proposals_flag = get_grasp_proposals_flag
         self.use_grasp_states = use_grasp_states
         self.number_of_grasp_states = number_of_grasp_states
+        self.skip_object_initialization = skip_object_initialization
         self.frames = []
 
         self.env_kwargs = {
@@ -516,22 +518,24 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         # if rotate_around_robot is True, need to reset the object placement parameters
         if self.rotate_around_robot:
             actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()
-            self.placement_initializer.x_range = actual_placement_x
-            self.placement_initializer.y_range = actual_placement_y
-            self.placement_initializer.rotation = actual_placement_rotation
-            self.placement_initializer.reference_pos = actual_placement_reference_pos
+            if not self.skip_object_initialization:
+                self.placement_initializer.x_range = actual_placement_x
+                self.placement_initializer.y_range = actual_placement_y
+                self.placement_initializer.rotation = actual_placement_rotation
+                self.placement_initializer.reference_pos = actual_placement_reference_pos
 
-        object_placements = self.placement_initializer.sample()
+        if not self.skip_object_initialization:
+            object_placements = self.placement_initializer.sample()
 
-        # We know we're only setting a single object (the drawer), so specifically set its pose
-        drawer_pos, drawer_quat, _ = object_placements[self.revolute_object.name]
-        drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
-        self.sim.model.body_pos[drawer_body_id] = drawer_pos
-        self.sim.model.body_quat[drawer_body_id] = drawer_quat
+            # We know we're only setting a single object (the drawer), so specifically set its pose
+            drawer_pos, drawer_quat, _ = object_placements[self.revolute_object.name]
+            drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
+            self.sim.model.body_pos[drawer_body_id] = drawer_pos
+            self.sim.model.body_quat[drawer_body_id] = drawer_quat
         # print("actual placement rotation: ", actual_placement_rotation)
         # print("euler angle reset:", R.from_quat(drawer_quat).as_euler('xyz', degrees=True))
         
-        self.set_open_percentage(self.open_percentage)
+            self.set_open_percentage(self.open_percentage)
         self.sim.forward()
 
         self._update_reference_values()

@@ -124,7 +124,10 @@ def  get_grasp_env_states(
         print("env states shape: ", env_states_flattened)
         env_states_list.append(env_states_flattened)
 
-        # model_save_path = os.path.join(env_model_dir, "{}_{}.xml".format(env_name, i))
+        model_save_path = os.path.join(env_model_dir, "{}_{}.xml".format(env_name, i))
+        model = env.sim.model.get_xml()
+        with open(model_save_path, 'w') as f:
+            f.write(model)
         # mjcf_utils.save_sim_model(env.sim, model_save_path)
 
         env.close()

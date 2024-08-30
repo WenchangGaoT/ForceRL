@@ -11,6 +11,7 @@ from agent.td3 import TD3, ReplayBuffer
 from utils.logger import Logger
 from copy import deepcopy
 import time
+import xml.etree.ElementTree as ET
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -26,7 +27,7 @@ env_kwargs = dict(
     # robots="Panda",
     robots="UR5e",
     object_name = "train-microwave-1",
-    obj_rotation=(-np.pi / 2, -np.pi / 2),
+    obj_rotation=(-np.pi / 2, 0),
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(-np.pi*2/3, -np.pi*2/3),
@@ -46,7 +47,7 @@ env_kwargs = dict(
     camera_widths = [256,256,256,256],
     move_robot_away = False,
 
-    rotate_around_robot = True,
+    rotate_around_robot = False,
     object_robot_distance = (0.8,0.8),
     open_percentage = np.pi/6,
 
@@ -55,6 +56,7 @@ env_kwargs = dict(
 
     use_grasp_states = True,
     number_of_grasp_states=2,
+    skip_object_initialization = True,
 )
 
 env_name = "CipsBaselineTrainRevoluteEnv"
@@ -63,14 +65,20 @@ env:CipsBaselineTrainRevoluteEnv = suite.make(
     env_name,
     **env_kwargs
 )
-env.reset()
+# env.reset()
 env_model_dir = env.env_model_dir
-# env_model_path = os.path.join(env_model_dir, "RobotRevoluteOpening_0.xml")
-# # env.reset_from_xml_string()
+env_model_path = os.path.join(env_model_dir, "CipsBaselineTrainRevoluteEnv_0.xml")
+# read to xml string
+tree = ET.parse(env_model_path)
+root = tree.getroot()
+xmlstr = ET.tostring(root, encoding='utf8', method='xml').decode()
+env.reset_from_xml_string(xmlstr)
 # obs = env.reset()
 env.step(np.zeros(7))
 # env.render()
 grasp_state = env.get_grasp_states()
+# env.reset_from_xml_string()
+# env.reset_from_xml_string(xmlstr)
 env.sim.set_state_from_flattened(grasp_state)
 env.sim.forward()
 env.render()
