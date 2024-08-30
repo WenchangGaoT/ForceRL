@@ -152,6 +152,8 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         self.grasp_states_dir = os.path.join(self.project_dir, "baselines/states")
         self.grasp_states_path = os.path.join(self.grasp_states_dir, f"grasp_states_{object_name}_{object_scale}.npy")
 
+        self.env_model_dir = os.path.join(self.project_dir, "baselines/states")
+
         super().__init__(
             robots=robots,
             env_configuration=env_configuration,
@@ -394,7 +396,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
-        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.05])
+        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.02])
         sci_rotation = R.from_quat(grasp_quat)
         further_rotation = R.from_euler('z', 90, degrees=True)
         sci_rotation = sci_rotation * further_rotation
@@ -419,6 +421,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
                 grasp_pos = self.final_grasp_pose,
                 grasp_rot_vec = self.grasp_rotation_vector,
                 grasp_states_save_path = grasp_states_path,
+                env_model_dir = self.env_model_dir,
                 object_rotation_range = self.obj_rotation,
                 object_robot_distance_range=self.object_robot_distance,
                 number_of_grasp_states = self.number_of_grasp_states,
@@ -541,6 +544,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
             # self.grasp_state = grasp_state
             print("grasp state: ", grasp_state)
             self.sim.set_state_from_flattened(grasp_state)
+
             self.sim.forward()
             self._update_reference_values()
 

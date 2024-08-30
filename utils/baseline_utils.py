@@ -1,6 +1,7 @@
 import pickle
 from utils.sim_utils import init_camera_pose
 import robosuite as suite
+import robosuite.utils.mjcf_utils as mjcf_utils
 import robosuite.utils.transform_utils as transform_utils 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -67,6 +68,7 @@ def  get_grasp_env_states(
         grasp_pos,
         grasp_rot_vec,
         grasp_states_save_path,
+        env_model_dir,
         object_rotation_range = (-np.pi / 2, 0.),
         object_robot_distance_range = (0.65, 0.75),
         number_of_grasp_states = 4,
@@ -103,7 +105,6 @@ def  get_grasp_env_states(
 
     env_states_list = []
 
-
     for i in range(number_of_grasp_states):
 
         current_object_rotation = object_rotation_range[0] + (object_rotation_range[1] - object_rotation_range[0]) * i / (number_of_grasp_states - 1)
@@ -122,6 +123,10 @@ def  get_grasp_env_states(
         env_states_flattened = copy.deepcopy(env.sim.get_state().flatten())
         print("env states shape: ", env_states_flattened)
         env_states_list.append(env_states_flattened)
+
+        # model_save_path = os.path.join(env_model_dir, "{}_{}.xml".format(env_name, i))
+        # mjcf_utils.save_sim_model(env.sim, model_save_path)
+
         env.close()
     
     # save the env states

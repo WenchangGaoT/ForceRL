@@ -10,6 +10,7 @@ from scipy.spatial.transform import Rotation as R
 from agent.td3 import TD3, ReplayBuffer
 from utils.logger import Logger
 from copy import deepcopy
+import time
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -25,7 +26,7 @@ env_kwargs = dict(
     # robots="Panda",
     robots="UR5e",
     object_name = "train-microwave-1",
-    obj_rotation=(-np.pi / 2, 0),
+    obj_rotation=(-np.pi / 2, -np.pi / 2),
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(-np.pi*2/3, -np.pi*2/3),
@@ -62,13 +63,22 @@ env:CipsBaselineTrainRevoluteEnv = suite.make(
     env_name,
     **env_kwargs
 )
-
-obs = env.reset()
+env.reset()
+env_model_dir = env.env_model_dir
+# env_model_path = os.path.join(env_model_dir, "RobotRevoluteOpening_0.xml")
+# # env.reset_from_xml_string()
+# obs = env.reset()
+env.step(np.zeros(7))
+# env.render()
 grasp_state = env.get_grasp_states()
-# env.sim.set_state_from_flattened(grasp_state)
+env.sim.set_state_from_flattened(grasp_state)
 env.sim.forward()
+env.render()
+# time.sleep(1)
 for i in range(100):
     action = np.zeros(7)
+    action[-1] = 1
     obs, reward, done, info = env.step(action)
     env.render()
+    time.sleep(1)
 
