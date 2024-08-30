@@ -47,7 +47,7 @@ env_kwargs = dict(
 
     rotate_around_robot = True,
     object_robot_distance = (0.7,0.7),
-    open_percentage = 0.4,
+    open_percentage = 0.8,
 
     cache_video = False,
     get_grasp_proposals_flag = True,

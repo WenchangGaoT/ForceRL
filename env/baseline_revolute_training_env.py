@@ -296,7 +296,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         super()._setup_references()
 
         # self.revolute_object_handle_site_id = self.sim.model.site_name2id(self.revolute_object.important_sites["handle"])
-        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joints[0]) 
+        self.slider_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.joint) 
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
@@ -338,7 +338,8 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         reset_x_range = (1,1)
         reset_y_range = (1,1)
 
-        reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+        # reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+        reset_joint_qpos = self.open_percentage
 
         if not os.path.exists(self.proposal_path):
         # if True:
@@ -354,7 +355,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                                 pcd_wf_path=self.pcd_wf_path,
                                 pcd_wf_no_downsample_path=self.pcd_wf_no_downsample_path,
                                 camera_info_path=self.camera_info_path,
-                                viz=False, 
+                                viz=True, 
                                 need_o3d_viz=False,
                                 reset_joint_qpos=reset_joint_qpos,
                                 reset_x_range = reset_x_range, 
@@ -490,10 +491,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             drawer_pos, drawer_quat, _ = object_placements[self.revolute_object.name]
             drawer_body_id = self.sim.model.body_name2id(self.revolute_object.root_body)
             self.sim.model.body_pos[drawer_body_id] = drawer_pos
-            self.sim.model.body_quat[drawer_body_id] = drawer_quat
-        # print("actual placement rotation: ", actual_placement_rotation)
-        # print("euler angle reset:", R.from_quat(drawer_quat).as_euler('xyz', degrees=True))
-        
+            self.sim.model.body_quat[drawer_body_id] = drawer_quat        
             self.set_open_percentage(self.open_percentage)
         self.sim.forward()
 
@@ -562,8 +560,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         '''
         Set the opening percentage of the drawer
         '''
-        self.sim.data.qpos[self.slider_qpos_addr] = percentage* np.pi / 3
-        self.sim.forward()
+        joint_range = self.revolute_object.joint_range
+        self.sim.data.qpos[self.slider_qpos_addr] = percentage * (joint_range[1] - joint_range[0]) + joint_range[0]
+        # self.sim.data.qpos[self.slider_qpos_addr] = np.pi / 3
+        # self.sim.forward()
 
     @classmethod
     def available_objects(cls):
