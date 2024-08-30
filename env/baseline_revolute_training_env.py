@@ -25,7 +25,7 @@ import os
 os.environ['MUJOCO_GL'] = 'osmesa'
 
 
-class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
+class BaselineTrainRevoluteEnv(SingleArmEnv):
 
     def __init__(
         self,
@@ -82,12 +82,9 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         # params to avoid infinite recursion
         get_grasp_proposals_flag=False,
 
-        # for grasp states
-        use_grasp_states=False,
-        number_of_grasp_states=4,
         skip_object_initialization=False, # skip object initialization for reset_from_xml
     ):
-        self.env_name = "CipsBaselineTrainRevoluteEnv"
+        self.env_name = "BaselineTrainRevoluteEnv"
 
         self.object_name = object_name
         self.placement_initializer = placement_initializer
@@ -110,8 +107,6 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         self.video_width = video_width
         self.video_height = video_height 
         self.get_grasp_proposals_flag = get_grasp_proposals_flag
-        self.use_grasp_states = use_grasp_states
-        self.number_of_grasp_states = number_of_grasp_states
         self.skip_object_initialization = skip_object_initialization
         self.frames = []
 
@@ -305,9 +300,6 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
-        # obj_euler = R.from_quat(self.obj_quat).as_euler('xyz', degrees=False)
-        # obj_euler = np.array((-np.pi - obj_euler[0], obj_euler[1], obj_euler[2]))
-        # self.obj_quat = R.from_euler('xyz', obj_euler).as_quat()
 
     def calculate_joint_pos_absolute(self):
         '''
@@ -353,7 +345,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
             # get the point clouds and affordance
             print("Getting point clouds and affordance")
             pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(
-                                env_name = "CipsBaselineTrainRevoluteEnv", 
+                                env_name = self.env_name, 
                                 env_kwargs=self.env_kwargs,
                                 object_name=self.object_name, 
                                 camera_pos=camera_pos,
@@ -400,7 +392,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
-        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.02])
+        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.05])
         sci_rotation = R.from_quat(grasp_quat)
         further_rotation = R.from_euler('z', 90, degrees=True)
         sci_rotation = sci_rotation * further_rotation
@@ -410,41 +402,6 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         # get the relative position of the grasp against the object
         self.grasp_pos_relative = grasp_pos - deepcopy(self.revolute_body_pos)
     
-    def get_grasp_states(self):
-        '''
-        function for getting the grasp states
-        '''
-        grasp_states_path = self.grasp_states_path
-
-        if not os.path.exists(grasp_states_path):
-            print("Getting grasp states")
-            print("obj rotation: ", self.obj_rotation)
-            b_utils.get_grasp_env_states(
-                env_name = "CipsBaselineTrainRevoluteEnv",
-                env_kwargs = self.env_kwargs,
-                grasp_pos = self.final_grasp_pose,
-                grasp_rot_vec = self.grasp_rotation_vector,
-                grasp_states_save_path = grasp_states_path,
-                env_model_dir = self.env_model_dir,
-                object_rotation_range = self.obj_rotation,
-                object_robot_distance_range=self.object_robot_distance,
-                number_of_grasp_states = self.number_of_grasp_states,
-            )
-        # load the grasp states
-        # with open(grasp_states_path, 'rb') as f:
-        print("loading grasp states")
-        data = np.load(grasp_states_path)
-        # print(data)
-            # print(data.keys())
-            # print(data['arr_0'])
-            # data = data['state']
-        grasp_states = data
-        # randomly sample a grasp state
-        # grasp_state_idx = np.random.randint(0, len(grasp_states))
-        grasp_state_idx = 0
-        return grasp_states[grasp_state_idx]
-
-            
 
     def _setup_observables(self):
         """
@@ -545,14 +502,6 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         if self.get_grasp_proposals_flag:
             self.get_grasp_proposals()
         
-        if self.use_grasp_states:
-            grasp_state = self.get_grasp_states()
-            # self.grasp_state = grasp_state
-            print("grasp state: ", grasp_state)
-            self.sim.set_state_from_flattened(grasp_state)
-
-            self.sim.forward()
-            self._update_reference_values()
 
     def _update_reference_values(self):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
@@ -562,9 +511,6 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')   
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
-        # obj_euler = R.from_quat(self.obj_quat).as_euler('xyz', degrees=False)
-        # obj_euler = np.array((-np.pi - obj_euler[0], obj_euler[1], obj_euler[2]))
-        # self.obj_quat = R.from_euler('xyz', obj_euler).as_quat()
 
         self.revolute_body = self.revolute_object.revolute_body
         self.revolute_body_pos = self.sim.data.body_xpos[self.sim.model.body_name2id(self.revolute_body)]
