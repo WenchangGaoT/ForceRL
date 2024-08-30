@@ -452,6 +452,18 @@ class TrainPrismaticObjects(MujocoXMLObject):
         joint_range = joint_range.split(" ")
         joint_range = [float(x) for x in joint_range]
         return joint_range
+    
+    @property
+    def joint_direction(self):
+        '''
+        Returns:
+            str: joint direction
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_direction = joint.get("axis")
+        joint_direction = joint_direction.split(" ")
+        joint_direction = [float(x) for x in joint_direction]
+        return joint_direction
         
 class EvalPrismaticObjects(MujocoXMLObject):
     def __init__(self, name, scaled = True, scale = 1.0):
