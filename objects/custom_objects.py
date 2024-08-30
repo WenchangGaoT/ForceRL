@@ -213,65 +213,18 @@ class SelectedDishwasherObject(MujocoXMLObject):
             'dishwasher-3',
         ]
         return available_objects
-   
-class EvalPrismaticObjects(MujocoXMLObject):
-    def __init__(self, name, scaled = True, scale = 1.0):
-        self.available_obj_list = self.available_objects()
-        assert name in self.available_obj_list, "Invalid object! Please use another name"
-
-        if not scaled:
-            xml_path = f"{name}/{name}.xml"
-        
-        else:
-            # call function to scale the object
-            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
-            scale_object_new(xml_path_original, None, [scale, scale, scale])
-            xml_path = f"{name}/{name}-scaled.xml"
-        super().__init__(
-            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
-            )
-        self.prismatic_body = self.naming_prefix + "link_0"
-        self.joint = self.naming_prefix + "joint_0"
-
-    @staticmethod
-    def available_objects():
-        available_objects = [
-            'trashcan-1',
-            'cabinet-1',
-            'cabinet-2',
-            'cabinet-3',
-        ]
-        return available_objects
-    
-    @property
-    def joint_range(self):
-        '''
-        Returns:
-            str: hinge ransge
-        '''
-        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
-        joint_range = joint.get("range")
-        joint_range = joint_range.split(" ")
-        joint_range = [float(x) for x in joint_range]
-        return joint_range 
-    
 
 class EvalRevoluteObjects(MujocoXMLObject):
     def __init__(self, name, scaled = True, scale = 1.0):
         # available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"]
         assert name in self.available_objects(), "Object name must be one of {}".format(self.available_objects())
-
-        # xml_path = f"{name}/{name}.xml"
-        # super().__init__(
-        #     fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all", duplicate_collision_geoms=True
-        # )
         
         if not scaled:
             xml_path = f"{name}/{name}.xml"
         
         else:
             # call function to scale the object
-            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")       
             scale_object_new(xml_path_original, None, [scale, scale, scale])
             xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
@@ -489,18 +442,6 @@ class TrainPrismaticObjects(MujocoXMLObject):
         return joint_pos
     
     @property
-    def joint_direction(self):
-        '''
-        Returns:
-            str: joint direction
-        '''
-        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
-        joint_direction = joint.get("axis")
-        joint_direction = joint_direction.split(" ")
-        joint_direction = [float(x) for x in joint_direction]
-        return joint_direction
-    
-    @property
     def joint_range(self):
         '''
         Returns:
@@ -512,3 +453,61 @@ class TrainPrismaticObjects(MujocoXMLObject):
         joint_range = [float(x) for x in joint_range]
         return joint_range
         
+class EvalPrismaticObjects(MujocoXMLObject):
+    def __init__(self, name, scaled = True, scale = 1.0):
+        self.available_obj_list = self.available_objects()
+        assert name in self.available_obj_list, "Invalid object! Please use another name"
+
+        if not scaled:
+            xml_path = f"{name}/{name}.xml"
+        
+        else:
+            # call function to scale the object
+            xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
+            scale_object_new(xml_path_original, None, [scale, scale, scale])
+            xml_path = f"{name}/{name}-scaled.xml"
+        super().__init__(
+            fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
+            )
+        self.prismatic_body = self.naming_prefix + "link_0"
+        self.joint = self.naming_prefix + "joint_0"
+
+    @staticmethod
+    def available_objects():
+        available_objects = [
+            'trashcan-1',
+            'cabinet-1',
+            'cabinet-2',
+            'cabinet-3',
+        ]
+        return available_objects
+    
+    @property
+    def joint_range(self):
+        '''
+        Returns:
+            str: hinge ransge
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_range = joint.get("range")
+        joint_range = joint_range.split(" ")
+        joint_range = [float(x) for x in joint_range]
+        return joint_range 
+    @property
+    def joint_pos_relative(self):
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_pos = joint.get("pos")
+        joint_pos = joint_pos.split(" ")
+        joint_pos = [float(x) for x in joint_pos]
+        return joint_pos
+    @property
+    def joint_direction(self):
+        '''
+        Returns:
+            str: joint direction
+        '''
+        joint = find_elements(root=self.worldbody, tags="joint", attribs={"name": self.joint}, return_first=True)
+        joint_direction = joint.get("axis")
+        joint_direction = joint_direction.split(" ")
+        joint_direction = [float(x) for x in joint_direction]
+        return joint_direction

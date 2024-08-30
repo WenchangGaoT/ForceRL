@@ -295,7 +295,23 @@ class RobotRevoluteOpening(SingleArmEnv):
         def handle_quat(obs_cache):
             return convert_quat(np.array(self.sim.data.body_xquat[self.revolute_object_handle_site_id]), to="xyzw")
         # sensors = [gripper_pos, gripper_quat,handle_pos,handle_quat]
-        sensors = []
+        @sensor(modality=modality)
+        def hinge_qpos(obs_cache):
+            return np.array([self.sim.data.qpos[self.hinge_qpos_addr]])
+
+        @sensor(modality=modality)
+        def hinge_position(obs_cache):
+            return self.hinge_position
+        
+        @sensor(modality=modality)
+        def hinge_direction(obs_cache):
+            return self.hinge_direction
+
+        @sensor(modality=modality)
+        def force_point(obs_cache):
+            return self.relative_force_point_to_world(self.force_point)
+
+        sensors = [door_pos, hinge_qpos, hinge_position, force_point, hinge_direction]
         names = [s.__name__ for s in sensors]
 
         # Create observables

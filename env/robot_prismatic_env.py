@@ -100,6 +100,7 @@ class RobotPrismaticEnv(SingleArmEnv):
         self.video_width = video_width
         self.video_height = video_height 
         self.frames = []
+        self.is_prismatic = True
 
 
         super().__init__(
@@ -243,9 +244,33 @@ class RobotPrismaticEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+
+        self.joint_position_rel = self.prismatic_object.joint_pos_relative
+        self.joint_direction_rel = self.prismatic_object.joint_direction / np.linalg.norm(self.prismatic_object.joint_direction)
+        self.joint_range = self.prismatic_object.joint_range
+        self.joint_position = self.calculate_joint_pos_absolute()
+        self.joint_direction = self.calculate_joint_direction_absolute()
+        # self.joint_direction_rel = self.prismatic_object.joint_direction / np.linalg.norm(self.prismatic_object.joint_direction)
+
         self.joint_range = self.prismatic_object.joint_range
 
+    def calculate_joint_pos_absolute(self):
+        '''
+        calculate the joint position in the world frame
+        '''
+        joint_pos = np.array(self.joint_position_rel)
+    
+        joint_pos += deepcopy(self.sim.data.get_body_xpos(self.prismatic_object.prismatic_body))
 
+        return joint_pos
+    
+    def calculate_joint_direction_absolute(self):
+        '''
+        calculate the joint direction in the world frame
+        '''
+        joint_dir = np.array(self.joint_direction_rel)
+        joint_dir = np.dot(self.sim.data.get_body_xmat(self.prismatic_object.prismatic_body), joint_dir)
+        return joint_dir
 
     def _setup_observables(self):
         """
@@ -269,7 +294,28 @@ class RobotPrismaticEnv(SingleArmEnv):
         @sensor(modality=modality) 
         def handle_quat(obs_cache):
             return convert_quat(np.array(self.sim.data.body_xquat[self.prismatic_object_handle_site_id]), to="xyzw")
-        sensors = []
+        
+        # @sensor(modality=modality)
+        # def joint_qpos(obs_cache):
+        #     return np.array([self.sim.data.qpos[self.joint_qpos_addr]])
+
+        @sensor(modality=modality)
+        def joint_position(obs_cache):
+            return self.joint_position
+        
+        @sensor(modality=modality)
+        def joint_direction(obs_cache):
+            return self.joint_direction
+
+        # @sensor(modality=modality)
+        # def force_point(obs_cache):
+        #     return self.relative_force_point_to_world(self.force_point)
+        
+        # @sensor(modality=modality)
+        # def force_point_relative_to_start(obs_cache):
+        #     return self.relative_force_point_to_world(self.force_point) - self.initial_force_point
+
+        sensors = [gripper_pos, gripper_quat, joint_position, joint_direction]
         names = [s.__name__ for s in sensors]
 
         # Create observables
@@ -317,7 +363,7 @@ class RobotPrismaticEnv(SingleArmEnv):
         joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
 
         joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
-        return joint_pos_relative_to_range > 0.8
+        return joint_pos_relative_to_range >= 0.98
     
     def reward(self, action):
         return 0

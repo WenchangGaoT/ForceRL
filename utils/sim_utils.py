@@ -273,7 +273,7 @@ def interact_estimate_params(env,
     # Interact
     ip = InteractivePerception(np.array(trajectory)) 
 
-    prismatic_error = ip.prismatic_error() 
+    prismatic_error, direction = ip.prismatic_error() 
     revolute_error, center, radius, axis = ip.revolute_error()
     print('prismatic error: ', ip.prismatic_error())
     print('revolute error: ', ip.revolute_error()[0])
@@ -284,7 +284,7 @@ def interact_estimate_params(env,
     if prismatic_error < revolute_error or radius > 1.: 
         estimation_dict = {
             'joint_type': 'prismatic',
-            'joint_direction': axis
+            'joint_direction': -direction
         }
     else: 
         estimation_dict = {

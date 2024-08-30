@@ -25,6 +25,7 @@ class InteractivePerception:
         self.prismatic_model = LinearRegression()
 
     def prismatic_error(self):
+        print(self.trajectory)
         X = self.trajectory[:, 1:] 
         y = self.trajectory[:, 0]   
         self.prismatic_model.fit(X, y)
@@ -33,7 +34,12 @@ class InteractivePerception:
         y_pred = self.prismatic_model.predict(X)
         mse = mean_squared_error(y, y_pred)
 
-        return mse
+        a, b = self.prismatic_model.coef_
+        c = self.prismatic_model.intercept_ 
+
+        direction = np.array([1, -a, -b])
+        direction /= np.linalg.norm(direction)
+        return mse, direction
 
     # def revolute_error(self):
     #     mean = np.mean(self.trajectory, axis=0) # mean is assumed to be on the plane

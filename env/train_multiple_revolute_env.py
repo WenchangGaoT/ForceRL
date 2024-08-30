@@ -356,11 +356,6 @@ class MultipleRevoluteEnv(MujocoEnv):
             modality = "object"
 
             # Define sensor callbacks
-            @sensor(modality=modality)
-            def door_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.object_body_ids["revolute"]])
-
-
 
             @sensor(modality=modality)
             def hinge_qpos(obs_cache):
@@ -379,7 +374,7 @@ class MultipleRevoluteEnv(MujocoEnv):
                 return self.relative_force_point_to_world(self.force_point)
 
 
-            sensors = [door_pos, hinge_qpos, hinge_position, force_point, hinge_direction]
+            sensors = [hinge_qpos, hinge_position, force_point, hinge_direction]
             names = [s.__name__ for s in sensors]
 
             # Create observables

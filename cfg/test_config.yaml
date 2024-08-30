@@ -1,6 +1,7 @@
-experiment_name: revolute_object_general_test
+experiment_name: force-train-general
 train_objects: ['microwave-1', 'dishwasher-1']
 test_objects: ['microwave-2', 'microwave-3', 'microwave-4']
+run_id: 7
 
 force_policy: 
   gamma: 0.99
@@ -21,7 +22,7 @@ robot:
   action_scale: 0.1 # The scale of action execution 
   # interaction stuff
   kp_interaction: 5
-  interaction_timesteps: 5 
+  interaction_timesteps: 10 
   interaction_action_scale: 0.05
   kp_execution: 150 
   interaction_directions: ['forward', 'backward', 'left', 'right']
