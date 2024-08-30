@@ -49,7 +49,7 @@ env_kwargs = dict(
 
     rotate_around_robot = False,
     object_robot_distance = (0.8,0.8),
-    open_percentage = np.pi/6,
+    open_percentage = 0.4,
 
     cache_video = False,
     get_grasp_proposals_flag = True,
@@ -88,5 +88,5 @@ for i in range(100):
     action[-1] = 1
     obs, reward, done, info = env.step(action)
     env.render()
-    time.sleep(1)
+    # time.sleep(1)
 

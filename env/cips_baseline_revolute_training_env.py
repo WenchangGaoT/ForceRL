@@ -362,7 +362,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
                                 pcd_wf_path=self.pcd_wf_path,
                                 pcd_wf_no_downsample_path=self.pcd_wf_no_downsample_path,
                                 camera_info_path=self.camera_info_path,
-                                viz=False, 
+                                viz=True, 
                                 need_o3d_viz=False,
                                 reset_joint_qpos=reset_joint_qpos,
                                 reset_x_range = reset_x_range, 
@@ -396,7 +396,7 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         )
 
         print("world_frame_proposal_path: ", world_frame_proposal_path)
-        
+        print("objact pos: ", self.obj_pos)
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
@@ -616,7 +616,9 @@ class CipsBaselineTrainRevoluteEnv(SingleArmEnv):
         '''
         Set the opening percentage of the drawer
         '''
-        self.sim.data.qpos[self.slider_qpos_addr] = percentage* np.pi / 3
+        joint_range = self.revolute_object.joint_range
+        self.sim.data.qpos[self.slider_qpos_addr] = percentage * (joint_range[1] - joint_range[0]) + joint_range[0]
+        # self.sim.data.qpos[self.slider_qpos_addr] = percentage* np.pi / 3
         self.sim.forward()
 
     @classmethod

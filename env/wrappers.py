@@ -4,6 +4,10 @@ from utils import baseline_utils as b_utils
 import xml.etree.ElementTree as ET
 import numpy as np
 import h5py
+from robosuite.models.tasks import ManipulationTask
+from objects.baseline_objects import BaselineTrainRevoluteObjects, BaselineTrainPrismaticObjects
+from robosuite.models.arenas import EmptyArena
+
  
 
 class ActionRepeatWrapperNew(Wrapper):
@@ -37,8 +41,25 @@ class GraspStateWrapper(Wrapper):
 
         self.number_of_grasp_states = number_of_grasp_states
         
+        self.load_all_objects()
         self.get_grasp_states()
 
+
+    def load_all_objects(self):
+        '''
+        load all objects during initialization to avoid loading objects multiple times
+        '''
+        revolute_object_list = BaselineTrainRevoluteObjects.available_objects()
+        prismatic_object_list = BaselineTrainPrismaticObjects.available_objects()
+
+        objects = {}
+        for obj_name in revolute_object_list:
+            objects[obj_name] = BaselineTrainRevoluteObjects(obj_name)
+        for obj_name in prismatic_object_list:
+            objects[obj_name] = BaselineTrainPrismaticObjects(obj_name)
+        
+        self.objects = objects
+        self.arena = EmptyArena()
 
 
 
@@ -57,10 +78,10 @@ class GraspStateWrapper(Wrapper):
                 env_kwargs = self.env.env_kwargs,
                 grasp_pos = self.env.final_grasp_pose,
                 grasp_rot_vec = self.env.grasp_rotation_vector,
-                grasp_states_save_path = self.env.grasp_states_path,
                 env_model_dir = self.env_model_dir,
                 object_rotation_range = self.env.obj_rotation,
-                object_robot_distance_range=self.env.object_robot_distance,
+                # object_robot_distance_range=self.env.object_robot_distance,
+                object_robot_distance_range = (0.7,0.7),
                 number_of_grasp_states = self.number_of_grasp_states,
             )
         print("loading grasp states")
@@ -77,21 +98,38 @@ class GraspStateWrapper(Wrapper):
                 data_dict[name] = (array, xml)
         self.data_dict = data_dict
           
-    def sample_state(self):
+    def sample_state(self,key_num = None):
         '''
         function for sampling a state
         '''
-        key = np.random.choice(list(self.data_dict.keys()))
+        if key_num is not None:
+            key = list(self.data_dict.keys())[key_num]
+        else:
+            key = np.random.choice(list(self.data_dict.keys()))
         state, model = self.data_dict[key]
-        return state, model
+        object_name = key.split("_")[0]
+        return object_name,state, model
 
-    def reset(self):
+    def reset(self, key_num = None):
         '''
         wrap the reset function to load a state
         '''
         # sample a state
-        state, model = self.sample_state()
+        object_name, state, model = self.sample_state(key_num=key_num)
         # load the state
+
+        object_model = self.objects[self.env.object_name]
+        self.env.model = ManipulationTask(
+            mujoco_arena=self.arena,
+            mujoco_robots=[robot.robot_model for robot in self.env.robots],
+            mujoco_objects=self.objects[object_name]
+        )
+        
+        if "Prismatic" in self.env_name:
+            self.env.prismatic_object = self.objects[object_name]
+        else:
+            self.env.revolute_object = self.objects[object_name]
+
         self.env.reset_from_xml_string(model)
         self.env.sim.set_state_from_flattened(state)
         self.env.sim.forward()

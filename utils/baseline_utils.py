@@ -68,7 +68,6 @@ def  get_grasp_env_states(
         env_kwargs,
         grasp_pos,
         grasp_rot_vec,
-        grasp_states_save_path,
         env_model_dir,
         object_rotation_range = (-np.pi / 2, 0.),
         object_robot_distance_range = (0.65, 0.75),
@@ -92,7 +91,7 @@ def  get_grasp_env_states(
     # env_kwargs["use_grasp_states"] = False
     env_kwargs["move_robot_away"] = False
     # env_kwargs["open_percentage"] = 1.0
-    # env_kwargs["render_camera"] = "birdview"
+    env_kwargs["render_camera"] = "birdview"
 
     object_name = env_kwargs["object_name"]
     object_scale = env_kwargs["object_scale"]
@@ -112,13 +111,15 @@ def  get_grasp_env_states(
     dummy_env = suite.make(env_name, **env_kwargs)
     available_objects = dummy_env.available_objects()
     dummy_env.close()
-    available_objects = list(available_objects.keys())
-    available_objects = ["train-dishwasher-1"]
+    available_objects_list = []
+    for obj_list in available_objects.values():
+        available_objects_list.extend(obj_list)
+    # available_objects = ["train-dishwasher-1"]
     print("available objects: ", available_objects)
 
     env_states_dict = dict()
 
-    for object_name in available_objects:
+    for object_name in available_objects_list:
 
         env_kwargs["object_name"] = object_name
 
@@ -185,7 +186,7 @@ def drive_to_grasp(env
         env.render()
 
     # close the gripper
-    for i in range(20):
+    for i in range(50):
         action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
         env.step(action)
         env.render()

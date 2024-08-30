@@ -136,20 +136,20 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         }
 
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.pcd_wf_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}.ply'
-        self.pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_no_downsample.ply'
-        self.camera_info_path = f'infos/camera_info_{object_name}_{object_scale}.npz'
+        self.pcd_wf_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_{open_percentage}.ply'
+        self.pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_{open_percentage}_no_downsample.ply'
+        self.camera_info_path = f'infos/camera_info_{object_name}_{object_scale}_{open_percentage}.npz'
 
         self.pcd_cf_dir = os.path.join(self.project_dir, "point_clouds/camera_frame_pointclouds")
-        self.pcd_cf_path = os.path.join(self.pcd_cf_dir, f"camera_frame_{object_name}_{object_scale}.ply")
+        self.pcd_cf_path = os.path.join(self.pcd_cf_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}.ply")
 
         self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/world_frame_proposals")
-        self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_grasp.npz")
+        self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_{open_percentage}_grasp.npz")
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
-        self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_affordance.npz")
+        self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
 
-        self.grasp_states_dir = os.path.join(self.project_dir, "baselines/states")
-        self.grasp_states_path = os.path.join(self.grasp_states_dir, f"grasp_states_{object_name}_{object_scale}.npy")
+        # self.grasp_states_dir = os.path.join(self.project_dir, "baselines/states")
+        # self.grasp_states_path = os.path.join(self.grasp_states_dir, f"grasp_states_{object_name}_{object_scale}.npy")
 
         self.env_model_dir = os.path.join(self.project_dir, "baselines/states")
 
@@ -339,7 +339,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         reset_y_range = (1,1)
 
         # reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
-        reset_joint_qpos = self.open_percentage
+        reset_joint_qpos = 1.0
 
         if not os.path.exists(self.proposal_path):
         # if True:
@@ -383,13 +383,13 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                 run_cgn=run_cgn, 
                 viz=False, 
                 save_wf_pointcloud=True,
-                object_name=f"{self.object_name}_{self.object_scale}",
+                object_name=f"{self.object_name}_{self.object_scale}_{self.open_percentage}",
                 top_k=10,
                 store_proposals=store_proposals,
         )
 
         print("world_frame_proposal_path: ", world_frame_proposal_path)
-        
+        print("object pos: ", self.obj_pos)
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
@@ -508,6 +508,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')   
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
+        # self.obj_pos = self.obj_pos + np.array([0,0.1,0])
         self.obj_quat = self.sim.data.body_xquat[obj_id]
 
         self.revolute_body = self.revolute_object.revolute_body
@@ -562,8 +563,8 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         '''
         joint_range = self.revolute_object.joint_range
         self.sim.data.qpos[self.slider_qpos_addr] = percentage * (joint_range[1] - joint_range[0]) + joint_range[0]
-        # self.sim.data.qpos[self.slider_qpos_addr] = np.pi / 3
-        # self.sim.forward()
+        # self.sim.data.qpos[self.slider_qpos_addr] = joint_range[1]
+        self.sim.forward()
 
     @classmethod
     def available_objects(cls):

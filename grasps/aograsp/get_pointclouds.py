@@ -84,8 +84,8 @@ def get_aograsp_ply_and_config(env_name, env_kwargs: dict,object_name, camera_po
 
     obs = env.reset() 
 
-    env.sim.data.qpos[env.slider_qpos_addr] = reset_joint_qpos
-    env.sim.forward()
+    # env.sim.data.qpos[env.slider_qpos_addr] = reset_joint_qpos
+    # env.sim.forward()
 
     cam_pos_actual = s_utils.init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
     # display_camera_pose(env, 'sideview') 

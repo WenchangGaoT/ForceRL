@@ -22,6 +22,13 @@ controller_name = "OSC_POSE"
 controller_configs = suite.load_controller_config(default_controller=controller_name)
 print(controller_configs)
 
+
+dir_path = os.path.dirname(os.path.abspath(__file__))
+cfg_path = os.path.join(dir_path, "controller_configs/osc_pose_small_kp.json")
+# with open(cfg_path, "r") as f:
+#     controller_configs = json.load(f)
+
+
 env_kwargs = dict(
     # robots="Panda",
     robots="UR5e",
@@ -47,7 +54,7 @@ env_kwargs = dict(
 
     rotate_around_robot = True,
     object_robot_distance = (0.7,0.7),
-    open_percentage = 0.8,
+    open_percentage = 0.3,
 
     cache_video = False,
     get_grasp_proposals_flag = True,
@@ -59,15 +66,11 @@ env = suite.make(
     env_name,
     **env_kwargs
 )
-env = GraspStateWrapper(env, number_of_grasp_states=2)
-
-env.reset()
-for i in range(1000):
-    
-    action = np.zeros(7)
-    action[-1] = 1
-    obs, reward, done, info = env.step(action)
-    env.render()
-    time.sleep(1)
-    if done:
-        env.reset()
+env = GraspStateWrapper(env, number_of_grasp_states=4)
+action = [0,0,0,0,0,0,1]
+for i in range(8):
+    env.reset(i)
+    for i in range(10):
+        env.step(action)
+        env.render()
+        time.sleep(0.5)
