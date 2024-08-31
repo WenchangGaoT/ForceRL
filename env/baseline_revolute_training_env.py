@@ -203,7 +203,6 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         }
 
         self.joint_range = self.revolute_object.joint_range
-
         ################################################################################################
 
     def _load_model(self):
@@ -322,6 +321,27 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         grasp_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), grasp_pos)
         grasp_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
         return grasp_pos
+    
+    def calculate_grasp_quat_relative(self):
+        '''
+        calculate the grasp quaternion in the frame of the revolute object
+        '''
+        
+        grasp_quat = self.grasp_quat
+        grasp_quat = R.from_quat(grasp_quat)
+        object_quat = R.from_matrix(self.revolute_body_mat)
+        grasp_quat_relative = object_quat.inv() * grasp_quat 
+        return grasp_quat_relative.as_quat()
+    
+    def calculate_grasp_quat_absolute(self):
+        '''
+        calculate the grasp quaternion in the world frame
+        '''
+        grasp_quat = self.grasp_quat_relative
+        grasp_quat = R.from_quat(grasp_quat)
+        object_quat = R.from_matrix(self.revolute_body_mat)
+        grasp_quat = object_quat * grasp_quat
+        return grasp_quat.as_quat()
 
     def calculate_joint_pos_absolute(self):
         '''
@@ -423,6 +443,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         self.grasp_quat = sci_rotation.as_quat()
         # get the relative position of the grasp against the object
         self.grasp_pos_relative = self.calculate_grasp_pos_relative()
+        self.grasp_quat_relative = self.calculate_grasp_quat_relative()
         print("grasp pos relative: ", self.grasp_pos_relative)
         print("grasp pos absolute: ", self.calculate_grasp_pos_absolute())
         print("final grasp pose: ", self.final_grasp_pose)
@@ -451,7 +472,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                 return self.calculate_grasp_pos_absolute()
             @sensor(modality=modality)
             def grasp_quat(obs_cache):
-                return self.grasp_quat
+                return self.calculate_grasp_quat_absolute()
             @sensor(modality=modality)
             def grasp_rot(obs_cache):
                 return self.grasp_rotation_vector
@@ -560,6 +581,9 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
 
         self.revolute_body_initial_quat = deepcopy(self.sim.data.body_xquat[self.sim.model.body_name2id(self.revolute_body)])
         self.revolute_body_quat = self.sim.data.body_xquat[self.sim.model.body_name2id(self.revolute_body)]
+        self.revolute_body_mat = self.sim.data.get_body_xmat(self.revolute_body)
+        self.gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
+
 
         
 
@@ -619,14 +643,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
  
     def reward(self, action):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
-        gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
-        self.revolute_body_pos = self.sim.data.body_xpos[self.sim.model.body_name2id(self.revolute_body)]
-        # rev_xpos = self.sim.data.get_body_xpos(self.revolute_body)
-        # print("revolute body pos: ", self.revolute_body_pos)
-        # print("handle_current_progress: ", self.handle_current_progress)
         stage = self.get_stage()
+        rwd = self.staged_reward(stage, self.gripper_pos)
 
-        return 0
+        return rwd
     
     def get_stage(self):
         '''
@@ -639,7 +659,6 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         # print("handle_current_progress: ", self.handle_current_progress)
         task_percentage = (self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
-
         if task_percentage >= 0.8:
             return 2
         elif not self.check_grasp():
@@ -656,23 +675,24 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         three part of the reward function
         reward_stage: 0, 1, 2
         reward_end_effector: reward for the end effector, encourage the end effector to be close to the grasp position
-        reward_drawer: reward for the drawer, encourage the drawer to be opened
+        reward_open: reward that encourage the object to be opened
         '''
         eef_mult = 1.0
         stage_mult = 1.0
         drawer_mult = 1.0
 
-        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         # print("stage: ", stage)
 
         reward_stage_list = [0,1,2]
         reward_stage = reward_stage_list[stage] * stage_mult
 
-        dist = np.linalg.norm(gripper_pos - np.array(self.grasp_pos_relative + self.revolute_body_pos))
+        dist = np.linalg.norm(gripper_pos -self.calculate_grasp_pos_absolute())
         reward_end_effector = (1 - np.tanh(5.0 * dist)) * eef_mult
+
         
-        reward_drawer = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
-        reward_drawer = reward_drawer * drawer_mult
+        reward_open = (self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        reward_open = reward_open * drawer_mult
 
         reward_stop = self._check_success() * 10
 
@@ -680,14 +700,14 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             reward = reward_stage + reward_end_effector
         elif stage == 1:
             reward_end_effector = 1
-            reward = reward_stage + reward_end_effector + reward_drawer
+            reward = reward_stage + reward_end_effector + reward_open
         else:
             reward_end_effector = 1
-            reward = reward_stage + reward_end_effector + reward_drawer + reward_stop
+            reward = reward_stage + reward_end_effector + reward_open + reward_stop
         
         self.last_slider_qpos = deepcopy(self.handle_current_progress)
         # print("reward: ", reward)
-        # print("reward drawer: ", reward_drawer) 
+        # print("reward drawer: ", reward_open) 
         return reward
 
 
@@ -753,8 +773,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         grasp_pos = self.calculate_grasp_pos_absolute()
         # grasp_pos = self.final_grasp_pose
         # point1 = body_xpos
+        grasp_quat = self.calculate_grasp_quat_absolute()
+        grasp_rot = R.from_quat(grasp_quat).as_matrix()
         point1 = grasp_pos
-        point2 = grasp_pos + np.array([1,0,0])
+        point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
         # point1 = self.hinge_position
         # point2 = self.hinge_position + self.hinge_direction 
 

@@ -27,7 +27,8 @@ class ActionRepeatWrapperNew(Wrapper):
 
 class GraspStateWrapper(Wrapper):
     def __init__(self, env,
-                number_of_grasp_states=4,):
+                number_of_grasp_states=4,
+                use_wrapped_reward=False):
 
         assert env.skip_object_initialization, "GraspStateWrapper only works with skip_object_initialization=True"
         
@@ -50,7 +51,7 @@ class GraspStateWrapper(Wrapper):
         self.temp_kp = Controller.nums2array(2, 6)
         # self.temp_kp = np.array([2,2,2,2,2,2])
         self.close_gripper_action = [0,0,0,0,0,0,1]
-
+        self.use_wrapped_reward = use_wrapped_reward
         self.load_all_objects()
         self.get_grasp_states()
 
@@ -154,57 +155,63 @@ class GraspStateWrapper(Wrapper):
         for _ in range(10):
             self.env.step(self.close_gripper_action)
 
+        # set the original kp
         self.robots[0].controller.kp = Controller.nums2array(self.env.robots[0].controller_config["kp"],6)
 
-        self.calc_relative_grasp_pos_wrapper()
+        # need to calculate the relative grasp position because object pose is not properly set when resetting
+        # if use wrapper
+        self.env.final_grasp_pose = self.env._get_observations()["gripper_pos"]
+        self.env.grasp_pos_relative = self.env.calculate_grasp_pos_relative()
 
-        return self.wrap_observation(self.env._get_observations())
+        return self.env._get_observations()
     
     def step(self, action):
         '''
         wrap the step function to add the grasp state
         '''
         obs, rwd, done, info = self.env.step(action)
-        self.wrap_observation(obs)
+        # self.wrap_observation(obs)
+        if self.use_wrapped_reward:
+            rwd = self.staged_reward_wrapper(self.env.get_stage(), obs["gripper_pos"])
         return obs, rwd, done, info
 
-    def wrap_observation(self, obs):
-        '''
-        wrap the observation to add the grasp state
-        '''
-        obs["grasp_pos"] = self.calc_absolute_grasp_pos_wrapper()
-        return obs
+  
 
-    def calc_relative_grasp_pos_wrapper(self):
+    
+    def staged_reward_wrapper(self, stage, gripper_pos):
         '''
-        function for calculating the relative grasp pose after gripping the object
+        need to wrap the reward function since the grasp pos changes in wrapper
         '''
-        grasp_pos = self.env._get_observations()["gripper_pos"]
+        eef_mult = 1.0
+        stage_mult = 1.0
+        drawer_mult = 1.0
+
+        # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        # print("stage: ", stage)
+
+        reward_stage_list = [0,1,2]
+        reward_stage = reward_stage_list[stage] * stage_mult
+
+        dist = np.linalg.norm(gripper_pos - self.env.calc_absolute_grasp_pos())
+        reward_end_effector = (1 - np.tanh(2.0 * dist)) * eef_mult
+        # clip the reward so that it is not too strong
+        reward_end_effector = np.clip(reward_end_effector, 0, 0.9)
         
-        if "Prismatic" in self.env_name:
-            object_pos = self.env.prismatic_body_pos
-            object_quat = self.env.prismatic_body_quat
+        print("handle current progress: ", self.env.handle_current_progress)
+        reward_open = (self.env.handle_current_progress - self.env.joint_range[0]) / (self.env.joint_range[1] - self.env.joint_range[0])
+        reward_open = reward_open * drawer_mult
+
+        reward_stop = self.env._check_success() * 10
+
+        if stage == 0:
+            reward = reward_stage + reward_end_effector
+        elif stage == 1:
+            reward_end_effector = 0.9
+            reward = reward_stage + reward_end_effector + reward_open
         else:
-            object_pos = self.env.revolute_body_pos
-            object_mat = self.env.sim.data.get_body_xmat(self.env.revolute_object.revolute_body)
+            reward_end_effector = 0.9
+            reward = reward_stage + reward_end_effector + reward_open + reward_stop
         
-        grasp_pos = grasp_pos - object_pos
-        self.grasp_pos_relative = np.dot(object_mat.T, grasp_pos)
-        
-    def calc_absolute_grasp_pos_wrapper(self):
-        '''
-        function for calculating the absolute grasp pose after gripping the object
-        '''
-        grasp_pos_relative = self.grasp_pos_relative
-        if "Prismatic" in self.env_name:
-            object_pos = self.env.prismatic_body_pos
-            object_quat = self.env.prismatic_body_quat
-        else:
-            object_pos = self.env.revolute_body_pos
-            object_mat = self.env.sim.data.get_body_xmat(self.env.revolute_object.revolute_body)
-        
-        grasp_pos = np.dot(object_mat, grasp_pos_relative)
-        grasp_pos = grasp_pos + object_pos
-        return grasp_pos
-        
+        return reward
+   
 

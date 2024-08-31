@@ -67,15 +67,14 @@ env = suite.make(
     **env_kwargs
 )
 env = GraspStateWrapper(env, number_of_grasp_states=4)
-action = [0,0,0,0,0,0,1]
+action = [0,0,0.1,0,0,0,1]
 for i in range(8):
     obs = env.reset(i)
     gripper_quat = obs["gripper_quat"]
     gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
     for i in range(50):
         # action[3:6] = gripper_rot
-        obs,_,_,_ = env.step(action)
-        print( "steping grasp pose", obs["grasp_pos"])
-        print("steping revolute body quat", env.revolute_body_quat)
+        obs,rwd,_,_ = env.step(action)
+        print(rwd)
         env.render()
         # time.sleep(0.5)
