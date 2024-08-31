@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation as R
 from copy import deepcopy
 
 import os 
-os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['MUJOCO_GL'] = 'osmesa'
 
 
 class RobotPrismaticEnv(SingleArmEnv):

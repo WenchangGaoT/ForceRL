@@ -268,13 +268,15 @@ class GymWrapper(Wrapper, gym.Env):
         return self.env.reward()
     
 
-class SubprocessEnv:
+class SubprocessEnv(gym.Env):
     def __init__(self, env_kwargs):
         self.env = suite.make(**env_kwargs)
-        self.env = GymWrapper(self.env)
+        self.env = GymWrapper(self.env) 
+        self.observation_space = self.env.observation_space
+        self.action_space = self.env.action_space
 
-    def reset(self):
-        return self.env.reset()
+    def reset(self, seed=0):
+        return self.env.reset(seed)
 
     def step(self, action):
         return self.env.step(action)
@@ -286,11 +288,11 @@ class SubprocessEnv:
         self.env.close()
 
 
-def make_env(env_kwargs, seed=0):
+def make_env(env_kwargs):
     def _init():
         # MuJoCo-related objects should be created here
         env = SubprocessEnv(env_kwargs)
-        env.seed(seed)
+        # env.seed(seed)
         return env
     return _init
 
@@ -302,4 +304,12 @@ class MultiProcessingParallelEnvsWrappeer:
         # self.envs = [suite.make(**env_kwargs) for _ in range(n_envs)]
         self.envs = SubprocVecEnv([make_env(env_kwargs) for i in range(self.n_envs)])
 
+    def reset(self, seed=0):
+        return self.envs.reset() 
+    
+    def step(self, actions):
+        return self.envs.step(actions) 
+    
+    def close(self):
+        self.envs.close()
         # self.pool = Pool(n_envs)

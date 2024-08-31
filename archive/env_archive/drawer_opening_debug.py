@@ -1,7 +1,7 @@
 import numpy as np
 
 import os 
-os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['MUJOCO_GL'] = 'osmesa'
 from copy import deepcopy
 
 import robosuite as suite

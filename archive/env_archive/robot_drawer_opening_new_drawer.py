@@ -10,7 +10,7 @@ from robosuite.utils.transform_utils import convert_quat
 from objects.custom_objects import DrawerObject, SelectedDrawerObject
 
 import os 
-os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['MUJOCO_GL'] = 'osmesa'
 
 
 class RobotRandomDrawerOpening(SingleArmEnv):
