@@ -13,7 +13,7 @@ from copy import deepcopy
 import imageio
 
 import os 
-os.environ['MUJOCO_GL'] = 'osmesa'
+# os.environ['MUJOCO_GL'] = 'osmesa'
 
 
 class RobotRevoluteOpening(SingleArmEnv):
