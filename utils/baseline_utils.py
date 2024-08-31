@@ -91,7 +91,7 @@ def  get_grasp_env_states(
     # env_kwargs["use_grasp_states"] = False
     env_kwargs["move_robot_away"] = False
     # env_kwargs["open_percentage"] = 1.0
-    env_kwargs["render_camera"] = "birdview"
+    # env_kwargs["render_camera"] = "birdview"
 
     object_name = env_kwargs["object_name"]
     object_scale = env_kwargs["object_scale"]
@@ -171,7 +171,7 @@ def drive_to_grasp(env
     
     action = np.concatenate([robot_gripper_pos, rotation_vector, [-1]])
 
-    for i in range(100):
+    for i in range(150):
         # action = np.zeros_like(env.action_spec[0])
         action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
         env.step(action)

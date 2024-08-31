@@ -86,7 +86,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         # params to avoid infinite recursion
         get_grasp_proposals_flag=False,
+        skip_object_initialization=False,
     ):
+        self.env_name = "BaselineTrainPrismaticEnv"
         
         available_objects = BaselineTrainPrismaticObjects.available_objects()
         assert object_name in available_objects, "Invalid object!"
@@ -112,6 +114,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         self.video_width = video_width
         self.video_height = video_height 
         self.get_grasp_proposals_flag = get_grasp_proposals_flag
+        self.skip_object_initialization = skip_object_initialization
         self.frames = []
 
 
@@ -139,17 +142,20 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         }
 
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.pcd_wf_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}.ply'
-        self.pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_no_downsample.ply'
-        self.camera_info_path = f'infos/camera_info_{object_name}_{object_scale}.npz'
+        self.pcd_wf_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_{open_percentage}.ply'
+        self.pcd_wf_no_downsample_path = f'point_clouds/world_frame_pointclouds_baseline/world_frame_{object_name}_{object_scale}_{open_percentage}_no_downsample.ply'
+        self.camera_info_path = f'infos/camera_info_{object_name}_{object_scale}_{open_percentage}.npz'
 
         self.pcd_cf_dir = os.path.join(self.project_dir, "point_clouds/camera_frame_pointclouds")
-        self.pcd_cf_path = os.path.join(self.pcd_cf_dir, f"camera_frame_{object_name}_{object_scale}.ply")
+        self.pcd_cf_path = os.path.join(self.pcd_cf_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}.ply")
 
         self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/world_frame_proposals")
-        self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_grasp.npz")
+        self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_{open_percentage}_grasp.npz")
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
-        self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_affordance.npz")
+        self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
+
+        self.env_model_dir = os.path.join(self.project_dir, "baselines/states")
+
 
         super().__init__(
             robots=robots,
@@ -294,6 +300,40 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        self.joint_range = self.prismatic_object.joint_range
+
+    def calculate_grasp_pos_relative(self):
+        '''
+        calculate grasp pos in the frame of the revolute object
+        '''
+        grasp_pos = np.array(self.final_grasp_pose)
+        grasp_pos = grasp_pos - deepcopy(self.prismatic_body_pos)
+        grasp_pos = np.dot(self.sim.data.get_body_xmat(self.prismatic_object.prismatic_body).T, grasp_pos)
+        return grasp_pos
+
+    def calculate_grasp_pos_absolute(self):
+        '''
+        calculate the grasp position in the world frame
+        '''
+        grasp_pos = np.array(self.grasp_pos_relative)
+        grasp_pos = np.dot(self.sim.data.get_body_xmat(self.prismatic_object.prismatic_body), grasp_pos)
+        grasp_pos += deepcopy(self.sim.data.get_body_xpos(self.prismatic_object.prismatic_body))
+        return grasp_pos
+
+    def calculate_grasp_quat_relative(self):
+        '''
+        in prismatics, the grasp quaternion is the same as the initial grasp quaternion
+        '''
+        
+        grasp_quat = self.grasp_quat
+        return grasp_quat
+    
+    def calculate_grasp_quat_absolute(self):
+        '''
+        calculate the grasp quaternion in the world frame
+        '''
+        return self.grasp_quat
+
 
     def calculate_joint_pos_absolute(self):
         '''
@@ -379,7 +419,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 run_cgn=run_cgn, 
                 viz=False, 
                 save_wf_pointcloud=False,
-                object_name=f"{self.object_name}_{self.object_scale}",
+                object_name=f"{self.object_name}_{self.object_scale}_{self.open_percentage}",
                 top_k=10,
                 store_proposals=store_proposals,
         )
@@ -393,9 +433,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         sci_rotation = sci_rotation * further_rotation
         self.grasp_rotation_vector = sci_rotation.as_rotvec()
         self.grasp_quat = sci_rotation.as_quat()
-
+        self.grasp_pos_relative = self.calculate_grasp_pos_relative()
+        self.grasp_quat_relative = self.calculate_grasp_quat_relative()
         # get the relative position of the grasp against the object
-        self.grasp_pos_relative = grasp_pos - deepcopy(self.prismatic_body_pos)
 
     def _setup_observables(self):
         """
@@ -417,7 +457,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         if self.get_grasp_proposals_flag:
             @sensor(modality=modality)
             def grasp_pos(obs_cache):
-                return self.final_grasp_pose
+                return self.calculate_grasp_pos_absolute()
             @sensor(modality=modality)
             def grasp_quat(obs_cache):
                 return self.grasp_quat
@@ -429,7 +469,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 return self.joint_direction
             @sensor(modality=modality)
             def open_progress(obs_cache):
-                return np.array([(self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])])
+                return np.array([(self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])])
             sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction, open_progress]
         else:
             sensors = [gripper_pos, gripper_quat]
@@ -457,22 +497,30 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         # if rotate_around_robot is True, need to reset the object placement parameters
         if self.rotate_around_robot:
             actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()
-            self.placement_initializer.x_range = actual_placement_x
-            self.placement_initializer.y_range = actual_placement_y
-            self.placement_initializer.rotation = actual_placement_rotation
-            self.placement_initializer.reference_pos = actual_placement_reference_pos
+            if not self.skip_object_initialization:
+                self.placement_initializer.x_range = actual_placement_x
+                self.placement_initializer.y_range = actual_placement_y
+                self.placement_initializer.rotation = actual_placement_rotation
+                self.placement_initializer.reference_pos = actual_placement_reference_pos
 
-        object_placements = self.placement_initializer.sample()
+        if not self.skip_object_initialization:
+            object_placements = self.placement_initializer.sample()
 
-        # We know we're only setting a single object (the drawer), so specifically set its pose
-        drawer_pos, drawer_quat, _ = object_placements[self.prismatic_object.name]
-        drawer_body_id = self.sim.model.body_name2id(self.prismatic_object.root_body)
-        self.sim.model.body_pos[drawer_body_id] = drawer_pos
-        self.sim.model.body_quat[drawer_body_id] = drawer_quat
-        
-        self.set_open_percentage(self.open_percentage)
+            # We know we're only setting a single object (the drawer), so specifically set its pose
+            drawer_pos, drawer_quat, _ = object_placements[self.prismatic_object.name]
+            drawer_body_id = self.sim.model.body_name2id(self.prismatic_object.root_body)
+            self.sim.model.body_pos[drawer_body_id] = drawer_pos
+            self.sim.model.body_quat[drawer_body_id] = drawer_quat
+            
+            self.set_open_percentage(self.open_percentage)
         self.sim.forward()
 
+        self._update_reference_values()
+
+        if self.get_grasp_proposals_flag:
+            self.get_grasp_proposals()
+
+    def _update_reference_values(self):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
         self.last_slider_qpos = deepcopy(self.handle_current_progress)
         self.initial_slider_qpos = deepcopy(self.handle_current_progress)
@@ -489,9 +537,8 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         self.joint_position = self.calculate_joint_pos_absolute()
         self.joint_direction = self.calculate_joint_direction_absolute()
-
-        if self.get_grasp_proposals_flag:
-            self.get_grasp_proposals()
+        self.prismatic_bosy_mat = self.sim.data.get_body_xmat(self.prismatic_body)
+        self.gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
 
         
 
@@ -553,7 +600,13 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         '''
         staged reward function
         '''
-        return self.staged_reward(action)
+        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        stage = self.get_stage()
+        if self.get_grasp_proposals_flag:
+            rwd = self.staged_reward(stage, self.gripper_pos)
+        else:
+            rwd = 0
+        return rwd
     
     def get_stage(self):
         '''
@@ -565,7 +618,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         '''
         # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         # print("handle_current_progress: ", self.handle_current_progress)
-        task_percentage = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
+        task_percentage = (self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
 
         if task_percentage >= 0.8:
             return 2
@@ -580,7 +633,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         
         
 
-    def staged_reward(self, action):
+    def staged_reward(self, stage, gripper_pos):
         '''
         three part of the reward function
         reward_stage: 0, 1, 2
@@ -591,20 +644,15 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         stage_mult = 1.0
         drawer_mult = 1.0
 
-        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
-        stage = self.get_stage()
         # print("stage: ", stage)
 
         reward_stage_list = [0,1,2]
         reward_stage = reward_stage_list[stage] * stage_mult
 
-        gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
-        # print(self.grasp_pos_relative + self.prismatic_body_pos)
-        # print(self.final_grasp_pose)
-        dist = np.linalg.norm(gripper_pos - np.array(self.grasp_pos_relative + self.prismatic_body_pos))
+        dist = np.linalg.norm(gripper_pos - self.calculate_grasp_pos_absolute())
         reward_end_effector = (1 - np.tanh(5.0 * dist)) * eef_mult
         
-        reward_drawer = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
+        reward_drawer = (self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
         reward_drawer = reward_drawer * drawer_mult
 
         reward_stop = self._check_success() * 10
@@ -648,14 +696,14 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 frame = np.flip(frame, 0)
                 
                 self.frames.append(frame)
-        reward = self.reward(action)
+        # reward = self.reward(action)
 
-        # check penalty
-        penalty = self.penalty(action)
-        if penalty != 0:
-            done = True
-            self.done = True
-            reward = -10
+        # # check penalty
+        # penalty = self.penalty(action)
+        # if penalty != 0:
+        #     done = True
+        #     self.done = True
+        #     reward = -10
 
         # print("reward: ", reward)
 
@@ -693,7 +741,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         '''
         # get the joint range
         joint_range = self.prismatic_object.joint_range
-        self.joint_qpos_range = joint_range
+        self.joint_range = joint_range
 
         self.sim.data.qpos[self.slider_qpos_addr] = percent * (joint_range[1] - joint_range[0]) + joint_range[0]
         # self.sim.forward()

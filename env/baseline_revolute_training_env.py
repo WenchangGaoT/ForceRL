@@ -644,7 +644,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
     def reward(self, action):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         stage = self.get_stage()
-        rwd = self.staged_reward(stage, self.gripper_pos)
+        if self.get_grasp_proposals_flag:
+            rwd = self.staged_reward(stage, self.gripper_pos)
+        else:
+            rwd = 0
 
         return rwd
     
