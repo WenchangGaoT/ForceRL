@@ -1,5 +1,5 @@
 from env.baseline_revolute_training_env import BaselineTrainRevoluteEnv
-from env.baseline_revolute_training_env_new import BaselineTrainRevoluteEnvNew
+from archive.baseline_revolute_training_env_new import BaselineTrainRevoluteEnvNew
 from env.wrappers import GraspStateWrapper
 import open3d as o3d
 import robosuite as suite

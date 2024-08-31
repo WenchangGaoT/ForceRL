@@ -1,4 +1,4 @@
-from env.cips_baseline_revolute_training_env import CipsBaselineTrainRevoluteEnv
+from archive.cips_baseline_revolute_training_env import CipsBaselineTrainRevoluteEnv
 import open3d as o3d
 import robosuite as suite
 import numpy as np
