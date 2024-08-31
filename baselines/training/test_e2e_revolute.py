@@ -35,7 +35,7 @@ env_kwargs = dict(
     object_name = "train-dishwasher-1",
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(0, 0),
-    obj_rotation=(-np.pi / 2, 0),
+    obj_rotation=(-np.pi / 2, -np.pi/2),
     scale_object = True,
     object_scale = 0.3,
     has_renderer=True,
@@ -58,7 +58,7 @@ env_kwargs = dict(
 
     cache_video = False,
     get_grasp_proposals_flag = True,
-    skip_object_initialization=True
+    skip_object_initialization=False
 )
 
 env_name = "BaselineTrainRevoluteEnv"
@@ -66,10 +66,9 @@ env = suite.make(
     env_name,
     **env_kwargs
 )
-env = GraspStateWrapper(env, number_of_grasp_states=4)
 action = [0,0,0,0,0,0,1]
 for i in range(8):
-    obs = env.reset(i)
+    obs = env.reset()
     gripper_quat = obs["gripper_quat"]
     gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
     for i in range(50):

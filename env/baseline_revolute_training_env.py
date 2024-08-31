@@ -16,6 +16,9 @@ from grasps.aograsp.get_proposals import get_grasp_proposals_main
 
 from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
+import mujoco
+
+from utils.renderer_modified import MjRendererForceVisualization
 
 
 from copy import deepcopy 
@@ -300,6 +303,25 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
         self.obj_pos = self.sim.data.body_xpos[obj_id] 
         self.obj_quat = self.sim.data.body_xquat[obj_id]
+        self.joint_range = self.revolute_object.joint_range
+    
+    def calculate_grasp_pos_relative(self):
+        '''
+        calculate grasp pos in the frame of the revolute object
+        '''
+        grasp_pos = np.array(self.final_grasp_pose)
+        grasp_pos = grasp_pos - deepcopy(self.revolute_body_pos)
+        grasp_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body).T, grasp_pos)
+        return grasp_pos
+
+    def calculate_grasp_pos_absolute(self):
+        '''
+        calculate the grasp position in the world frame
+        '''
+        grasp_pos = np.array(self.grasp_pos_relative)
+        grasp_pos = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), grasp_pos)
+        grasp_pos += deepcopy(self.sim.data.get_body_xpos(self.revolute_object.revolute_body))
+        return grasp_pos
 
     def calculate_joint_pos_absolute(self):
         '''
@@ -382,7 +404,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                 self.camera_info_path, 
                 run_cgn=run_cgn, 
                 viz=False, 
-                save_wf_pointcloud=True,
+                save_wf_pointcloud=False,
                 object_name=f"{self.object_name}_{self.object_scale}_{self.open_percentage}",
                 top_k=10,
                 store_proposals=store_proposals,
@@ -399,9 +421,12 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         sci_rotation = sci_rotation * further_rotation
         self.grasp_rotation_vector = sci_rotation.as_rotvec()
         self.grasp_quat = sci_rotation.as_quat()
-
         # get the relative position of the grasp against the object
-        self.grasp_pos_relative = grasp_pos - deepcopy(self.revolute_body_pos)
+        self.grasp_pos_relative = self.calculate_grasp_pos_relative()
+        print("grasp pos relative: ", self.grasp_pos_relative)
+        print("grasp pos absolute: ", self.calculate_grasp_pos_absolute())
+        print("final grasp pose: ", self.final_grasp_pose)
+        print("object quat: ", self.revolute_body_quat)
     
 
     def _setup_observables(self):
@@ -423,7 +448,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         if self.get_grasp_proposals_flag:
             @sensor(modality=modality)
             def grasp_pos(obs_cache):
-                return self.final_grasp_pose
+                return self.calculate_grasp_pos_absolute()
             @sensor(modality=modality)
             def grasp_quat(obs_cache):
                 return self.grasp_quat
@@ -433,7 +458,11 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             @sensor(modality=modality)
             def joint_direction(obs_cache):
                 return self.joint_direction
-            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction]
+            @sensor(modality=modality)
+            def open_progress(obs_cache):
+                return np.array([(self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])])
+
+            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction, open_progress]
         else:
             sensors = [gripper_pos, gripper_quat]
         names = [s.__name__ for s in sensors]
@@ -499,6 +528,14 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
 
         if self.get_grasp_proposals_flag:
             self.get_grasp_proposals()
+
+        if self.has_offscreen_renderer:
+            # if self.sim._render_context_offscreen is None:
+            render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
+                # render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
+            self.sim._render_context_offscreen.vopt.geomgroup[0] = 1 if self.render_collision_mesh else 0
+            self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0
+
         
 
     def _update_reference_values(self):
@@ -520,13 +557,149 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         self.joint_position = self.calculate_joint_pos_absolute()
         print("joint position: ", self.joint_position)
         self.joint_direction = self.calculate_joint_direction_absolute()
+
+        self.revolute_body_initial_quat = deepcopy(self.sim.data.body_xquat[self.sim.model.body_name2id(self.revolute_body)])
+        self.revolute_body_quat = self.sim.data.body_xquat[self.sim.model.body_name2id(self.revolute_body)]
+
         
 
     def _check_success(self):
         # TODO: modify this to check if the drawer is fully open
+        joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+
+        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0]) - self.open_percentage
+        # open 30 degrees
+        return joint_pos_relative_to_range > 0.8
+    
+    def _check_grasp(self, gripper, object_geoms):
+        """
+        Checks whether the specified gripper as defined by @gripper is grasping the specified object in the environment.
+
+        Modified version, return true if one of the gripper geom group is in contact with the object geom group
+
+        Args:
+            gripper (GripperModel or str or list of str or list of list of str): If a MujocoModel, this is specific
+            gripper to check for grasping (as defined by "left_fingerpad" and "right_fingerpad" geom groups). Otherwise,
+                this sets custom gripper geom groups which together define a grasp. This can be a string
+                (one group of single gripper geom), a list of string (multiple groups of single gripper geoms) or a
+                list of list of string (multiple groups of multiple gripper geoms). At least one geom from each group
+                must be in contact with any geom in @object_geoms for this method to return True.
+            object_geoms (str or list of str or MujocoModel): If a MujocoModel is inputted, will check for any
+                collisions with the model's contact_geoms. Otherwise, this should be specific geom name(s) composing
+                the object to check for contact.
+
+        Returns:
+            bool: True if the gripper is grasping the given object
+        """
+        # Convert object, gripper geoms into standardized form
+        if isinstance(object_geoms, MujocoModel):
+            o_geoms = object_geoms.contact_geoms
+        else:
+            o_geoms = [object_geoms] if type(object_geoms) is str else object_geoms
+        if isinstance(gripper, GripperModel):
+            g_geoms = [gripper.important_geoms["left_fingerpad"], gripper.important_geoms["right_fingerpad"]]
+        elif type(gripper) is str:
+            g_geoms = [[gripper]]
+        else:
+            # Parse each element in the gripper_geoms list accordingly
+            g_geoms = [[g_group] if type(g_group) is str else g_group for g_group in gripper]
+            
+        # Search for collisions between each gripper geom group and the object geoms group
+        for g_group in g_geoms:
+            if self.check_contact(g_group, o_geoms):
+                return True
+        return False
+    
+    def check_grasp(self):
+        '''
+        Check if robot successfully grasps the object
+        '''
+        return self._check_grasp(self.robots[0].gripper, self.revolute_object.geom_check_grasp)
+
+ 
+    def reward(self, action):
+        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        gripper_pos = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
+        self.revolute_body_pos = self.sim.data.body_xpos[self.sim.model.body_name2id(self.revolute_body)]
+        # rev_xpos = self.sim.data.get_body_xpos(self.revolute_body)
+        # print("revolute body pos: ", self.revolute_body_pos)
+        # print("handle_current_progress: ", self.handle_current_progress)
+        stage = self.get_stage()
+
         return 0
     
-    def reward(self, action):
+    def get_stage(self):
+        '''
+        get the stage of the current task
+
+        stage 0: check_grasp is False
+        stage 1: check_grasp is True, handle_current_progress < 0.8
+        stage 2: check_grasp is True, handle_current_progress >= 0.8
+        '''
+        # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        # print("handle_current_progress: ", self.handle_current_progress)
+        task_percentage = (self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+
+        if task_percentage >= 0.8:
+            return 2
+        elif not self.check_grasp():
+            return 0
+        # elif task_percentage >= 0.8:
+        #     return 2
+        else:
+            return 1
+        # elif self.check_grasp() and task_percentage < 0.8:
+        #     return 1
+
+    def staged_reward(self, stage, gripper_pos):
+        '''
+        three part of the reward function
+        reward_stage: 0, 1, 2
+        reward_end_effector: reward for the end effector, encourage the end effector to be close to the grasp position
+        reward_drawer: reward for the drawer, encourage the drawer to be opened
+        '''
+        eef_mult = 1.0
+        stage_mult = 1.0
+        drawer_mult = 1.0
+
+        self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
+        # print("stage: ", stage)
+
+        reward_stage_list = [0,1,2]
+        reward_stage = reward_stage_list[stage] * stage_mult
+
+        dist = np.linalg.norm(gripper_pos - np.array(self.grasp_pos_relative + self.revolute_body_pos))
+        reward_end_effector = (1 - np.tanh(5.0 * dist)) * eef_mult
+        
+        reward_drawer = (self.handle_current_progress - self.joint_qpos_range[0]) / (self.joint_qpos_range[1] - self.joint_qpos_range[0])
+        reward_drawer = reward_drawer * drawer_mult
+
+        reward_stop = self._check_success() * 10
+
+        if stage == 0:
+            reward = reward_stage + reward_end_effector
+        elif stage == 1:
+            reward_end_effector = 1
+            reward = reward_stage + reward_end_effector + reward_drawer
+        else:
+            reward_end_effector = 1
+            reward = reward_stage + reward_end_effector + reward_drawer + reward_stop
+        
+        self.last_slider_qpos = deepcopy(self.handle_current_progress)
+        # print("reward: ", reward)
+        # print("reward drawer: ", reward_drawer) 
+        return reward
+
+
+    def penalty(self, action):
+        '''
+        penalty function
+        '''
+        stage = self.get_stage()
+        if stage == 0:
+            drawer_movement = np.abs(self.handle_current_progress - self.last_slider_qpos)
+            if drawer_movement > 0.01:
+                return -1
         return 0
     
     def save_video(self, video_path='videos/robot_revolute.mp4'):
@@ -561,7 +734,8 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         '''
         Set the opening percentage of the drawer
         '''
-        joint_range = self.revolute_object.joint_range
+        self.joint_range = self.revolute_object.joint_range
+        joint_range = self.joint_range
         self.sim.data.qpos[self.slider_qpos_addr] = percentage * (joint_range[1] - joint_range[0]) + joint_range[0]
         # self.sim.data.qpos[self.slider_qpos_addr] = joint_range[1]
         self.sim.forward()
@@ -573,3 +747,27 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             "dishwasher": ["train-dishwasher-1"],
         }
         return available_objects 
+    
+    def modify_scene(self, scene):
+        rgba = np.array([0.5, 0.5, 0.5, 1.0])
+        grasp_pos = self.calculate_grasp_pos_absolute()
+        # grasp_pos = self.final_grasp_pose
+        # point1 = body_xpos
+        point1 = grasp_pos
+        point2 = grasp_pos + np.array([1,0,0])
+        # point1 = self.hinge_position
+        # point2 = self.hinge_position + self.hinge_direction 
+
+        radius = 0.05
+
+        if scene.ngeom >= scene.maxgeom:
+            return
+        scene.ngeom += 1
+
+        mujoco.mjv_initGeom(scene.geoms[scene.ngeom-1],
+                      mujoco.mjtGeom.mjGEOM_ARROW, np.zeros(3),
+                      np.zeros(3), np.zeros(9), rgba.astype(np.float32))
+        mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
+                           int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
+                           point1, point2)
+

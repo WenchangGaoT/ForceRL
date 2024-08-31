@@ -10,7 +10,9 @@ gpd/build/
 test.py
 # *.pth
 *.json
+!osc_pose*
 .vscode/ 
 *.mp4
 logs/
 videos/*
+baselines/states/
