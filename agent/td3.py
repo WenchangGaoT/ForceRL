@@ -94,7 +94,7 @@ class TD3:
         self.max_action = max_action
     
     def select_action(self, state):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(state.reshape(1, -1)).to(device) if len(state.shape) == 1 else torch.FloatTensor(state).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
     
     def update(self, replay_buffer, n_iter, batch_size, gamma, polyak, policy_noise, noise_clip, policy_delay):

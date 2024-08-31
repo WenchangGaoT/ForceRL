@@ -338,8 +338,6 @@ class TrainPrismaticEnv(MujocoEnv):
             def object_pos(obs_cache):
                 return np.array(self.sim.data.body_xpos[self.object_body_ids["prismatic"]])
 
-
-
             @sensor(modality=modality)
             def joint_qpos(obs_cache):
                 return np.array([self.sim.data.qpos[self.joint_qpos_addr]])
@@ -472,13 +470,19 @@ class TrainPrismaticEnv(MujocoEnv):
         self.last_force_point_xpos = deepcopy(self.force_point_world)
         # print("initial force point: ", self.force_point_world)
 
+    def step(self, action):
+        if self.cache_video and self.has_offscreen_renderer:
+            frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
+            self.frames.append(frame) 
+        return super().step(action)
+
     def _pre_action(self, action, policy_step=False):
         self.joint_position = self.calculate_joint_pos_absolute()
         self.joint_direction = self.calculate_joint_direction_absolute()
 
-        if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
-                self.frames.append(frame)
+        # if self.cache_video and self.has_offscreen_renderer:
+        #         frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
+        #         self.frames.append(frame)
         
         self.last_joint_qpos = deepcopy(self.sim.data.qpos[self.joint_qpos_addr])
         # get the arrow end position
