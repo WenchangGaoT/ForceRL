@@ -1,5 +1,5 @@
 from env.baseline_revolute_training_env import BaselineTrainRevoluteEnv
-from env.baseline_prismatic_training_env import BaselineTrainPrismaticEnv
+from env.baseline_revolute_training_env_new import BaselineTrainRevoluteEnvNew
 from env.wrappers import GraspStateWrapper
 import open3d as o3d
 import robosuite as suite
@@ -36,7 +36,7 @@ env_kwargs = dict(
     object_name = "train-dishwasher-1",
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(0, 0),
-    obj_rotation=(-np.pi / 2, 0),
+    obj_rotation=(-np.pi / 2, -np.pi/2),
     scale_object = True,
     object_scale = 0.3,
     has_renderer=True,
@@ -55,28 +55,27 @@ env_kwargs = dict(
 
     rotate_around_robot = True,
     object_robot_distance = (0.7,0.7),
-    open_percentage = 0.3,
+    open_percentage = 0.5,
 
     cache_video = False,
     get_grasp_proposals_flag = True,
-    skip_object_initialization=True
+    skip_object_initialization=False
 )
 
-env_name = "BaselineTrainRevoluteEnv"
+env_name = "BaselineTrainRevoluteEnvNew"
 env = suite.make(
     env_name,
     **env_kwargs
 )
-env = GraspStateWrapper(env, number_of_grasp_states=4)
-action = [0,0,0.1,0,0,0,1]
+action = [0,0,0,0,0,0,1]
 for i in range(8):
-    obs = env.reset(i)
+    obs = env.reset()
     gripper_quat = obs["gripper_quat"]
     gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
-    for i in range(20):
+    for i in range(50):
         # action[3:6] = gripper_rot
-        obs,rwd,_,_ = env.step(action)
-        # print(rwd)
+        obs,_,_,_ = env.step(action)
+        print( "steping grasp pose", obs["grasp_pos"])
+        print("steping revolute body quat", env.revolute_body_quat)
         env.render()
         # time.sleep(0.5)
-    print("Done")

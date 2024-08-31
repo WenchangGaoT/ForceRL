@@ -17,8 +17,6 @@ from grasps.aograsp.get_proposals import get_grasp_proposals_main
 from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
 import mujoco
-from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
-
 
 from utils.renderer_modified import MjRendererForceVisualization
 
@@ -150,11 +148,6 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
 
         self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/world_frame_proposals")
         self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_{open_percentage}_grasp.npz")
-        
-        self.camera_frame_proposal_dir = os.path.join(self.project_dir, "outputs/grasp_proposals/camera_frame_proposals")
-        self.camera_frame_proposal_path = os.path.join(self.camera_frame_proposal_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
-
-        
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
         self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
 
@@ -162,9 +155,6 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         # self.grasp_states_path = os.path.join(self.grasp_states_dir, f"grasp_states_{object_name}_{object_scale}.npy")
 
         self.env_model_dir = os.path.join(self.project_dir, "baselines/states")
-
-        if self.get_grasp_proposals_flag:
-            self.init_grasp_proposals()
 
         super().__init__(
             robots=robots,
@@ -374,9 +364,9 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         joint_dir = np.dot(self.sim.data.get_body_xmat(self.revolute_object.revolute_body), joint_dir)
         return joint_dir
 
-    def init_grasp_proposals(self):
+    def get_grasp_proposals(self):
         '''
-        When initializing the environment, get the grasp proposals for the object
+        Get the grasp proposals for the object
         '''
         camera_euler = np.array([ 45., 22., 3.])
         camera_euler_for_pos = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]])
@@ -387,15 +377,14 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         distance = 1.5
         camera_pos = -distance * world_forward
 
-        self.camera_pos = camera_pos
-        self.camera_quat = camera_quat
-
         reset_x_range = (1,1)
         reset_y_range = (1,1)
 
         # reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
         reset_joint_qpos = 1.0
-        if not os.path.exists(self.camera_frame_proposal_path):
+
+        if not os.path.exists(self.proposal_path):
+        # if True:
             # get the point clouds and affordance
             print("Getting point clouds and affordance")
             pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(
@@ -408,7 +397,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                                 pcd_wf_path=self.pcd_wf_path,
                                 pcd_wf_no_downsample_path=self.pcd_wf_no_downsample_path,
                                 camera_info_path=self.camera_info_path,
-                                viz=False, 
+                                viz=True, 
                                 need_o3d_viz=False,
                                 reset_joint_qpos=reset_joint_qpos,
                                 reset_x_range = reset_x_range, 
@@ -420,7 +409,16 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             run_cgn = True
             store_proposals = True
 
-            get_grasp_proposals_main(
+           
+        else:
+            b_utils.save_camera_info(self, self.camera_info_path, camera_pos, camera_quat, scale_factor=1)
+            pcd_cf_path = self.pcd_cf_path
+            affordance_path = self.affordance_path
+            run_cgn = False
+            store_proposals = False
+
+        
+        world_frame_proposal_path, top_k_pos_wf, top_k_quat_wf = get_grasp_proposals_main(
                 pcd_cf_path, 
                 affordance_path, 
                 self.camera_info_path, 
@@ -430,32 +428,9 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                 object_name=f"{self.object_name}_{self.object_scale}_{self.open_percentage}",
                 top_k=10,
                 store_proposals=store_proposals,
-            )
-        else:
-            pcd_cf_path = self.pcd_cf_path
-        
-        self.proposal_points_cf, self.proposal_quat_cf, self.proposal_scrores = baseline_read_cf_grasp_proposals(
-            pcd_cf_path,
-            self.camera_frame_proposal_path)
-
-    def get_grasp_proposals(self):
-        
-        print("grasp pose cf", self.proposal_points_cf[0])
-        print("grasp quat cf", self.proposal_quat_cf[0])
-
-        camera_config = get_camera_info(self, 
-                                        self.camera_pos, 
-                                        self.camera_quat, 
-                                        scale_factor=1,
-                                        )
-        top_k_pos_wf, top_k_quat_wf = baseline_get_grasp_proposals(
-            camera_config,
-            self.proposal_points_cf,
-            self.proposal_quat_cf,
-            self.proposal_scrores,
-            top_k=10
         )
-        
+
+        print("world_frame_proposal_path: ", world_frame_proposal_path)
         print("object pos: ", self.obj_pos)
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
@@ -798,14 +773,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
     
     def modify_scene(self, scene):
         rgba = np.array([0.5, 0.5, 0.5, 1.0])
-        if self.get_grasp_proposals_flag:
-            grasp_pos = self.calculate_grasp_pos_absolute()
+        grasp_pos = self.calculate_grasp_pos_absolute()
         # grasp_pos = self.final_grasp_pose
         # point1 = body_xpos
-            grasp_quat = self.calculate_grasp_quat_absolute()
-        else:
-            grasp_pos = np.array([0,0,0])
-            grasp_quat = np.array([1,0,0,0])
+        grasp_quat = self.calculate_grasp_quat_absolute()
         grasp_rot = R.from_quat(grasp_quat).as_matrix()
         point1 = grasp_pos
         point2 = grasp_pos + grasp_rot @ np.array([1,0,0])

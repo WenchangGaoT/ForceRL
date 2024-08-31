@@ -17,11 +17,10 @@ from grasps.aograsp.get_proposals import get_grasp_proposals_main
 from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
 import mujoco
-from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
-
 
 from utils.renderer_modified import MjRendererForceVisualization
 
+from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
 
 from copy import deepcopy 
 import imageio
@@ -30,7 +29,7 @@ import os
 os.environ['MUJOCO_GL'] = 'osmesa'
 
 
-class BaselineTrainRevoluteEnv(SingleArmEnv):
+class BaselineTrainRevoluteEnvNew(SingleArmEnv):
 
     def __init__(
         self,
@@ -89,7 +88,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
 
         skip_object_initialization=False, # skip object initialization for reset_from_xml
     ):
-        self.env_name = "BaselineTrainRevoluteEnv"
+        self.env_name = "BaselineTrainRevoluteEnvNew"
 
         self.object_name = object_name
         self.placement_initializer = placement_initializer
@@ -148,12 +147,11 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         self.pcd_cf_dir = os.path.join(self.project_dir, "point_clouds/camera_frame_pointclouds")
         self.pcd_cf_path = os.path.join(self.pcd_cf_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}.ply")
 
-        self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/world_frame_proposals")
+        self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/camera_frame_proposals")
         self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_{open_percentage}_grasp.npz")
         
         self.camera_frame_proposal_dir = os.path.join(self.project_dir, "outputs/grasp_proposals/camera_frame_proposals")
         self.camera_frame_proposal_path = os.path.join(self.camera_frame_proposal_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
-
         
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
         self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
@@ -431,17 +429,12 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                 top_k=10,
                 store_proposals=store_proposals,
             )
-        else:
-            pcd_cf_path = self.pcd_cf_path
         
-        self.proposal_points_cf, self.proposal_quat_cf, self.proposal_scrores = baseline_read_cf_grasp_proposals(
-            pcd_cf_path,
-            self.camera_frame_proposal_path)
+        self.proposal_points_cf, self.proposal_quat_cf, self.proposal_scrores = baseline_read_cf_grasp_proposals(self.camera_frame_proposal_path)
 
+    
     def get_grasp_proposals(self):
-        
-        print("grasp pose cf", self.proposal_points_cf[0])
-        print("grasp quat cf", self.proposal_quat_cf[0])
+
 
         camera_config = get_camera_info(self, 
                                         self.camera_pos, 

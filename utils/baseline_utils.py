@@ -9,6 +9,9 @@ import os
 import json
 import copy
 import h5py
+import utils.aograsp_utils.dataset_utils as d_utils 
+import utils.aograsp_utils.rotation_utils as r_utils
+import open3d as o3d
 
 
 def save_camera_info(env,
@@ -44,6 +47,35 @@ def save_camera_info(env,
     
     with open(camera_info_path, 'wb') as f:
         pickle.dump(camera_config, f) 
+
+def get_camera_info(env,
+                    camera_pos, 
+                     camera_quat, 
+                     scale_factor = 1):
+    '''
+    get camera information
+    '''
+    object_euler = R.from_quat(env.obj_quat).as_euler('xyz', degrees=False)
+    print("object euler: ", R.from_quat(env.obj_quat).as_euler('xyz', degrees=True))
+    cam_pos_actual = init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
+    camera_rot_90 = transform_utils.euler2mat(np.array([0, 0, -np.pi-object_euler[0]])) @ transform_utils.quat2mat(camera_quat) 
+    camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
+    
+    camera_euler = R.from_quat(camera_quat).as_euler('xyz', degrees=True)
+    camera_euler_for_gamma = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]]) 
+    camera_rot_for_gamma = R.from_euler('xyz', camera_euler_for_gamma, degrees=True).as_matrix()
+    camera_rot_for_gamma = transform_utils.euler2mat(np.array([0, 0, -np.pi-object_euler[0]])) @ camera_rot_for_gamma
+    camera_quat_for_gamma = R.from_matrix(camera_rot_for_gamma).as_quat()
+
+    camera_config = { 'camera_config': {
+                            # 'trans': camera_pos*scale_factor, 
+                            'trans': camera_pos, 
+                            'quat': camera_quat_rot_90,
+                            'trans_absolute': cam_pos_actual,
+                            'quat_for_gamma': camera_quat_for_gamma,
+                        }
+                } 
+    return camera_config
 
 
 def load_wf_grasp_proposals(proposal_path, top_k=10):
@@ -190,3 +222,92 @@ def drive_to_grasp(env
         action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
         env.step(action)
         env.render()
+
+
+def baseline_read_cf_grasp_proposals(pts_cf_path,
+                                     proposal_path):
+    '''
+    read the grasp proposals in camera frame
+    '''
+    proposal_cf_dict = np.load(proposal_path, allow_pickle=True)['data'].item()  
+
+    pts_cf = o3d.io.read_point_cloud(pts_cf_path)
+    pts_cf_arr = np.array(pts_cf.points)
+
+    proposals = proposal_cf_dict['proposals'] 
+    proposal_points_cf = np.array([p[0] for p in proposals]) 
+    proposal_quats_cf = np.array([p[1] for p in proposals]) 
+    proposal_scores = np.array([p[2] for p in proposals])
+    proposal_points_cf += np.mean(pts_cf_arr, axis=0) 
+    return proposal_points_cf, proposal_quats_cf, proposal_scores
+
+
+def baseline_pts_zfront_to_wf(camera_info_dict, proposal_points_cf):
+    '''
+    convert the proposals from camera frame to world frame
+    '''
+    print("camera_info_dict: ", camera_info_dict)
+    cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
+    cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"]
+    H_cam2world_xfront = r_utils.get_H(r_utils.get_matrix_from_quat(cam_quat), cam_pos)
+    H_world2cam_xfront = r_utils.get_H_inv(H_cam2world_xfront)
+    H_world2cam_zfront = d_utils.get_H_world_to_cam_z_front_from_x_front(H_world2cam_xfront) 
+    pts_cf_homo = np.concatenate([proposal_points_cf, np.ones_like(proposal_points_cf[:, :1])], axis=-1) 
+    # pts_wf_arr = np.matmul(pts_cf_homo, np.linalg.inv(H_world2cam_zfront.T))[:, :3]
+    pts_wf_arr = np.matmul(np.linalg.inv(H_world2cam_zfront),pts_cf_homo.T).T[:, :3]
+    return pts_wf_arr 
+
+def baseline_quat_zfront_to_wf(proposal_quats_cf,camera_info_dict):
+    '''
+    convert proposal quat from cam frame to world frame
+    '''
+    cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
+    cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"]
+    H_cam2world_xfront = r_utils.get_H(r_utils.get_matrix_from_quat(cam_quat), cam_pos)
+    H_world2cam_xfront = r_utils.get_H_inv(H_cam2world_xfront)
+    H_world2cam_zfront = d_utils.get_H_world_to_cam_z_front_from_x_front(H_world2cam_xfront) 
+    H_cam2world_zfront = np.linalg.inv(H_world2cam_zfront)
+    # get rotation part of H_cam2world_zfront
+    R_rotation_cam2world_zfront = H_cam2world_zfront[:3, :3]
+    
+    # transform the quaternion from cf to wf
+    # use rotation matrix to rotate the quaternion
+    R_rotation_cam2world_zfront_mat = R.from_matrix(R_rotation_cam2world_zfront)
+    pts_rotation_cf = [R.from_quat(q) for q in proposal_quats_cf]
+    pts_rotation_wf = [R_rotation_cam2world_zfront_mat * q for q in pts_rotation_cf]
+
+    # back to quaternion
+    pts_quat_wf = [q.as_quat() for q in pts_rotation_wf]
+    return pts_quat_wf
+
+
+
+def baseline_get_grasp_proposals(camera_info_dict,
+                                 proposal_points_cf,
+                                    proposal_quats_cf,
+                                    proposal_scores,
+                                    top_k=10):
+    '''
+    main function for getting grasp proposals
+
+    args:
+        run_cgn: bool, whether to run the CGN model to get a new set of grasp proposals since CGN is slow.
+    '''
+
+
+    # convert the proposals from camera frame to world frame
+    g_pos_wf = baseline_pts_zfront_to_wf(camera_info_dict, proposal_points_cf)
+    g_quat_wf = baseline_quat_zfront_to_wf(proposal_quats_cf, camera_info_dict)
+    scores = proposal_scores
+    sorted_grasp_tuples = [(g_pos_wf[i], g_quat_wf[i], scores[i]) for i in range(len(g_pos_wf))]
+    sorted_grasp_tuples.sort(key=lambda x: x[2], reverse=True)
+    top_k_pos_wf = [g[0] for g in sorted_grasp_tuples][:top_k]
+    top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]
+
+    
+    top_k_pos_wf = [g[0] for g in sorted_grasp_tuples][:top_k]
+    top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]
+
+    return  top_k_pos_wf, top_k_quat_wf
+
+

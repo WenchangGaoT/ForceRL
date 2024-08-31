@@ -17,6 +17,8 @@ from grasps.aograsp.get_proposals import get_grasp_proposals_main
 
 from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
+from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
+
 
 from copy import deepcopy 
 import imageio
@@ -151,10 +153,18 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         self.proposal_dir = os.path.join(self.project_dir,"outputs/grasp_proposals/world_frame_proposals")
         self.proposal_path = os.path.join(self.proposal_dir, f"world_frame_{object_name}_{object_scale}_{open_percentage}_grasp.npz")
+        
+        self.camera_frame_proposal_dir = os.path.join(self.project_dir, "outputs/grasp_proposals/camera_frame_proposals")
+        self.camera_frame_proposal_path = os.path.join(self.camera_frame_proposal_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
+
+        
         self.affordance_dir = os.path.join(self.project_dir, "outputs/point_score")
         self.affordance_path = os.path.join(self.affordance_dir, f"camera_frame_{object_name}_{object_scale}_{open_percentage}_affordance.npz")
 
         self.env_model_dir = os.path.join(self.project_dir, "baselines/states")
+        
+        if self.get_grasp_proposals_flag:
+            self.init_grasp_proposals()
 
 
         super().__init__(
@@ -353,11 +363,11 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         joint_dir = np.dot(self.sim.data.get_body_xmat(self.prismatic_object.prismatic_body), joint_dir)
         return joint_dir
 
-    def get_grasp_proposals(self):
+    def init_grasp_proposals(self):
         '''
-        Get the grasp proposals for the object
+        When initializing the environment, get the grasp proposals for the object
         '''
-        camera_euler = np.array([ 30., 22., 3.])
+        camera_euler = np.array([ 45., 22., 3.])
         camera_euler_for_pos = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]])
         camera_rotation = R.from_euler("xyz", camera_euler_for_pos, degrees=True)
         camera_quat = R.from_euler("xyz", camera_euler, degrees=True).as_quat()
@@ -366,18 +376,19 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         distance = 1.5
         camera_pos = -distance * world_forward
 
+        self.camera_pos = camera_pos
+        self.camera_quat = camera_quat
+
         reset_x_range = (1,1)
         reset_y_range = (1,1)
 
-        reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
-        # print("entering get_grasp_proposals")
-
-        if not os.path.exists(self.proposal_path):
-        # if True:
+        # reset_joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
+        reset_joint_qpos = 1.0
+        if not os.path.exists(self.camera_frame_proposal_path):
             # get the point clouds and affordance
             print("Getting point clouds and affordance")
             pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(
-                                env_name = "BaselineTrainPrismaticEnv", 
+                                env_name = self.env_name, 
                                 env_kwargs=self.env_kwargs,
                                 object_name=self.object_name, 
                                 camera_pos=camera_pos,
@@ -392,27 +403,13 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                                 reset_x_range = reset_x_range, 
                                 reset_y_range = reset_y_range,
             )
-            # print("Getting affordance")
-            # print("pcd_wf_path: ", pcd_wf_path)
-            # print("camera_info_path: ", camera_info_path)
             pcd_cf_path, affordance_path = get_affordance_main(pcd_wf_path, camera_info_path, 
                                                     viz=False)
             
-            # print("Getting grasp proposals")
-            # print("pcd_cf_path: ", pcd_cf_path)
             run_cgn = True
             store_proposals = True
 
-           
-        else:
-            b_utils.save_camera_info(self, self.camera_info_path, camera_pos, camera_quat, scale_factor=1)
-            pcd_cf_path = self.pcd_cf_path
-            affordance_path = self.affordance_path
-            run_cgn = False
-            store_proposals = False
-
-        
-        world_frame_proposal_path, top_k_pos_wf, top_k_quat_wf = get_grasp_proposals_main(
+            get_grasp_proposals_main(
                 pcd_cf_path, 
                 affordance_path, 
                 self.camera_info_path, 
@@ -422,20 +419,47 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 object_name=f"{self.object_name}_{self.object_scale}_{self.open_percentage}",
                 top_k=10,
                 store_proposals=store_proposals,
+            )
+        else:
+            pcd_cf_path = self.pcd_cf_path
+        
+        self.proposal_points_cf, self.proposal_quat_cf, self.proposal_scrores = baseline_read_cf_grasp_proposals(
+            pcd_cf_path,
+            self.camera_frame_proposal_path)
+
+    def get_grasp_proposals(self):
+
+
+        camera_config = get_camera_info(self, 
+                                        self.camera_pos, 
+                                        self.camera_quat, 
+                                        scale_factor=1,
+                                        )
+        top_k_pos_wf, top_k_quat_wf = baseline_get_grasp_proposals(
+            camera_config,
+            self.proposal_points_cf,
+            self.proposal_quat_cf,
+            self.proposal_scrores,
+            top_k=10
         )
         
+        print("object pos: ", self.obj_pos)
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
-        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.03])
+        self.final_grasp_pose = grasp_pos + np.array([0, 0, -0.05])
         sci_rotation = R.from_quat(grasp_quat)
         further_rotation = R.from_euler('z', 90, degrees=True)
         sci_rotation = sci_rotation * further_rotation
         self.grasp_rotation_vector = sci_rotation.as_rotvec()
         self.grasp_quat = sci_rotation.as_quat()
+        # get the relative position of the grasp against the object
         self.grasp_pos_relative = self.calculate_grasp_pos_relative()
         self.grasp_quat_relative = self.calculate_grasp_quat_relative()
-        # get the relative position of the grasp against the object
+        print("grasp pos relative: ", self.grasp_pos_relative)
+        print("grasp pos absolute: ", self.calculate_grasp_pos_absolute())
+        print("final grasp pose: ", self.final_grasp_pose)
+
 
     def _setup_observables(self):
         """
