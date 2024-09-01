@@ -19,6 +19,10 @@ from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
 from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
 
+import mujoco
+from utils.renderer_modified import MjRendererForceVisualization
+
+
 from robosuite.utils.mjmod import DynamicsModder
 
 
@@ -550,6 +554,14 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         if self.get_grasp_proposals_flag:
             self.get_grasp_proposals()
+        
+        if self.has_offscreen_renderer:
+            # if self.sim._render_context_offscreen is None:
+            render_context = MjRendererForceVisualization(self.sim, modify_fn=self.modify_scene,device_id=self.render_gpu_device_id)
+                # render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
+            self.sim._render_context_offscreen.vopt.geomgroup[0] = 1 if self.render_collision_mesh else 0
+            self.sim._render_context_offscreen.vopt.geomgroup[1] = 1 if self.render_visual_mesh else 0
+
 
     def _update_reference_values(self):
         self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr] 
@@ -812,6 +824,36 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
     def save_video(self, video_path='videos/robot_prismatic.mp4'):
         imageio.mimsave(video_path, self.frames, fps=120)
         # imageio.imwrite(video_path, self.frames[0])
+
+    def modify_scene(self, scene):
+        rgba = np.array([0.5, 0.5, 0.5, 1.0])
+        if self.get_grasp_proposals_flag:
+            grasp_pos = self.calculate_grasp_pos_absolute()
+        # grasp_pos = self.final_grasp_pose
+        # point1 = body_xpos
+            grasp_quat = self.calculate_grasp_quat_absolute()
+        else:
+            grasp_pos = np.array([0,0,0])
+            grasp_quat = np.array([1,0,0,0])
+        grasp_rot = R.from_quat(grasp_quat).as_matrix()
+        point1 = grasp_pos
+        point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
+        # point1 = self.hinge_position
+        # point2 = self.hinge_position + self.hinge_direction 
+
+        radius = 0.05
+
+        if scene.ngeom >= scene.maxgeom:
+            return
+        scene.ngeom += 1
+
+        mujoco.mjv_initGeom(scene.geoms[scene.ngeom-1],
+                      mujoco.mjtGeom.mjGEOM_ARROW, np.zeros(3),
+                      np.zeros(3), np.zeros(9), rgba.astype(np.float32))
+        mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
+                           int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
+                           point1, point2)
+
 
     @property
     def action_spec(self):
