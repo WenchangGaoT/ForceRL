@@ -1,6 +1,7 @@
 from env.baseline_revolute_training_env import BaselineTrainRevoluteEnv
 from env.baseline_prismatic_training_env import BaselineTrainPrismaticEnv
-from env.wrappers import GraspStateWrapper
+from env.wrappers import GraspStateWrapper, GymWrapper, make_vec_env_baselines
+from stable_baselines3.common.vec_env import SubprocVecEnv
 import open3d as o3d
 import robosuite as suite
 import numpy as np
@@ -22,13 +23,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 controller_name = "OSC_POSE"
 controller_configs = suite.load_controller_config(default_controller=controller_name)
 print(controller_configs)
-
-
-# dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# cfg_path = os.path.join(dir_path, "controller_configs/osc_pose_small_kp.json")
-# with open(cfg_path, "r") as f:
-#     controller_configs = json.load(f)
-
 
 env_kwargs = dict(
     # robots="Panda",
@@ -63,21 +57,29 @@ env_kwargs = dict(
 )
 
 env_name = "BaselineTrainRevoluteEnv"
-env = suite.make(
-    env_name,
-    **env_kwargs
+
+grasp_state_wrapper_kwargs = dict(number_of_grasp_states=4,
+                                  use_wrapped_reward=False,)
+
+num_envs = 20
+
+obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
+
+# logging parameters
+experiment_name = "baseline_revolute_test"
+baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}")
+os.makedirs(log_dir, exist_ok=True)
+
+
+env = make_vec_env_baselines(
+    env_name=env_name,
+    obs_keys=obs_keys,
+    env_kwargs=env_kwargs,
+    n_envs=num_envs,
+    grasp_state_wrapper=True,
+    grasp_state_wrapper_kwargs=grasp_state_wrapper_kwargs,
+    log_dir=log_dir
 )
-env = GraspStateWrapper(env, number_of_grasp_states=4)
-action = [0,0,0.1,0,0,0,1]
-for i in range(8):
-    obs = env.reset(i)
-    gripper_quat = obs["gripper_quat"]
-    gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
-    for i in range(20):
-        # action[3:6] = gripper_rot
-        obs,rwd,_,_ = env.step(action)
-        # print(rwd)
-        print(env.get_stage())
-        # env.render()
-        # time.sleep(0.5)
-    print("Done")
+
+

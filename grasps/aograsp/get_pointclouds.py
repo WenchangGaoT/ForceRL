@@ -10,10 +10,10 @@ import pickle
 import robosuite as suite
 import open3d as o3d 
 import numpy as np
-import aograsp.model_utils as m_utils 
-import aograsp.viz_utils as v_utils 
-import aograsp.data_utils as d_utils 
-import aograsp.rotation_utils as r_utils 
+# import aograsp.model_utils as m_utils 
+# import aograsp.viz_utils as v_utils 
+# import aograsp.data_utils as d_utils 
+# import aograsp.rotation_utils as r_utils 
 import matplotlib.pyplot as plt
 
 from utils.sim_utils import get_pointcloud 

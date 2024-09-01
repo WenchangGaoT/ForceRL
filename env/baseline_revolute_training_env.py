@@ -505,10 +505,13 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
             def joint_direction(obs_cache):
                 return self.joint_direction
             @sensor(modality=modality)
+            def joint_position(obs_cache):
+                return self.joint_position
+            @sensor(modality=modality)
             def open_progress(obs_cache):
                 return np.array([(self.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])])
 
-            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_direction, open_progress]
+            sensors = [gripper_pos, gripper_quat, grasp_pos, grasp_quat, grasp_rot, joint_position,joint_direction, open_progress]
         else:
             sensors = [gripper_pos, gripper_quat]
         names = [s.__name__ for s in sensors]

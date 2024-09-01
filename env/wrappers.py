@@ -8,6 +8,11 @@ from robosuite.models.tasks import ManipulationTask
 from objects.baseline_objects import BaselineTrainRevoluteObjects, BaselineTrainPrismaticObjects
 from robosuite.models.arenas import EmptyArena
 import json
+import gymnasium as gym
+# from stable_baselines3.common.vec_env import SubprocVecEnv
+# from stable_baselines3.common import monitor, policies
+from gymnasium import spaces
+import robosuite as suite
 
  
 
@@ -215,3 +220,203 @@ class GraspStateWrapper(Wrapper):
         return reward
    
 
+class GymWrapper(Wrapper, gym.Env):
+    metadata = None
+    render_mode = None
+    def __init__(self, env, keys=None):
+        super().__init__(env=env)
+        # robots = "".join([type(robot.robot_model).__name__ for robot in self.env.robots])
+        # self.name = robots + "_" + type(self.env).__name__
+
+        # Get reward range
+        self.reward_range = (0, self.env.reward_scale)
+
+        if keys is None:
+            keys = []
+            # Add object obs if requested
+            if self.env.use_object_obs:
+                keys += ["object-state"]
+            # Add image obs if requested
+            if self.env.use_camera_obs:
+                keys += [f"{cam_name}_image" for cam_name in self.env.camera_names]
+            # Iterate over all robots to add to state
+            # for idx in range(len(self.env.robots)):
+            #     keys += ["robot{}_proprio-state".format(idx)]
+        self.keys = keys
+
+        # Gym specific attributes
+        self.env.spec = None
+
+        # set up observation and action spaces
+        obs = self.env.reset()
+        self.modality_dims = {key: obs[key].shape for key in self.keys}
+        flat_ob = self._flatten_obs(obs)
+        self.obs_dim = flat_ob.size
+        high = np.inf * np.ones(self.obs_dim)
+        low = -high
+        self.observation_space = spaces.Box(low, high) 
+        # print('action spec: ', self.env.action_spec)
+        # low, high = self.env.action_spec
+        self.action_space = spaces.Box(low, high)
+
+    def _flatten_obs(self, obs_dict, verbose=False):
+        """
+        Filters keys of interest out and concatenate the information.
+
+        Args:
+            obs_dict (OrderedDict): ordered dictionary of observations
+            verbose (bool): Whether to print out to console as observation keys are processed
+
+        Returns:
+            np.array: observations flattened into a 1d array
+        """
+        ob_lst = []
+        for key in self.keys:
+            if key in obs_dict:
+                if verbose:
+                    print("adding key: {}".format(key))
+                ob_lst.append(np.array(obs_dict[key]).flatten())
+        return np.concatenate(ob_lst)
+
+    def reset(self, seed=None, options=None):
+        """
+        Extends env reset method to return flattened observation instead of normal OrderedDict and optionally resets seed
+
+        Returns:
+            np.array: Flattened environment observation space after reset occurs
+        """
+        if seed is not None:
+            if isinstance(seed, int):
+                np.random.seed(seed)
+            else:
+                raise TypeError("Seed must be an integer type!")
+        ob_dict = self.env.reset()
+        return self._flatten_obs(ob_dict), {}
+
+    def step(self, action):
+        """
+        Extends vanilla step() function call to return flattened observation instead of normal OrderedDict.
+
+        Args:
+            action (np.array): Action to take in environment
+
+        Returns:
+            4-tuple:
+
+                - (np.array) flattened observations from the environment
+                - (float) reward from the environment
+                - (bool) episode ending after reaching an env terminal state
+                - (bool) episode ending after an externally defined condition
+                - (dict) misc information
+        """
+        ob_dict, reward, terminated, info = self.env.step(action)
+        return self._flatten_obs(ob_dict), reward, terminated, False, info
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        """
+        Dummy function to be compatible with gym interface that simply returns environment reward
+
+        Args:
+            achieved_goal: [NOT USED]
+            desired_goal: [NOT USED]
+            info: [NOT USED]
+
+        Returns:
+            float: environment reward
+        """
+        # Dummy args used to mimic Wrapper interface
+        return self.env.reward()
+    
+
+class SubprocessEnv(gym.Env):
+    def __init__(self, env_kwargs):
+        self.env = suite.make(**env_kwargs)
+        self.env = GymWrapper(self.env) 
+        self.observation_space = self.env.observation_space
+        self.action_space = self.env.action_space
+
+    def reset(self, seed=0):
+        return self.env.reset(seed)
+
+    def step(self, action):
+        return self.env.step(action)
+
+    def render(self, mode='human'):
+        return self.env.render(mode)
+
+    def close(self):
+        self.env.close()
+
+
+def make_env(env_kwargs):
+    def _init():
+        # MuJoCo-related objects should be created here
+        env = SubprocessEnv(env_kwargs)
+        # env.seed(seed)
+        return env
+    return _init
+
+
+def make_vec_env_baselines(env_name,
+                           obs_keys, 
+                           env_kwargs,
+                           log_dir,
+                           grasp_state_wrapper = False,
+                           grasp_state_wrapper_kwargs = None,
+                           n_envs = 10):
+    '''
+    make env for baselines
+    '''
+    # make a temp env for initializing all the point clouds and grasp states stuff
+    tmp_env = suite.make(env_name,
+                     **env_kwargs)
+    
+    if grasp_state_wrapper:
+        tmp_env = GraspStateWrapper(tmp_env, **grasp_state_wrapper_kwargs)
+    
+    env = GymWrapper(tmp_env, keys=obs_keys)
+    env.close()
+    spec = tmp_env.spec
+
+    def make_env_new():
+
+        assert env_kwargs is not None
+        env = suite.make(env_name,
+                     **env_kwargs)
+        
+        if grasp_state_wrapper:
+            env = GraspStateWrapper(env, **grasp_state_wrapper_kwargs)
+        
+        env = GymWrapper(env, keys=obs_keys)
+        env.reset()
+        env = monitor.Monitor(env=env, filename=log_dir, allow_early_resets=True)
+        return env
+
+    env_fns = [make_env_new for _ in range(n_envs)]
+    return SubprocVecEnv(env_fns, start_method="forkserver")
+
+
+
+    
+    
+
+
+class MultiProcessingParallelEnvsWrappeer:
+    def __init__(self, env_kwargs, n_envs):
+        self.env_kwargs = env_kwargs
+        self.n_envs = n_envs
+        # self.envs = [suite.make(**env_kwargs) for _ in range(n_envs)]
+        self.envs = SubprocVecEnv([make_env(env_kwargs) for i in range(self.n_envs)])
+
+    def reset(self, seed=0):
+        return self.envs.reset() 
+    
+    def step(self, actions):
+        return self.envs.step(actions) 
+    
+    def close(self):
+        self.envs.close()
+        # self.pool = Pool(n_envs)
+
+
+        
