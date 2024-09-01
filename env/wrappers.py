@@ -9,8 +9,8 @@ from objects.baseline_objects import BaselineTrainRevoluteObjects, BaselineTrain
 from robosuite.models.arenas import EmptyArena
 import json
 import gymnasium as gym
-# from stable_baselines3.common.vec_env import SubprocVecEnv
-# from stable_baselines3.common import monitor, policies
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common import monitor, policies
 from gymnasium import spaces
 import robosuite as suite
 
