@@ -68,7 +68,7 @@ if __name__ == "__main__":
                                     reset_joint_friction = 3.0,
                                     reset_joint_damping = 1.0,)
 
-    num_envs = 12
+    num_envs = 24
 
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 

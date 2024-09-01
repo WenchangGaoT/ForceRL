@@ -371,7 +371,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         '''
         When initializing the environment, get the grasp proposals for the object
         '''
-        camera_euler = np.array([ 45., 22., 3.])
+        camera_euler = np.array([ 30., 22., 3.])
         camera_euler_for_pos = np.array([camera_euler[-1], camera_euler[1], -camera_euler[0]])
         camera_rotation = R.from_euler("xyz", camera_euler_for_pos, degrees=True)
         camera_quat = R.from_euler("xyz", camera_euler, degrees=True).as_quat()
@@ -577,7 +577,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         # TODO: modify this to check if the drawer is fully open 
         joint_qpos = self.sim.data.qpos[self.slider_qpos_addr]
 
-        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0]) - self.open_percentage
+        joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
         # open 30 degrees
         return joint_pos_relative_to_range > 0.8
     
@@ -812,3 +812,12 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
     def save_video(self, video_path='videos/robot_prismatic.mp4'):
         imageio.mimsave(video_path, self.frames, fps=120)
         # imageio.imwrite(video_path, self.frames[0])
+
+    @property
+    def action_spec(self):
+        '''
+        bounds for the action space
+        '''
+        # TODO: check if this is correct
+        low, high = np.concatenate([-0.3*np.ones(3), -0.1*np.ones(3), [-1]]), np.concatenate([0.3*np.ones(3), 0.1*np.ones(3), [1]])
+        return low, high

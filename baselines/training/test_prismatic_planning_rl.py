@@ -67,7 +67,7 @@ env = suite.make(
     env_name,
     **env_kwargs
 )
-env = GraspStateWrapper(env, number_of_grasp_states=4)
+env = GraspStateWrapper(env, number_of_grasp_states=4, use_wrapped_reward=True,)
 action = [0,0,0,0,0,0,1]
 for i in range(4):
     obs = env.reset(i)
@@ -76,8 +76,8 @@ for i in range(4):
     for i in range(8):
         # action[3:6] = gripper_rot
         obs,rwd,_,_ = env.step(action)
-        print(env.get_stage())
-        # print(rwd)
+        # print(env.get_stage())
+        print(rwd)
         env.render()
         # time.sleep(0.5)
     print("Done")
