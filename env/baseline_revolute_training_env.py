@@ -858,5 +858,14 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
                            int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
                            point1, point2)
     
+    @property
+    def action_spec(self):
+        '''
+        bounds for the action space
+        '''
+        # TODO: check if this is correct
+        low, high = -np.ones(7)*0.05, np.ones(7)*0.05
+        return low, high
+    
 
 

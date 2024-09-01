@@ -388,7 +388,8 @@ class TensorboardCallback(BaseCallback):
             if done:
                 # Send a message to the environment to check for success
                 success = self.training_env.env_method('check_env_success',  indices=i)
-                self.episode_successes.append(success)
+                # print(f"success: {success}")
+                self.episode_successes.append(float(success[0]))
                 self.total_episodes += 1
         
         # Log the success rate to TensorBoard after every check_freq episodes

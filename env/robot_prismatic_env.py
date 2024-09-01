@@ -369,3 +369,12 @@ class RobotPrismaticEnv(SingleArmEnv):
     def save_video(self, video_path='videos/robot_prismatic.mp4'):
         imageio.mimsave(video_path, self.frames, fps=120)
         # imageio.imwrite(video_path, self.frames[0])
+    
+    @property
+    def action_spec(self):
+        '''
+        bounds for the action space
+        '''
+        # TODO: check if this is correct
+        low, high = -np.ones(7)*0.05, np.ones(7)*0.05
+        return low, high

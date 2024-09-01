@@ -68,7 +68,7 @@ if __name__ == "__main__":
                                     reset_joint_friction = 3.0,
                                     reset_joint_damping = 1.0,)
 
-    num_envs = 2
+    num_envs = 12
 
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         log_dir=log_dir
     )
 
-    checkpoint_callback = CheckpointCallback(save_freq=50_000, save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
+    checkpoint_callback = CheckpointCallback(save_freq=int(50_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
     
     eval_env_kwargs = get_eval_env_kwargs(env_kwargs)
     eval_env = make_eval_env(
@@ -102,8 +102,8 @@ if __name__ == "__main__":
         grasp_state_wrapper_kwargs=grasp_state_wrapper_kwargs,
         )
 
-    video_recorder = VideoRecorderCallback(eval_env, render_freq=3000, n_eval_episodes=1)
-    tensorboard_callback = TensorboardCallback(check_freq=100 )
+    video_recorder = VideoRecorderCallback(eval_env, render_freq=int(50_000/num_envs), n_eval_episodes=1)
+    tensorboard_callback = TensorboardCallback(check_freq=20)
 
     callback_list = CallbackList([checkpoint_callback, video_recorder, tensorboard_callback])
     # callback_list = CallbackList([checkpoint_callback])
@@ -112,11 +112,13 @@ if __name__ == "__main__":
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     model = TD3("MlpPolicy", env, action_noise=action_noise, verbose=1, tensorboard_log=log_dir)
-    model.learn(total_timesteps=1_000_000, 
+    model.learn(total_timesteps=3_000_000, 
                 log_interval=10, 
                 tb_log_name=experiment_name,
                 progress_bar=True, 
                 callback=callback_list)
     model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}"))
+
+
 
 

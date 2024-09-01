@@ -297,6 +297,7 @@ class GymWrapper(Wrapper, gym.Env):
         # print('action spec: ', self.env.action_spec)
         low, high = self.env.action_spec
         self.action_space = spaces.Box(low, high)
+        # print("action space: ", self.action_space)
 
     def _flatten_obs(self, obs_dict, verbose=False):
         """
