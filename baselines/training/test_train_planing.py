@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 controller_name = "OSC_POSE"
 controller_configs = suite.load_controller_config(default_controller=controller_name)
-controller_configs["kp"] = 2
+# controller_configs["kp"] = 2
 print(controller_configs)
 
 
@@ -68,17 +68,18 @@ env = suite.make(
     env_name,
     **env_kwargs
 )
-env = GraspStateWrapper(env, number_of_grasp_states=4)
-action = [0,0,0.1,0,0,0,1]
+env = GraspStateWrapper(env, number_of_grasp_states=4, use_wrapped_reward=True,
+                        )
+action = [0,1,0.1,0,0,0,1]
 for i in range(8):
     obs = env.reset(i)
     gripper_quat = obs["gripper_quat"]
     gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
-    for i in range(20):
+    for i in range(80):
         # action[3:6] = gripper_rot
         obs,rwd,_,_ = env.step(action)
-        # print(rwd)
-        print(env.get_stage())
+        print(rwd)
+        # print(env.get_stage())
         env.render()
-        time.sleep(0.5)
+        # time.sleep(0.5)
     print("Done")

@@ -15,7 +15,7 @@ class BaselineTrainRevoluteObjects(MujocoXMLObject):
     """
 
     def __init__(self, name, scaled = False, scale = 1.0, 
-                 friction = 1.0):
+                 friction = 3.0, damping = 1.0):
         available_names = ["train-door-counterclock-1", "door_original", "train-microwave-1", "train-dishwasher-1"]
         assert name in available_names, "Object name must be one of {}".format(available_names)
 
@@ -36,7 +36,7 @@ class BaselineTrainRevoluteObjects(MujocoXMLObject):
 
             # set the door friction and damping to 0 for training
         self._set_door_friction(friction)
-        self._set_door_damping(0.0) 
+        self._set_door_damping(damping) 
     
     @staticmethod
     def available_objects():

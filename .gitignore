@@ -17,3 +17,6 @@ logs/
 videos/*
 baselines/states/
 !baselines/states/*backup.h5
+__pycache__/*
+__pycache__/
+baselines/checkpoints/*

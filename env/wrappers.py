@@ -33,7 +33,10 @@ class ActionRepeatWrapperNew(Wrapper):
 class GraspStateWrapper(Wrapper):
     def __init__(self, env,
                 number_of_grasp_states=4,
-                use_wrapped_reward=False):
+                use_wrapped_reward=False,
+                reset_joint_friction = 3.0,
+                reset_joint_damping = 0.1,
+                ):
 
         assert env.skip_object_initialization, "GraspStateWrapper only works with skip_object_initialization=True"
         
@@ -47,6 +50,8 @@ class GraspStateWrapper(Wrapper):
         self.states_file_path = os.path.join(self.env_model_dir, f"{self.env.env_name}.h5")
 
         self.number_of_grasp_states = number_of_grasp_states
+        self.reset_joint_friction = reset_joint_friction
+        self.reset_joint_damping = reset_joint_damping
 
         # env_dir = os.path.dirname(os.path.abspath(__file__))
         # cfg_path = os.path.join(env_dir, "controller_configs/osc_pose_small_kp.json")
@@ -59,6 +64,7 @@ class GraspStateWrapper(Wrapper):
         self.use_wrapped_reward = use_wrapped_reward
         self.load_all_objects()
         self.get_grasp_states()
+        # print("Grasp state wrapper initialized")
 
 
     def load_all_objects(self):
@@ -100,7 +106,7 @@ class GraspStateWrapper(Wrapper):
                 object_robot_distance_range = (0.7,0.7),
                 number_of_grasp_states = self.number_of_grasp_states,
             )
-        print("loading grasp states")
+        # print("loading grasp states")
         # load the grasp states
         data_dict = {}
         with h5py.File(self.states_file_path, 'r') as hf:
@@ -109,7 +115,7 @@ class GraspStateWrapper(Wrapper):
                 # Load array and XML string
                 array = group['state'][:]
                 xml = group['model'][()].decode('utf-8')
-                print(type(xml))
+                # print(type(xml))
                 # Store in the dictionary
                 data_dict[name] = (array, xml)
         self.data_dict = data_dict
@@ -154,6 +160,8 @@ class GraspStateWrapper(Wrapper):
         self.env.sim.set_state_from_flattened(state)
         self.env.sim.forward()
 
+        self.set_joint_friction_and_damping(self.reset_joint_friction, self.reset_joint_damping)
+
         # load a small kp for closing the gripper
         self.robots[0].controller.kp = self.temp_kp
         # close the gripper
@@ -165,11 +173,24 @@ class GraspStateWrapper(Wrapper):
 
         # need to calculate the relative grasp position because object pose is not properly set when resetting
         # if use wrapper
+
         self.env.final_grasp_pose = self.env._get_observations()["gripper_pos"]
         self.env.grasp_pos_relative = self.env.calculate_grasp_pos_relative()
 
         return self.env._get_observations()
     
+    def set_joint_friction_and_damping(self, friction = 3.0, damping = 0.1):
+        '''
+        set the joint friction and damping
+        '''
+        if "Prismatic" in self.env_name:
+            self.env._set_drawer_friction(friction)
+            self.env._set_drawer_damping(damping)
+        else:
+            # self.env.modder.update_sim(self.env.sim)
+            self.env._set_door_friction(friction)
+            self.env._set_door_damping(damping)
+
     def step(self, action):
         '''
         wrap the step function to add the grasp state
@@ -177,10 +198,27 @@ class GraspStateWrapper(Wrapper):
         obs, rwd, done, info = self.env.step(action)
         # self.wrap_observation(obs)
         if self.use_wrapped_reward:
-            rwd = self.staged_reward_wrapper(self.env.get_stage(), obs["gripper_pos"])
+            rwd = self.staged_reward_wrapper(self.get_stage_wrapper(), obs["gripper_pos"])
         return obs, rwd, done, info
 
-  
+    def get_stage_wrapper(self):
+
+        '''
+        wrap the get_stage function to make it more strict
+        now, stage2 can only be achived when the drawer is fully open and the grasp is successful
+        '''
+
+        task_percentage = (self.env.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        if not self.check_grasp():
+            return 0
+        elif task_percentage >= 0.8:
+            return 2  
+        # elif task_percentage >= 0.8:
+        #     return 2
+        else:
+            return 1
+        # elif self.check_grasp() and task_percentage < 0.8:
+        #     return 1 
 
     
     def staged_reward_wrapper(self, stage, gripper_pos):
@@ -197,12 +235,12 @@ class GraspStateWrapper(Wrapper):
         reward_stage_list = [0,1,2]
         reward_stage = reward_stage_list[stage] * stage_mult
 
-        dist = np.linalg.norm(gripper_pos - self.env.calc_absolute_grasp_pos())
+        dist = np.linalg.norm(gripper_pos - self.env.calculate_grasp_pos_absolute())
         reward_end_effector = (1 - np.tanh(2.0 * dist)) * eef_mult
         # clip the reward so that it is not too strong
         reward_end_effector = np.clip(reward_end_effector, 0, 0.9)
         
-        print("handle current progress: ", self.env.handle_current_progress)
+        # print("handle current progress: ", self.env.handle_current_progress)
         reward_open = (self.env.handle_current_progress - self.env.joint_range[0]) / (self.env.joint_range[1] - self.env.joint_range[0])
         reward_open = reward_open * drawer_mult
 
@@ -253,10 +291,11 @@ class GymWrapper(Wrapper, gym.Env):
         flat_ob = self._flatten_obs(obs)
         self.obs_dim = flat_ob.size
         high = np.inf * np.ones(self.obs_dim)
+        # high = np.ones(self.obs_dim)
         low = -high
         self.observation_space = spaces.Box(low, high) 
         # print('action spec: ', self.env.action_spec)
-        # low, high = self.env.action_spec
+        low, high = self.env.action_spec
         self.action_space = spaces.Box(low, high)
 
     def _flatten_obs(self, obs_dict, verbose=False):

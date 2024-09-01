@@ -19,6 +19,8 @@ from robosuite.models.base import MujocoModel
 from robosuite.models.grippers import GripperModel
 from utils.baseline_utils import baseline_read_cf_grasp_proposals, baseline_get_grasp_proposals, get_camera_info
 
+from robosuite.utils.mjmod import DynamicsModder
+
 
 from copy import deepcopy 
 import imageio
@@ -118,6 +120,8 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         self.get_grasp_proposals_flag = get_grasp_proposals_flag
         self.skip_object_initialization = skip_object_initialization
         self.frames = []
+
+        self.modder = None
 
 
         self.env_kwargs = {
@@ -386,7 +390,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         reset_joint_qpos = 1.0
         if not os.path.exists(self.camera_frame_proposal_path):
             # get the point clouds and affordance
-            print("Getting point clouds and affordance")
+            # print("Getting point clouds and affordance")
             pcd_wf_path, pcd_wf_no_downsample_path,camera_info_path = get_aograsp_ply_and_config(
                                 env_name = self.env_name, 
                                 env_kwargs=self.env_kwargs,
@@ -443,7 +447,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             top_k=10
         )
         
-        print("object pos: ", self.obj_pos)
+        # print("object pos: ", self.obj_pos)
         top_k_pos_wf = top_k_pos_wf + self.obj_pos
         grasp_pos = top_k_pos_wf[1]
         grasp_quat = top_k_quat_wf[1]
@@ -456,9 +460,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         # get the relative position of the grasp against the object
         self.grasp_pos_relative = self.calculate_grasp_pos_relative()
         self.grasp_quat_relative = self.calculate_grasp_quat_relative()
-        print("grasp pos relative: ", self.grasp_pos_relative)
-        print("grasp pos absolute: ", self.calculate_grasp_pos_absolute())
-        print("final grasp pose: ", self.final_grasp_pose)
+        # print("grasp pos relative: ", self.grasp_pos_relative)
+        # print("grasp pos absolute: ", self.calculate_grasp_pos_absolute())
+        # print("final grasp pose: ", self.final_grasp_pose)
 
 
     def _setup_observables(self):
@@ -516,6 +520,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
     def _reset_internal(self):
         super()._reset_internal()
+        if not self.modder:
+            self.modder = DynamicsModder(sim = self.sim)  
+
         self.frames = [] 
 
         # if rotate_around_robot is True, need to reset the object placement parameters
@@ -573,6 +580,10 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         joint_pos_relative_to_range = (joint_qpos - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0]) - self.open_percentage
         # open 30 degrees
         return joint_pos_relative_to_range > 0.8
+    
+    def check_env_success(self):
+        return self._check_success()
+
     
     def _check_grasp(self, gripper, object_geoms):
         """
@@ -708,6 +719,12 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
                 return -1
         return 0
 
+    def render_frame(self):
+        frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
+                # print(frame.shape)
+        frame = np.flip(frame, 0)
+        return frame
+        
 
     def step(self, action):
         '''
@@ -769,6 +786,21 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
 
         self.sim.data.qpos[self.slider_qpos_addr] = percent * (joint_range[1] - joint_range[0]) + joint_range[0]
         # self.sim.forward()
+
+    def _set_drawer_friction(self, friction):
+        '''
+        Set the friction of the door joint
+        '''
+        self.modder.update_sim(self.sim)
+        self.modder.mod_frictionloss(self.prismatic_object.joint, friction)
+
+    def _set_drawer_damping(self, damping):
+        '''
+        Set the damping of the door joint
+        '''
+        self.modder.update_sim(self.sim)
+        self.modder.mod_damping(self.prismatic_object.joint, damping)
+
 
     @classmethod
     def available_objects(cls):

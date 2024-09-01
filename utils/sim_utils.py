@@ -139,7 +139,7 @@ def init_camera_pose(env, camera_pos, scale_factor, camera_quat=None):
     m1 = quat2mat(np.array([-0.5, -0.5, 0.5, 0.5])) # Camera local frame to world frame front, set camera fram
     
     obj_quat = env.obj_quat # wxyz
-    print('obj_quat to init camera:', R.from_quat(obj_quat).as_euler("xyz", degrees=True))
+    # print('obj_quat to init camera:', R.from_quat(obj_quat).as_euler("xyz", degrees=True))
     obj_quat = convert_quat(obj_quat, to='xyzw')
     rotation_mat_world = quat2mat(obj_quat)
     rotation_euler_world = mat2euler(rotation_mat_world)

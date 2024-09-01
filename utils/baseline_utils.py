@@ -12,6 +12,13 @@ import h5py
 import utils.aograsp_utils.dataset_utils as d_utils 
 import utils.aograsp_utils.rotation_utils as r_utils
 import open3d as o3d
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.logger import Video
+from env.wrappers import GraspStateWrapper, GymWrapper
+import gymnasium as gym
+from typing import Dict, Any
+import torch as th
 
 
 def save_camera_info(env,
@@ -23,7 +30,7 @@ def save_camera_info(env,
 
     # print("object quat: ", env.obj_quat)
     object_euler = R.from_quat(env.obj_quat).as_euler('xyz', degrees=False)
-    print("object euler: ", R.from_quat(env.obj_quat).as_euler('xyz', degrees=True))
+    # print("object euler: ", R.from_quat(env.obj_quat).as_euler('xyz', degrees=True))
     cam_pos_actual = init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
     camera_rot_90 = transform_utils.euler2mat(np.array([0, 0, -np.pi-object_euler[0]])) @ transform_utils.quat2mat(camera_quat) 
     camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
@@ -56,7 +63,7 @@ def get_camera_info(env,
     get camera information
     '''
     object_euler = R.from_quat(env.obj_quat).as_euler('xyz', degrees=False)
-    print("object euler: ", R.from_quat(env.obj_quat).as_euler('xyz', degrees=True))
+    # print("object euler: ", R.from_quat(env.obj_quat).as_euler('xyz', degrees=True))
     cam_pos_actual = init_camera_pose(env, camera_pos, scale_factor, camera_quat=camera_quat)
     camera_rot_90 = transform_utils.euler2mat(np.array([0, 0, -np.pi-object_euler[0]])) @ transform_utils.quat2mat(camera_quat) 
     camera_quat_rot_90 = transform_utils.mat2quat(camera_rot_90)
@@ -246,7 +253,7 @@ def baseline_pts_zfront_to_wf(camera_info_dict, proposal_points_cf):
     '''
     convert the proposals from camera frame to world frame
     '''
-    print("camera_info_dict: ", camera_info_dict)
+    # print("camera_info_dict: ", camera_info_dict)
     cam_pos = camera_info_dict["camera_config"]["trans_absolute"]
     cam_quat = camera_info_dict["camera_config"]["quat_for_gamma"]
     H_cam2world_xfront = r_utils.get_H(r_utils.get_matrix_from_quat(cam_quat), cam_pos)
@@ -309,5 +316,128 @@ def baseline_get_grasp_proposals(camera_info_dict,
     top_k_quat_wf = [g[1] for g in sorted_grasp_tuples][:top_k]
 
     return  top_k_pos_wf, top_k_quat_wf
+
+
+class VideoRecorderCallback(BaseCallback):
+    def __init__(self, eval_env: gym.Env, render_freq: int, n_eval_episodes: int = 1, deterministic: bool = True):
+        """
+        Records a video of an agent's trajectory traversing ``eval_env`` and logs it to TensorBoard
+
+        :param eval_env: A gym environment from which the trajectory is recorded
+        :param render_freq: Render the agent's trajectory every eval_freq call of the callback.
+        :param n_eval_episodes: Number of episodes to render
+        :param deterministic: Whether to use deterministic or stochastic policy
+        """
+        super().__init__()
+        self._eval_env = eval_env
+        self._render_freq = render_freq
+        self._n_eval_episodes = n_eval_episodes
+        self._deterministic = deterministic
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self._render_freq == 0:
+            screens = []
+
+            def grab_screens(_locals: Dict[str, Any], _globals: Dict[str, Any]) -> None:
+                """
+                Renders the environment in its current state, recording the screen in the captured `screens` list
+
+                :param _locals: A dictionary containing all local variables of the callback's scope
+                :param _globals: A dictionary containing all global variables of the callback's scope
+                """
+                # We expect `render()` to return a uint8 array with values in [0, 255] or a float array
+                # with values in [0, 1], as described in
+                # https://pytorch.org/docs/stable/tensorboard.html#torch.utils.tensorboard.writer.SummaryWriter.add_video
+                screen = self._eval_env.render_frame()
+                # PyTorch uses CxHxW vs HxWxC gym (and tensorflow) image convention
+                screens.append(screen.transpose(2, 0, 1))
+
+            evaluate_policy(
+                self.model,
+                self._eval_env,
+                callback=grab_screens,
+                n_eval_episodes=self._n_eval_episodes,
+                deterministic=self._deterministic,
+            )
+            self.logger.record(
+                "trajectory/video",
+                Video(th.from_numpy(np.asarray([screens])), fps=40),
+                exclude=("stdout", "log", "json", "csv"),
+            )
+        return True
+    
+class TensorboardCallback(BaseCallback):
+    """
+    Custom callback for plotting additional values in tensorboard.
+    plotting success rate after each episode
+    """
+
+    def __init__(self, check_freq: int, verbose: int = 0):
+        super().__init__(verbose)
+        self.check_freq = check_freq
+        self.episode_successes = []
+        self.total_episodes = 0
+
+    # check success rate after episode 
+    def _on_step(self) -> bool:
+        
+        # Check if any episode is done
+        dones = self.locals['dones']
+
+        for i, done in enumerate(dones):
+            if done:
+                # Send a message to the environment to check for success
+                success = self.training_env.env_method('check_env_success',  indices=i)
+                self.episode_successes.append(success)
+                self.total_episodes += 1
+        
+        # Log the success rate to TensorBoard after every check_freq episodes
+        if self.total_episodes % self.check_freq == 0 and self.total_episodes > 0:
+            success_rate = np.mean(self.episode_successes)
+            self.logger.record('success_rate', success_rate)
+            if self.verbose > 0:
+                print(f'Success rate after {self.total_episodes} episodes: {success_rate}')
+            self.episode_successes = []  # Reset the list for the next batch
+
+        return True
+
+    def _on_training_end(self) -> None:
+        # Final log of the success rate at the end of training
+        if len(self.episode_successes) > 0:
+            success_rate = np.mean(self.episode_successes)
+            self.logger.record('final_success_rate', success_rate)
+            if self.verbose > 0:
+                print(f'Final success rate: {success_rate}')
+
+def get_eval_env_kwargs(env_kwargs):
+    '''
+    get the kwargs for evaluation
+    '''
+    eval_env_kwargs = copy.deepcopy(env_kwargs)
+    eval_env_kwargs["has_renderer"] = True
+    eval_env_kwargs["has_offscreen_renderer"] = True
+    return eval_env_kwargs
+
+def make_eval_env(
+        env_name, 
+        obs_keys,
+        env_kwargs,
+        grasp_state_wrapper=True,
+        grasp_state_wrapper_kwargs=None,
+):
+    '''
+    make the evaluation environment
+    '''
+    env = suite.make(
+        env_name,
+        **env_kwargs
+    )
+    if grasp_state_wrapper:
+        env = GraspStateWrapper(env, **grasp_state_wrapper_kwargs)
+
+    env = GymWrapper(env,keys=obs_keys)
+    return env
+
+
 
 
