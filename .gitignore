@@ -11,3 +11,6 @@ test.py
 # *.pth
 *.json
 .vscode/
+checkpoints/
+baselines/states/*
+baselines/logs/*
