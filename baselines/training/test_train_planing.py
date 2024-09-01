@@ -21,6 +21,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 controller_name = "OSC_POSE"
 controller_configs = suite.load_controller_config(default_controller=controller_name)
+controller_configs["kp"] = 2
 print(controller_configs)
 
 
@@ -78,6 +79,6 @@ for i in range(8):
         obs,rwd,_,_ = env.step(action)
         # print(rwd)
         print(env.get_stage())
-        # env.render()
-        # time.sleep(0.5)
+        env.render()
+        time.sleep(0.5)
     print("Done")

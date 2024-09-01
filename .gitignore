@@ -16,3 +16,4 @@ test.py
 logs/
 videos/*
 baselines/states/
+!baselines/states/*backup.h5
