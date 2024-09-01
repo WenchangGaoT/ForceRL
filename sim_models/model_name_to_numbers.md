@@ -4,12 +4,18 @@ microwave-1: 7310 TODO: disable contact, add panel name
 microwave-2: 7167
 microwave-3: 7263
 trashcan-1: 103013
+trashcan-2: 12231
+trashcan-3: 102996
 cabinet-1: 44853
 cabinet-2: 45132
 cabinet-3: 45162
 microwave-5: 7128
+microwave-6 (dishwasher-like): 7273
 train-door-counterclock-1: 8867
 train-microwave-1: 7265
+dishwasher-1 : 12606
+dishwasher-2: 12092
+dishwasher-3: 12558
 
 
 How gamma and AO-GRASP works with all the objects:
