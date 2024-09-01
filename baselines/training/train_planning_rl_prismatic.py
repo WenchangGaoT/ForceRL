@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     num_envs = 24
 
-    obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
+    obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_direction", "open_progress"]
 
     # logging parameters
     experiment_name = "baseline_prismatic_test"
