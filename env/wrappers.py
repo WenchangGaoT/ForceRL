@@ -13,6 +13,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common import monitor, policies
 from gymnasium import spaces
 import robosuite as suite
+import copy
 
  
 
@@ -177,6 +178,10 @@ class GraspStateWrapper(Wrapper):
         self.env.final_grasp_pose = self.env._get_observations()["gripper_pos"]
         self.env.grasp_pos_relative = self.env.calculate_grasp_pos_relative()
 
+        if self.use_wrapped_reward:
+            self.last_progress = copy.deepcopy((self.env.handle_current_progress - self.joint_range[0]) / 
+                                                         (self.joint_range[1] - self.joint_range[0]))
+                                                         
         return self.env._get_observations()
     
     def set_joint_friction_and_damping(self, friction = 3.0, damping = 0.1):
@@ -198,7 +203,8 @@ class GraspStateWrapper(Wrapper):
         obs, rwd, done, info = self.env.step(action)
         # self.wrap_observation(obs)
         if self.use_wrapped_reward:
-            rwd = self.staged_reward_wrapper(self.get_stage_wrapper(), obs["gripper_pos"])
+            rwd = self.staged_reward_wrapper(self.get_stage_wrapper(), obs["gripper_pos"], obs["open_progress"])
+            self.last_progress = obs["open_progress"]
         return obs, rwd, done, info
 
     def get_stage_wrapper(self):
@@ -221,13 +227,14 @@ class GraspStateWrapper(Wrapper):
         #     return 1 
 
     
-    def staged_reward_wrapper(self, stage, gripper_pos):
+    def staged_reward_wrapper(self, stage, gripper_pos, open_progress ):
         '''
         need to wrap the reward function since the grasp pos changes in wrapper
+        a strongerreward function that only give positive reward if object is opened on a single step, no by the absolute progress
         '''
         eef_mult = 1.0
         stage_mult = 1.0
-        drawer_mult = 1.0
+        drawer_mult = 100
 
         # self.handle_current_progress = self.sim.data.qpos[self.slider_qpos_addr]
         # print("stage: ", stage)
@@ -240,9 +247,14 @@ class GraspStateWrapper(Wrapper):
         # clip the reward so that it is not too strong
         reward_end_effector = np.clip(reward_end_effector, 0, 0.9)
         
-        # print("handle current progress: ", self.env.handle_current_progress)
-        reward_open = (self.env.handle_current_progress - self.env.joint_range[0]) / (self.env.joint_range[1] - self.env.joint_range[0])
-        reward_open = reward_open * drawer_mult
+        # try using delta progress to make the reward stronger
+        delta_progress = open_progress - self.last_progress
+        reward_open = delta_progress * drawer_mult
+        reward_open = np.clip(reward_open, -0.5, 0.5)
+        # print("reward_open: ", reward_open)
+
+        # reward_open = (self.env.handle_current_progress - self.env.joint_range[0]) / (self.env.joint_range[1] - self.env.joint_range[0])
+        # reward_open = reward_open * drawer_mult
 
         reward_stop = self.env._check_success() * 10
 

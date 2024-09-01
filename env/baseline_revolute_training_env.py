@@ -864,7 +864,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         bounds for the action space
         '''
         # TODO: check if this is correct
-        low, high = -np.ones(7)*0.05, np.ones(7)*0.05
+        low, high = np.concatenate([-0.3*np.ones(3), -0.1*np.ones(3), [-1]]), np.concatenate([0.3*np.ones(3), 0.1*np.ones(3), [1]])
         return low, high
     
 
