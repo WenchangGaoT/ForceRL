@@ -69,20 +69,25 @@ env = suite.make(
     **env_kwargs
 )
 env = GraspStateWrapper(env, number_of_grasp_states=4, use_wrapped_reward=True,
-                        )
-# action = [-0.1,0.3,-0.3,
-#           -0.,0.,0.,
-#           1]
-action = [0,0,0,0,0,0,1]
-for i in range(8):
+                        reset_joint_damping=0.0,
+                        reset_joint_friction=3.0,
+                        end_episode_on_success=False, 
+                        use_lossend_success=True,)
+action = [0.4,0.4,-0.1,
+          -0.,0.,0.,
+          1]
+# action = [0,0,0,0,0,0,1]
+for i in range(5,8):
     obs = env.reset(i)
+    # print(env.robots[0].controller.kp)
     gripper_quat = obs["gripper_quat"]
     gripper_rot = R.from_quat(gripper_quat).as_euler("zyx")
     for i in range(200):
         # action[3:6] = gripper_rot
         obs,rwd,_,_ = env.step(action)
         print(rwd)
+        # print(obs["open_progress"])
         # print(env.get_stage())
         env.render()
-        time.sleep(0.5)
+        # time.sleep(0.5)
     print("Done")

@@ -39,9 +39,9 @@ env_kwargs = dict(
     obj_rotation=(-np.pi / 2, 0),
     scale_object = True,
     object_scale = 0.3,
-    has_renderer=False,
+    has_renderer=True,
     use_camera_obs=False,
-    has_offscreen_renderer=False,
+    has_offscreen_renderer=True,
     camera_depths = True,
     camera_segmentations = "element",
     controller_configs=controller_configs,
@@ -95,6 +95,8 @@ object_success_dict = dict(
     trials_per_object = trials_per_object,
 )
 
+available_objects = ["microwave-1"]
+
 for obj_name in available_objects:
     if object_type in obj_name:
         env_kwargs["object_name"] = obj_name
@@ -123,7 +125,7 @@ for obj_name in available_objects:
             # grasp_pos= obs["grasp_pos"],
             # grasp_rot_vec=R.from_quat(obs["grasp_quat"]).as_rotvec(), 
             reload_controller_config=True, 
-            use_gym_wrapper=True,render=False)
+            use_gym_wrapper=True,render=True)
 
         env._set_door_friction(3.0)
 
@@ -134,9 +136,8 @@ for obj_name in available_objects:
             action, _states = model.predict(obs, deterministic=True)
             action[-1] = 1
             obs, reward, done,_,_ = env.step(action)
-            # env.render()
-            time.sleep(0.05)
-
+            env.render()
+            
             if env._check_success():
                 print("Success!")
                 success_list.append(1)
@@ -151,5 +152,5 @@ for obj_name in available_objects:
     print("average success ", np.mean(success_list))
     object_success_dict[env_kwargs["object_name"]] = np.mean(success_list)
     # save the results
-    with open(os.path.join(eval_results_dir, f"results_{object_type}.json"), "w") as f:
-        json.dump(object_success_dict, f)
+    # with open(os.path.join(eval_results_dir, f"results_{object_type}.json"), "w") as f:
+    #     json.dump(object_success_dict, f)

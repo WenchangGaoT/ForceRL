@@ -19,6 +19,8 @@ from env.wrappers import GraspStateWrapper, GymWrapper
 import gymnasium as gym
 from typing import Dict, Any
 import torch as th
+from robosuite.controllers.base_controller import Controller
+
 
 
 def save_camera_info(env,
@@ -193,16 +195,30 @@ def  get_grasp_env_states(
             group.create_dataset("state", data=env_states_flattened)
             group.create_dataset("model", data=np.string_(model))
         
-
+# TODO: make this better, actually use the grasp_pos and grasp_rot_vec
 def drive_to_grasp(env
-                   , grasp_pos, grasp_rot_vec):
+                   , grasp_pos=None, grasp_rot_vec=None, reload_controller_config = False, 
+                   use_gym_wrapper = False, render = True):
     '''
     drive the robot to grasp the object
+
+    args:
+        reload_controller_config: bool, if true, load a OSC controller with absolute pose control
     '''
     obs = env.reset()
 
+    if use_gym_wrapper:
+        obs = env.env._get_observations()
+
+    if reload_controller_config:
+        # load a controller with absolute pose control and small kp
+        backup_kp = copy.deepcopy(env.robots[0].controller.kp)
+        env.robots[0].controller.kp = Controller.nums2array(20,6)
+        use_delta_backup = env.robots[0].controller.use_delta
+        env.robots[0].controller.use_delta = False
+
     final_grasp_pos = obs["grasp_pos"]
-    print("final grasp pos: ", final_grasp_pos)
+    # print("final grasp pos: ", final_grasp_pos)
     robot_gripper_pos = obs["gripper_pos"]
     rotation_vector = obs["grasp_rot"]
 
@@ -214,21 +230,35 @@ def drive_to_grasp(env
         # action = np.zeros_like(env.action_spec[0])
         action = np.concatenate([prepaer_grasp_pos, rotation_vector, [-1]])
         env.step(action)
-        
-        env.render()
+        if render:
+            env.render()
 
 
     for i in range(50):
         # action = np.zeros_like(env.action_spec[0])
         action = np.concatenate([final_grasp_pos, rotation_vector, [-1]])
         env.step(action)
-        env.render()
+        if render:
+            env.render()
 
     # close the gripper
     for i in range(50):
         action = np.concatenate([final_grasp_pos, rotation_vector, [1]])
         env.step(action)
-        env.render()
+        if render:
+            env.render()
+    
+    if reload_controller_config:
+        # restore the controller config
+        env.robots[0].controller.kp = backup_kp
+        env.robots[0].controller.use_delta = use_delta_backup
+    
+    # if use_gym_wrapper:
+    #     obs = env._flatten_obs(env.env._get_observations())
+    # else:
+    #     obs = env._get_observations()
+
+    # return obs
 
 
 def baseline_read_cf_grasp_proposals(pts_cf_path,

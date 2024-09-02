@@ -63,17 +63,24 @@ if __name__ == "__main__":
 
     env_name = "BaselineTrainRevoluteEnv"
 
+    custom_action_space = [np.concatenate([-0.4*np.ones(3), -0.1*np.ones(3), [-1]]), 
+                           np.concatenate([0.4*np.ones(3), 0.1*np.ones(3), [1]])]
+
     grasp_state_wrapper_kwargs = dict(number_of_grasp_states=4,
                                     use_wrapped_reward=True,
                                     reset_joint_friction = 3.0,
-                                    reset_joint_damping = 1.0,)
+                                    reset_joint_damping = 1.0,
+                                    filter_object_type = "microwave",
+                                    end_episode_on_success=True, 
+                        use_lossend_success=True,
+                        custom_action_space=custom_action_space)
 
     num_envs = 24
 
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 
     # logging parameters
-    experiment_name = "baseline_revolute_test"
+    experiment_name = "baseline_revolute_test_microwave_only"
     baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}")
     os.makedirs(log_dir, exist_ok=True)
@@ -91,7 +98,7 @@ if __name__ == "__main__":
         log_dir=log_dir
     )
 
-    checkpoint_callback = CheckpointCallback(save_freq=int(50_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
+    checkpoint_callback = CheckpointCallback(save_freq=int(100_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
     
     eval_env_kwargs = get_eval_env_kwargs(env_kwargs)
     eval_env = make_eval_env(
@@ -102,7 +109,7 @@ if __name__ == "__main__":
         grasp_state_wrapper_kwargs=grasp_state_wrapper_kwargs,
         )
 
-    video_recorder = VideoRecorderCallback(eval_env, render_freq=int(50_000/num_envs), n_eval_episodes=1)
+    video_recorder = VideoRecorderCallback(eval_env, render_freq=int(150_000/num_envs), n_eval_episodes=1)
     tensorboard_callback = TensorboardCallback(check_freq=20)
 
     callback_list = CallbackList([checkpoint_callback, video_recorder, tensorboard_callback])
@@ -118,7 +125,3 @@ if __name__ == "__main__":
                 progress_bar=True, 
                 callback=callback_list)
     model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}"))
-
-
-
-

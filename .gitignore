@@ -20,3 +20,6 @@ baselines/states/
 __pycache__/*
 __pycache__/
 baselines/checkpoints/*
+videos/*
+grasp_proposals_img/*
+

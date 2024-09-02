@@ -6,7 +6,7 @@ from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
 
-from objects.baseline_objects import BaselineTrainRevoluteObjects
+from objects.baseline_objects import BaselineEvalRevoluteObjects
 from scipy.spatial.transform import Rotation as R
 
 from utils import baseline_utils as b_utils
@@ -32,7 +32,7 @@ import os
 os.environ['MUJOCO_GL'] = 'osmesa'
 
 
-class BaselineTrainRevoluteEnv(SingleArmEnv):
+class BaselineEvalRevoluteEnv(SingleArmEnv):
 
     def __init__(
         self,
@@ -91,7 +91,10 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
 
         skip_object_initialization=False, # skip object initialization for reset_from_xml
     ):
-        self.env_name = "BaselineTrainRevoluteEnv"
+        self.env_name = "BaselineEvalRevoluteEnv"
+
+        available_objects = BaselineEvalRevoluteObjects.available_objects()
+        assert object_name in available_objects, "Invalid object!"
 
         self.object_name = object_name
         self.placement_initializer = placement_initializer
@@ -250,7 +253,7 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
         )
 
         
-        self.revolute_object = BaselineTrainRevoluteObjects(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
+        self.revolute_object = BaselineEvalRevoluteObjects(name=self.object_name, scaled=self.scale_object, scale=self.object_scale)
         # get the actual placement of the object
         actual_placement_x, actual_placement_y, actual_placement_rotation, actual_placement_reference_pos = self.get_object_actual_placement()   
 
@@ -824,8 +827,8 @@ class BaselineTrainRevoluteEnv(SingleArmEnv):
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "microwave": ["train-microwave-1"],
-            "dishwasher": ["train-dishwasher-1"],
+            "microwave": ["microwave-1", "microwave-2", "microwave-3", "microwave-4", "microwave-5", "microwave-6"],
+            "dishwasher": ["dishwasher-1", "dishwasher-2", "dishwasher-3"],
         }
         return available_objects 
     

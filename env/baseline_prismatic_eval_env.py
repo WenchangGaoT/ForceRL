@@ -8,7 +8,7 @@ from robosuite.utils.placement_samplers import UniformRandomSampler
 from robosuite.utils.transform_utils import convert_quat
 import utils.baseline_utils as b_utils
 
-from objects.baseline_objects import BaselineTrainPrismaticObjects
+from objects.baseline_objects import BaselineEvalPrismaticObjects
 from scipy.spatial.transform import Rotation as R
 
 from grasps.aograsp.get_pointclouds import get_aograsp_ply_and_config
@@ -34,7 +34,7 @@ os.environ['MUJOCO_GL'] = 'osmesa'
 
 
 
-class BaselineTrainPrismaticEnv(SingleArmEnv):
+class BaselineEvalPrismaticEnv(SingleArmEnv):
     '''
     Environment for the prismatic object manipulation task.
 
@@ -96,9 +96,9 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
         get_grasp_proposals_flag=False,
         skip_object_initialization=False,
     ):
-        self.env_name = "BaselineTrainPrismaticEnv"
+        self.env_name = "BaselineEvalPrismaticEnv"
         
-        available_objects = BaselineTrainPrismaticObjects.available_objects()
+        available_objects = BaselineEvalPrismaticObjects.available_objects()
         assert object_name in available_objects, "Invalid object!"
 
         self.object_name = object_name
@@ -250,7 +250,7 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
             quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349],
         )
 
-        self.prismatic_object = BaselineTrainPrismaticObjects(name=self.object_name, 
+        self.prismatic_object = BaselineEvalPrismaticObjects(name=self.object_name, 
                                                      scaled=self.scale_object,
                                                      scale=self.object_scale,)
         # print("contact geom: ", self.prismatic_object.geom_check_grasp)
@@ -817,7 +817,8 @@ class BaselineTrainPrismaticEnv(SingleArmEnv):
     @classmethod
     def available_objects(cls):
         available_objects = {
-            "prismatic": ["train-drawer-1"],
+            "cabinet": ["cabinet-1", "cabinet-2", "cabinet-3"],
+            "trashcan": ["trashcan-1", "trashcan-2", "trashcan-3"],
         }
         return available_objects 
     

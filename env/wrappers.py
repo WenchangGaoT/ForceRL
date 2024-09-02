@@ -37,7 +37,11 @@ class GraspStateWrapper(Wrapper):
                 use_wrapped_reward=False,
                 reset_joint_friction = 3.0,
                 reset_joint_damping = 0.1,
-                ):
+                filter_object_type = None,
+                end_episode_on_success = False,
+                use_lossend_success = False,
+                open_percentage_to_success = 0.7, 
+                custom_action_space = None):
 
         assert env.skip_object_initialization, "GraspStateWrapper only works with skip_object_initialization=True"
         
@@ -53,6 +57,17 @@ class GraspStateWrapper(Wrapper):
         self.number_of_grasp_states = number_of_grasp_states
         self.reset_joint_friction = reset_joint_friction
         self.reset_joint_damping = reset_joint_damping
+
+        self.end_episode_on_success = end_episode_on_success
+        self.use_lossend_success = use_lossend_success
+        self.open_percentage_to_success = open_percentage_to_success
+        self.custom_action_space = custom_action_space
+
+        if "Revolute" in self.env_name and filter_object_type is not None:
+            assert filter_object_type == "microwave" or filter_object_type== "dishwasher", "filter_object_type must be either microwave or dishwasher"
+        elif "Prismatic" in self.env_name and filter_object_type is not None:
+            assert filter_object_type == "prismatic", "filter_object_type must be prismatic"
+        self.filter_object_type = filter_object_type
 
         # env_dir = os.path.dirname(os.path.abspath(__file__))
         # cfg_path = os.path.join(env_dir, "controller_configs/osc_pose_small_kp.json")
@@ -127,6 +142,8 @@ class GraspStateWrapper(Wrapper):
         '''
         if key_num is not None:
             key = list(self.data_dict.keys())[key_num]
+        elif self.filter_object_type is not None:
+            key = np.random.choice([k for k in self.data_dict.keys() if self.filter_object_type in k])
         else:
             key = np.random.choice(list(self.data_dict.keys()))
         state, model = self.data_dict[key]
@@ -205,6 +222,15 @@ class GraspStateWrapper(Wrapper):
         if self.use_wrapped_reward:
             rwd = self.staged_reward_wrapper(self.get_stage_wrapper(), obs["gripper_pos"], obs["open_progress"])
             self.last_progress = obs["open_progress"]
+        
+        if self.end_episode_on_success:
+            success = self.wrapper_check_success() and (self.get_stage_wrapper() == 2)
+            if success:
+                print("Success")
+                rwd = 10
+                self.env.done = True
+                done = True
+
         return obs, rwd, done, info
 
     def get_stage_wrapper(self):
@@ -215,9 +241,10 @@ class GraspStateWrapper(Wrapper):
         '''
 
         task_percentage = (self.env.handle_current_progress - self.joint_range[0]) / (self.joint_range[1] - self.joint_range[0])
+        success_percentage = self.open_percentage_to_success if self.use_lossend_success else 0.8
         if not self.check_grasp():
             return 0
-        elif task_percentage >= 0.8:
+        elif task_percentage >= success_percentage:
             return 2  
         # elif task_percentage >= 0.8:
         #     return 2
@@ -226,6 +253,15 @@ class GraspStateWrapper(Wrapper):
         # elif self.check_grasp() and task_percentage < 0.8:
         #     return 1 
 
+    def wrapper_check_success(self):
+        '''
+        wrap the check success'''
+
+        if self.use_lossend_success:
+            return self.env._get_observations()["open_progress"] >= self.open_percentage_to_success
+        else:
+            return self.env._check_success()
+            
     
     def staged_reward_wrapper(self, stage, gripper_pos, open_progress ):
         '''
@@ -256,7 +292,7 @@ class GraspStateWrapper(Wrapper):
         # reward_open = (self.env.handle_current_progress - self.env.joint_range[0]) / (self.env.joint_range[1] - self.env.joint_range[0])
         # reward_open = reward_open * drawer_mult
 
-        reward_stop = self.env._check_success() * 10
+        reward_stop = self.wrapper_check_success() * 10
 
         if stage == 0:
             reward = reward_stage + reward_end_effector
@@ -268,6 +304,13 @@ class GraspStateWrapper(Wrapper):
             reward = reward_stage + reward_end_effector + reward_open + reward_stop
         
         return reward
+    
+    @property
+    def action_spec(self):
+        if self.custom_action_space is not None:
+            return self.custom_action_space[0], self.custom_action_space[1]
+        else:
+            return self.env.action_spec
    
 
 class GymWrapper(Wrapper, gym.Env):
@@ -378,6 +421,7 @@ class GymWrapper(Wrapper, gym.Env):
         """
         # Dummy args used to mimic Wrapper interface
         return self.env.reward()
+
     
 
 class SubprocessEnv(gym.Env):
