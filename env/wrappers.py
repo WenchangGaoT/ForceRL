@@ -226,7 +226,7 @@ class GraspStateWrapper(Wrapper):
         if self.end_episode_on_success:
             success = self.wrapper_check_success() and (self.get_stage_wrapper() == 2)
             if success:
-                print("Success")
+                # print("Success")
                 rwd = 10
                 self.env.done = True
                 done = True

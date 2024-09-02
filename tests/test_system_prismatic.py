@@ -265,7 +265,7 @@ for i in range(200):
 
 print(trajectory)
 
-# env.save_video()
+env.save_video()
 env.close()
 
 
