@@ -21,5 +21,6 @@ __pycache__/*
 __pycache__/
 baselines/checkpoints/*
 videos/*
-grasp_proposals_img/*
+outputs/grasp_proposals/grasp_proposals_img/*
+point_clouds/*
 

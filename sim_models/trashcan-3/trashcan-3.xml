@@ -88,10 +88,11 @@
             <geom pos="-0.0472994 -0.107966 -0.530105" type="mesh" group="0" mesh="original-22" />
             <geom pos="-0.0472994 -0.107966 -0.530105" type="mesh" group="0" mesh="original-24" />
         </body>
-    </worldbody>
-     </body>
+    </body>
         <site name="bottom_site" pos="0 0 -0.3" rgba="0 0 0 0" size="0.005"/>
         <site name="top_site" pos="0 0 0.3" rgba="0 0 0 0" size="0.005"/>
         <site name="horizontal_radius_site" pos="0.3 0 0" rgba="0 0 0 0" size="0.1"/>
     </body>
+    </worldbody>
+     
 </mujoco>

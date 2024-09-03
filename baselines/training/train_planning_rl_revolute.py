@@ -71,8 +71,8 @@ if __name__ == "__main__":
                                     reset_joint_friction = 3.0,
                                     reset_joint_damping = 1.0,
                                     filter_object_type = "microwave",
-                                    end_episode_on_success=True, 
-                        use_lossend_success=True,
+                        #             end_episode_on_success=True, 
+                        # use_lossend_success=True,
                         custom_action_space=custom_action_space)
 
     num_envs = 24
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 
     # logging parameters
-    experiment_name = "baseline_revolute_test_microwave_only"
+    experiment_name = "baseline_revolute_test_microwave_only_no_early_reset"
     baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}")
     os.makedirs(log_dir, exist_ok=True)
