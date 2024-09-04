@@ -91,7 +91,7 @@ if __name__ == "__main__":
         log_dir=log_dir
     )
 
-    checkpoint_callback = CheckpointCallback(save_freq=int(100_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
+    checkpoint_callback = CheckpointCallback(save_freq=int(30_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
     
     eval_env_kwargs = get_eval_env_kwargs(env_kwargs)
     eval_env = make_eval_env(

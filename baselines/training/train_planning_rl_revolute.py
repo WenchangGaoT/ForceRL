@@ -24,7 +24,7 @@ from stable_baselines3.common.callbacks import ProgressBarCallback, CallbackList
 from utils.baseline_utils import VideoRecorderCallback, TensorboardCallback, get_eval_env_kwargs, make_eval_env
 
 
-if __name__ == "__main__":
+def train_baseline_revolute(experiment_name, run_id):
     controller_name = "OSC_POSE"
     controller_configs = suite.load_controller_config(default_controller=controller_name)
     # print(controller_configs)
@@ -69,10 +69,10 @@ if __name__ == "__main__":
     grasp_state_wrapper_kwargs = dict(number_of_grasp_states=4,
                                     use_wrapped_reward=True,
                                     reset_joint_friction = 3.0,
-                                    reset_joint_damping = 1.0,
-                                    filter_object_type = "microwave",
-                        #             end_episode_on_success=True, 
-                        # use_lossend_success=True,
+                                    reset_joint_damping = 0.1,
+                                    # filter_object_type = "microwave",
+                                    # end_episode_on_success=True, 
+                        use_lossend_success=True,
                         custom_action_space=custom_action_space)
 
     num_envs = 24
@@ -80,12 +80,12 @@ if __name__ == "__main__":
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 
     # logging parameters
-    experiment_name = "baseline_revolute_test_microwave_only_no_early_reset"
+    # experiment_name = "baseline_revolute_trail_2_lossen_success"
     baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}")
+    log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}_{run_id}")
     os.makedirs(log_dir, exist_ok=True)
 
-    checkpoint_dir = os.path.join(baselines_dir, f"checkpoints/{experiment_name}")
+    checkpoint_dir = os.path.join(baselines_dir, f"checkpoints/{experiment_name}_{run_id}")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     env = make_vec_env_baselines(
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         log_dir=log_dir
     )
 
-    checkpoint_callback = CheckpointCallback(save_freq=int(100_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}")
+    checkpoint_callback = CheckpointCallback(save_freq=int(200_000/num_envs), save_path=checkpoint_dir, name_prefix=f"checkpoint_{experiment_name}_{run_id}")
     
     eval_env_kwargs = get_eval_env_kwargs(env_kwargs)
     eval_env = make_eval_env(
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         grasp_state_wrapper_kwargs=grasp_state_wrapper_kwargs,
         )
 
-    video_recorder = VideoRecorderCallback(eval_env, render_freq=int(150_000/num_envs), n_eval_episodes=1)
+    video_recorder = VideoRecorderCallback(eval_env, render_freq=int(200_000/num_envs), n_eval_episodes=1)
     tensorboard_callback = TensorboardCallback(check_freq=20)
 
     callback_list = CallbackList([checkpoint_callback, video_recorder, tensorboard_callback])
@@ -119,9 +119,14 @@ if __name__ == "__main__":
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     model = TD3("MlpPolicy", env, action_noise=action_noise, verbose=1, tensorboard_log=log_dir)
-    model.learn(total_timesteps=3_000_000, 
+    model.learn(total_timesteps=4_000_000, 
                 log_interval=10, 
-                tb_log_name=experiment_name,
+                tb_log_name=f"{experiment_name}_{run_id}",
                 progress_bar=True, 
                 callback=callback_list)
-    model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}"))
+    model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}_{run_id}"))
+
+if __name__ == "__main__":
+    exp_name = "baseline_revolute_trail"
+    for i in range(3,10):
+        train_baseline_revolute(exp_name, i)

@@ -1,5 +1,5 @@
-from env.baseline_revolute_eval_env import BaselineEvalRevoluteEnv
-from env.wrappers import GymWrapper
+from env.baseline_revolute_training_env import BaselineTrainRevoluteEnv
+from env.wrappers import GymWrapper, GraspStateWrapper
 import open3d as o3d
 import robosuite as suite
 import numpy as np
@@ -46,7 +46,7 @@ env_kwargs = dict(
     camera_segmentations = "element",
     controller_configs=controller_configs,
     control_freq = 20,
-    horizon=1000,
+    horizon=500,
     camera_names = ["birdview", "agentview", "frontview", "sideview"],
     # render_camera = "birdview",
     camera_heights = [256,256,256,256],
@@ -54,24 +54,37 @@ env_kwargs = dict(
     move_robot_away = False,
 
     rotate_around_robot = True,
-    object_robot_distance = (0.7,0.7),
+    object_robot_distance = (0.8,0.8),
     open_percentage = 0.3,
 
-    cache_video = False,
+    cache_video = False ,
     get_grasp_proposals_flag = True,
     skip_object_initialization=False
 )
 
 
+custom_action_space = [np.concatenate([-0.4*np.ones(3), -0.1*np.ones(3), [-1]]), 
+                           np.concatenate([0.4*np.ones(3), 0.1*np.ones(3), [1]])]
 
-env_name = "BaselineEvalRevoluteEnv"
+grasp_state_wrapper_kwargs = dict(number_of_grasp_states=4,
+                                    use_wrapped_reward=True,
+                                    reset_joint_friction = 3.0,
+                                    reset_joint_damping = 0.1,
+                                    filter_object_type = "microwave",
+                                    end_episode_on_success=False, 
+                        # use_lossend_success=True,
+                        custom_action_space=custom_action_space)
 
-object_type = "dishwasher"
+
+
+env_name = "BaselineTrainRevoluteEnv"
+
+object_type = "microwave"
 trials_per_object = 20
-available_objects = BaselineEvalRevoluteEnv.available_objects()[object_type]
+available_objects = BaselineTrainRevoluteEnv.available_objects()[object_type]
 
 # load the policy
-training_exp_name = "baseline_revolute_trail_2_lossen_success"
+training_exp_name = "baseline_revolute_trail_1_early_end"
 # training_exp_name = "baseline_revolute_test"
 model_name = f"final_{training_exp_name}.zip"
 # model_name = f"checkpoint_{training_exp_name}_2499600_steps.zip"
@@ -81,7 +94,7 @@ model_path = os.path.join(checkpoint_dir, model_name)
 
 project_dir = os.path.dirname(baselines_dir)
 video_dir = os.path.join(project_dir, "videos")
-video_path = os.path.join(video_dir, f"test_{training_exp_name}_failure.mp4")
+video_path = os.path.join(video_dir, f"np_nov_test_{training_exp_name}_fail.mp4")
 
 obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_position", "joint_direction", "open_progress"]
 
@@ -104,12 +117,13 @@ for obj_name in available_objects:
     else:
         raise RuntimeError("Object not found in available objects")
 
-    env:BaselineEvalRevoluteEnv = suite.make(
+    env:BaselineTrainRevoluteEnv = suite.make(
         env_name, 
         **env_kwargs
     )
 
 
+    # env = GraspStateWrapper(env, **grasp_state_wrapper_kwargs)
     env = GymWrapper(env, keys=obs_keys)
 
     # obs = env.reset()
@@ -126,6 +140,7 @@ for obj_name in available_objects:
             # grasp_rot_vec=R.from_quat(obs["grasp_quat"]).as_rotvec(), 
             reload_controller_config=True, 
             use_gym_wrapper=True,render=False)
+        env.reset()
 
         env._set_door_friction(3.0)
 
@@ -135,20 +150,22 @@ for obj_name in available_objects:
         for i in range(990):
             action, _states = model.predict(obs, deterministic=True)
             action[-1] = 1
+            # print(i)
             obs, reward, done,_,_ = env.step(action)
+            # print("done", done)
             # env.render()
             # time.sleep(0.05)
 
             if env._check_success():
                 print("Success!")
                 success_list.append(1)
-                # env.save_video(video_path)
+                env.save_video(video_path)
                 break
             elif loosened_success_threshold:
                 if env._get_observations()["open_progress"] > loosened_success_threshold:
                     print("Partial Success!")
                     success_list.append(1)
-                    # env.save_video(video_path)
+                    env.save_video(video_path)
                     break
 
             if done:
@@ -162,5 +179,5 @@ for obj_name in available_objects:
     print("average success ", np.mean(success_list))
     object_success_dict[env_kwargs["object_name"]] = np.mean(success_list)
     # save the results
-    with open(os.path.join(eval_results_dir, f"results_{object_type}.json"), "w") as f:
-        json.dump(object_success_dict, f)
+    # with open(os.path.join(eval_results_dir, f"results_{object_type}.json"), "w") as f:
+    #     json.dump(object_success_dict, f)
