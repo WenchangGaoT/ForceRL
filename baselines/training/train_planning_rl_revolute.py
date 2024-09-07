@@ -119,14 +119,17 @@ def train_baseline_revolute(experiment_name, run_id):
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     model = TD3("MlpPolicy", env, action_noise=action_noise, verbose=1, tensorboard_log=log_dir)
-    model.learn(total_timesteps=4_000_000, 
+    model.learn(total_timesteps=5_000_000, 
                 log_interval=10, 
                 tb_log_name=f"{experiment_name}_{run_id}",
                 progress_bar=True, 
                 callback=callback_list)
     model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}_{run_id}"))
+    env.close()
 
 if __name__ == "__main__":
     exp_name = "baseline_revolute_trail"
-    for i in range(3,10):
+    # exp_name = "test_script"
+    for i in range(2,3):
+        print(f"Training {exp_name} {i}")
         train_baseline_revolute(exp_name, i)

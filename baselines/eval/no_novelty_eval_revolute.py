@@ -84,7 +84,7 @@ trials_per_object = 20
 available_objects = BaselineTrainRevoluteEnv.available_objects()[object_type]
 
 # load the policy
-training_exp_name = "baseline_revolute_trail_2_lossen_success"
+training_exp_name = "baseline_revolute_trail_0"
 # training_exp_name = "baseline_revolute_test"
 model_name = f"final_{training_exp_name}.zip"
 # model_name = f"checkpoint_{training_exp_name}_2499600_steps.zip"
@@ -108,7 +108,7 @@ object_success_dict = dict(
     open_percentage = env_kwargs["open_percentage"],
     trials_per_object = trials_per_object,
 )
-loosened_success_threshold = 0.4
+loosened_success_threshold = 0.5
 
 for obj_name in available_objects:
     if object_type in obj_name:
