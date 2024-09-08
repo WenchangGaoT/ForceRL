@@ -18,7 +18,7 @@ from utils.baseline_utils import drive_to_grasp
 
 from stable_baselines3 import TD3
 
-def eval_revolute(experiment_name, run_id):
+def eval_revolute(experiment_name, run_id, object_type="dishwasher", success_threshold=0.7):
     controller_name = "OSC_POSE"
     controller_configs = suite.load_controller_config(default_controller=controller_name)
     print(controller_configs)
@@ -66,7 +66,7 @@ def eval_revolute(experiment_name, run_id):
 
     env_name = "BaselineEvalRevoluteEnv"
 
-    object_type = "microwave"
+    # object_type = "dishwasher"
     trials_per_object = 20
     available_objects = BaselineEvalRevoluteEnv.available_objects()[object_type]
 
@@ -95,7 +95,7 @@ def eval_revolute(experiment_name, run_id):
         open_percentage = env_kwargs["open_percentage"],
         trials_per_object = trials_per_object,
     )
-    loosened_success_threshold = 0.4
+    loosened_success_threshold = success_threshold
 
     for obj_name in available_objects:
         if object_type in obj_name:
@@ -146,6 +146,7 @@ def eval_revolute(experiment_name, run_id):
                     break
                 elif loosened_success_threshold:
                     if env._get_observations()["open_progress"] > loosened_success_threshold:
+                        print(loosened_success_threshold)
                         print("Partial Success!")
                         success_list.append(1)
                         # env.save_video(video_path)
@@ -162,7 +163,7 @@ def eval_revolute(experiment_name, run_id):
         print("average success ", np.mean(success_list))
         object_success_dict[env_kwargs["object_name"]] = np.mean(success_list)
         # save the results
-        with open(os.path.join(eval_results_dir, f"results_{object_type}.json"), "w") as f:
+        with open(os.path.join(eval_results_dir, f"results_{object_type}_{success_threshold}.json"), "w") as f:
             json.dump(object_success_dict, f)
 
 def delete_camera_frame_grasp_proposals():
@@ -178,8 +179,10 @@ def delete_camera_frame_grasp_proposals():
 
 if __name__ == "__main__":
     experiment_name = "baseline_revolute_trail"
+    object_type = "microwave"
+    success_threshold = 0.7
     # delete_camera_frame_grasp_proposals()
-    for i in range(3,10):
-        eval_revolute(experiment_name, i)
+    for i in range(10):
+        eval_revolute(experiment_name, i, object_type=object_type, success_threshold=success_threshold)
         delete_camera_frame_grasp_proposals()
         time.sleep(1)

@@ -24,7 +24,7 @@ from stable_baselines3.common.callbacks import ProgressBarCallback, CallbackList
 from utils.baseline_utils import VideoRecorderCallback, TensorboardCallback, get_eval_env_kwargs, make_eval_env
 
 
-if __name__ == "__main__":
+def train_baseline_prismatic(experiment_name, run_id):
     controller_name = "OSC_POSE"
     controller_configs = suite.load_controller_config(default_controller=controller_name)
     # print(controller_configs)
@@ -73,12 +73,12 @@ if __name__ == "__main__":
     obs_keys = ["gripper_pos", "gripper_quat", "grasp_pos", "grasp_quat", "joint_direction", "open_progress"]
 
     # logging parameters
-    experiment_name = "baseline_prismatic_test"
+    # experiment_name = "baseline_prismatic_test"
     baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}")
+    log_dir = os.path.join(baselines_dir, f"logs/{experiment_name}_{run_id}")
     os.makedirs(log_dir, exist_ok=True)
 
-    checkpoint_dir = os.path.join(baselines_dir, f"checkpoints/{experiment_name}")
+    checkpoint_dir = os.path.join(baselines_dir, f"checkpoints/{experiment_name}_{run_id}")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     env = make_vec_env_baselines(
@@ -114,11 +114,14 @@ if __name__ == "__main__":
     model = TD3("MlpPolicy", env, action_noise=action_noise, verbose=1, tensorboard_log=log_dir)
     model.learn(total_timesteps=3_000_000, 
                 log_interval=10, 
-                tb_log_name=experiment_name,
+                tb_log_name=f"{experiment_name}_{run_id}",
                 progress_bar=True, 
                 callback=callback_list)
-    model.save(os.path.join(checkpoint_dir, f"final_{experiment_name}"))
+    model.save(os.path.join(checkpoint_dir, f"{experiment_name}_{run_id}"))
+    env.close()
 
-
-
-
+if __name__ == "__main__":
+    exp_name = "baseline_prismatic_trial"
+    for i in range(10):
+        print(f"Training {exp_name} {i}")
+        train_baseline_prismatic(exp_name, i)

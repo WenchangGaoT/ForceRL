@@ -6,6 +6,7 @@ from utils.model_uilts import scale_object_new
 from robosuite.utils.mjcf_utils import array_to_string, find_elements, xml_path_completion
 import numpy as np
 import os
+import termcolor
 
 class BaselineTrainRevoluteObjects(MujocoXMLObject):
     """
@@ -114,7 +115,9 @@ class BaselineTrainPrismaticObjects(MujocoXMLObject):
         else:
             # call function to scale the object
             xml_path_original = fill_custom_xml_path(f"{name}/{name}.xml")
-            scale_object_new(xml_path_original, None, [scale, scale, scale])
+            if not os.path.exists(fill_custom_xml_path(f"{name}/{name}-scaled.xml")):
+                print(termcolor.colored(f"Scaling object {name} to {scale}", "green"))
+                scale_object_new(xml_path_original, None, [scale, scale, scale])
             xml_path = f"{name}/{name}-scaled.xml"
         super().__init__(
             fill_custom_xml_path(xml_path), name=name, joints=None, obj_type="all",duplicate_collision_geoms=True
