@@ -71,7 +71,7 @@ def eval_prismatic(experiment_name, run_id, object_type="cabinet", success_thres
 
     # load the policy
     training_exp_name = f"{experiment_name}_{run_id}"
-    model_name = f"final_{training_exp_name}.zip"
+    model_name = f"checkpoint_{experiment_name}_3000000_steps"
     # model_name = f"checkpoint_{training_exp_name}_2499600_steps.zip"
     baselines_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     checkpoint_dir = os.path.join(baselines_dir, f"checkpoints/{training_exp_name}")
@@ -174,7 +174,7 @@ def delete_camera_frame_grasp_proposals():
 
 if __name__ == "__main__":
     experiment_name = "baseline_prismatic_trial"
-    object_type = "cabinet"
+    object_type = "trashcan"
     success_threshold = 0.7
     # delete_camera_frame_grasp_proposals()
     for i in range(10):
