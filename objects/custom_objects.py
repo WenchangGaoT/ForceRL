@@ -227,6 +227,7 @@ class SelectedDishwasherObject(MujocoXMLObject):
     @staticmethod
     def available_objects():
         available_objects = [
+            'dishwasher-1',
             'dishwasher-2',
             'dishwasher-3',
         ]
@@ -313,7 +314,7 @@ class EvalRevoluteObjects(MujocoXMLObject):
             'microwave-3',
             'microwave-4',
             'microwave-5', 
-
+            'dishwasher-1',
             # TODO: TRAIN DISHWASHER POLICIES
             'dishwasher-2', 
             'dishwasher-3'

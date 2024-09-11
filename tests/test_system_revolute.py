@@ -39,7 +39,7 @@ env_kwargs = dict(
     robots="Panda",
     # robots="Kinova3",
     object_type = "dishwasher",
-    object_name = "dishwasher-2",
+    object_name = "dishwasher-1",
     scale_object = True,
     object_scale = 0.3,
     obj_rotation=(-3*np.pi/4, -3*np.pi/4),
@@ -86,7 +86,7 @@ sim_utils.init_camera_pose(env, camera_pos=np.array([-0.77542536, -0.02539806,  
 # run_cgn = True
 
 viz_imgs = False
-need_o3d_viz = False
+need_o3d_viz = True
 run_cgn = True
 
 pcd_wf_path = f'point_clouds/world_frame_pointclouds/world_frame_{env_kwargs["object_name"]}.ply'

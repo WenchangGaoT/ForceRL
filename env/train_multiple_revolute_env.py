@@ -258,6 +258,9 @@ class MultipleRevoluteEnv(MujocoEnv):
         # Additional object references from this env
         self.object_body_ids = dict()
         self.object_body_ids["revolute"] = self.sim.model.body_name2id(self.revolute_object.revolute_body)
+        obj_id = self.sim.model.body_name2id(f'{self.revolute_object.naming_prefix}main')
+        self.obj_pos = self.sim.data.body_xpos[obj_id] 
+        self.obj_quat = self.sim.data.body_xquat[obj_id]
 
         self.hinge_qpos_addr = self.sim.model.get_joint_qpos_addr(self.revolute_object.hinge_joint)
         
@@ -581,8 +584,11 @@ class MultipleRevoluteEnv(MujocoEnv):
 
     
     def modify_scene(self, scene):
-        rgba = np.array([0.5, 0.5, 0.5, 1.0])
-        
+        # rgba = np.array([255, 165, 0, 1.0])
+        rgb = np.array([223, 201, 66])
+        # normalize the rgb value
+        rgb = rgb / 255
+        rgba = np.concatenate([rgb, [1.0]])
         # point1 = body_xpos
         point1 = self.force_point_world
         point2 = self.render_arrow_end

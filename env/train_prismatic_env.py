@@ -259,6 +259,11 @@ class TrainPrismaticEnv(MujocoEnv):
 
         self.joint_range = self.prismatic_object.joint_range
 
+        obj_id = self.sim.model.body_name2id(f'{self.prismatic_object.naming_prefix}main')
+        self.obj_pos = self.sim.data.body_xpos[obj_id] 
+        self.obj_quat = self.sim.data.body_xquat[obj_id]
+
+
     def calculate_joint_pos_absolute(self):
         '''
         calculate the joint position in the world frame
@@ -484,7 +489,7 @@ class TrainPrismaticEnv(MujocoEnv):
         self.last_joint_qpos = deepcopy(self.sim.data.qpos[self.joint_qpos_addr])
         # get the arrow end position
         self.force_point_world = self.relative_force_point_to_world(self.force_point)
-        self.render_arrow_end = self.force_point_world + action * self.action_scale
+        self.render_arrow_end = self.force_point_world + action * self.action_scale / 2
 
         assert len(action) == self.action_dim, "environment got invalid action dimension -- expected {}, got {}".format(
             self.action_dim, len(action))
@@ -556,7 +561,13 @@ class TrainPrismaticEnv(MujocoEnv):
 
     
     def modify_scene(self, scene):
-        rgba = np.array([0.5, 0.5, 0.5, 1.0])
+        # rgba = np.array([0.5, 0.5, 0.5, 1.0])
+
+        rgb = np.array([223, 201, 66])
+        # normalize the rgb value
+        rgb = rgb / 255
+        rgba = np.concatenate([rgb, [1.0]])
+
         
         # point1 = body_xpos
         point1 = self.force_point_world
