@@ -27,6 +27,8 @@ env_kwargs = dict(
     # render_camera = "agentview",
     random_force_point = True,
     save_video = True,
+    video_width=1024,
+        video_height=1024,
 )
 
 env = suite.make(
@@ -42,7 +44,7 @@ camera_rotation = R.from_euler("xyz", camera_euler_for_pos, degrees=True)
 camera_quat = R.from_euler("xyz", camera_euler, degrees=True).as_quat()
 camera_forward = np.array([1, 0, 0])
 world_forward = camera_rotation.apply(camera_forward)
-distance = 3
+distance = 4
 camera_pos = -distance * world_forward
 
 
@@ -53,14 +55,31 @@ obs = env.reset()
 s_utils.init_camera_pose(env, camera_pos,scale_factor=1, camera_quat=camera_quat)
 
 # env.render()
-action = np.array([1,0,0])
+action = np.array([1,0,0]) * 1.5
+
+# joint_pose_selected = obs["joint_position"]
+# joint_direction_selected = obs["joint_direction"]
+
+h_point, f_point, h_direction = obs['hinge_position'], obs['force_point'], obs['hinge_direction']
+obs = np.concatenate([
+                        h_direction, 
+                        (f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction)
+                                    ])
+
+
 
 for _ in range(150):
+    action = np.cross(obs[:3], obs[3:]) * 1.5
     obs, reward, done, info = env.step(action)
+    h_point, f_point, h_direction = obs['hinge_position'], obs['force_point'], obs['hinge_direction']
+    obs = np.concatenate([
+                            h_direction, 
+                            (f_point-h_point-np.dot(f_point-h_point, h_direction)*h_direction)
+                                        ])
     # env.render()
 
 file_path = os.path.dirname(os.path.abspath(__file__))
-video_path = os.path.join(file_path, "microwave-training.mp4")
+video_path = os.path.join(file_path, "microwave-training-high-res.mp4")
 # save the video
 env.save_video(video_path)
 

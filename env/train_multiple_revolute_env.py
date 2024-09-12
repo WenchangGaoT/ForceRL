@@ -503,9 +503,7 @@ class MultipleRevoluteEnv(MujocoEnv):
         self.hinge_position = self.calculate_hinge_pos_absolute()
         self.hinge_direction = self.calculate_hinge_direction_absolute()
 
-        if self.cache_video and self.has_offscreen_renderer:
-                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
-                self.frames.append(frame)
+        
         
         self.last_hinge_qpos = deepcopy(self.sim.data.qpos[self.hinge_qpos_addr])
         # get the arrow end position
@@ -619,6 +617,10 @@ class MultipleRevoluteEnv(MujocoEnv):
 
     def step(self, action):
         next_state, reward, done, info = super().step(action) 
+        if self.cache_video and self.has_offscreen_renderer:
+                frame = self.sim.render(self.video_width, self.video_height, camera_name='sideview')
+                frame = np.flip(frame, 0)
+                self.frames.append(frame)
         if self._check_success(): 
             # print('success')
             done = True

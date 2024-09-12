@@ -31,7 +31,7 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     # robots="Panda",
     robots="UR5e",
-    object_name = "microwave-3",
+    object_name = "dishwasher-1",
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(0, 0),
     obj_rotation=(-np.pi / 2, -np.pi / 2),
@@ -57,7 +57,10 @@ env_kwargs = dict(
 
     cache_video = True,
     get_grasp_proposals_flag = True,
-    skip_object_initialization=False
+    skip_object_initialization=False,
+    modify_scene = True,
+    video_width=1024,
+        video_height=1024,
 )
 env_name = "BaselineEvalRevoluteEnv"
 
@@ -82,7 +85,7 @@ success_list = []
 joint_pose_selected = None
 joint_direction_selected = None
 
-video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"microwave_opening.mp4")
+video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"dishwasher_opening.mp4")
 
 # randomly select a joint
 # use ground truth joint parameters

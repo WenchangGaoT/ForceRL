@@ -90,6 +90,8 @@ class BaselineEvalRevoluteEnv(SingleArmEnv):
         get_grasp_proposals_flag=False,
 
         skip_object_initialization=False, # skip object initialization for reset_from_xml
+
+        modify_scene = False,
     ):
         self.env_name = "BaselineEvalRevoluteEnv"
 
@@ -121,6 +123,7 @@ class BaselineEvalRevoluteEnv(SingleArmEnv):
         self.frames = []
 
         self.modder = None
+        self.modify_scene_flag = modify_scene
 
 
         self.env_kwargs = {
@@ -835,44 +838,49 @@ class BaselineEvalRevoluteEnv(SingleArmEnv):
         return available_objects 
     
     def modify_scene(self, scene):
-        # rgba = np.array([0.5, 0.5, 0.5, 1.0])
 
-        # a yellow color
-        rgb = np.array([223, 201, 66])
-        # normalize the rgb value
-        rgb = rgb / 255
-        rgba = np.concatenate([rgb, [1.0]])
+        if self.modify_scene_flag:
+            # rgba = np.array([0.5, 0.5, 0.5, 1.0])
 
-        # arrow is from gripper to the action direction
-        point1 = self._get_observations()["gripper_pos"]
-        point2 = self.render_arrow_end
+            # a yellow color
+            rgb = np.array([223, 201, 66])
+            # normalize the rgb value
+            rgb = rgb / 255
+            rgba = np.concatenate([rgb, [1.0]])
 
-        # if self.get_grasp_proposals_flag:
-        #     grasp_pos = self.calculate_grasp_pos_absolute()
-        # # grasp_pos = self.final_grasp_pose
-        # # point1 = body_xpos
-        #     grasp_quat = self.calculate_grasp_quat_absolute()
-        # else:
-        #     grasp_pos = np.array([0,0,0])
-        #     grasp_quat = np.array([1,0,0,0])
-        # grasp_rot = R.from_quat(grasp_quat).as_matrix()
-        # point1 = grasp_pos
-        # point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
-        # point1 = self.hinge_position
-        # point2 = self.hinge_position + self.hinge_direction 
+            # arrow is from gripper to the action direction
+            point1 = self._get_observations()["gripper_pos"] if not self.move_robot_away else self.robot_base_xpos
+            point2 = self.render_arrow_end
+            # point1 = [0,0,0]
+            # point2 = [1,0,0]
 
-        radius = 0.02
+            # if self.get_grasp_proposals_flag:
+            #     grasp_pos = self.calculate_grasp_pos_absolute()
+            # # grasp_pos = self.final_grasp_pose
+            # # point1 = body_xpos
+            #     grasp_quat = self.calculate_grasp_quat_absolute()
+            # else:
+            #     grasp_pos = np.array([0,0,0])
+            #     grasp_quat = np.array([1,0,0,0])
+            # grasp_rot = R.from_quat(grasp_quat).as_matrix()
+            # point1 = grasp_pos
+            # point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
+            # point1 = self.hinge_position
+            # point2 = self.hinge_position + self.hinge_direction 
 
-        if scene.ngeom >= scene.maxgeom:
-            return
-        scene.ngeom += 1
+            radius = 0.02
 
-        mujoco.mjv_initGeom(scene.geoms[scene.ngeom-1],
-                      mujoco.mjtGeom.mjGEOM_ARROW, np.zeros(3),
-                      np.zeros(3), np.zeros(9), rgba.astype(np.float32))
-        mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
-                           int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
-                           point1, point2)
+            if scene.ngeom >= scene.maxgeom:
+                return
+            scene.ngeom += 1
+
+            mujoco.mjv_initGeom(scene.geoms[scene.ngeom-1],
+                        mujoco.mjtGeom.mjGEOM_ARROW, np.zeros(3),
+                        np.zeros(3), np.zeros(9), rgba.astype(np.float32))
+            mujoco.mjv_connector(scene.geoms[scene.ngeom-1],
+                            int(mujoco.mjtGeom.mjGEOM_ARROW), radius,
+                            point1, point2)
+        
     
     @property
     def action_spec(self):
