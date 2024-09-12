@@ -536,6 +536,8 @@ class BaselineEvalRevoluteEnv(SingleArmEnv):
     
     def _pre_action(self, action, policy_step=False):
         super()._pre_action(action, policy_step)
+        # self.render_arrow_end = self._get_observations()["gripper_pos"] + action[:3]
+        self.render_arrow_end = (action[:3] - self._get_observations()["gripper_pos"]) * 50 + self._get_observations()["gripper_pos"]
 
     def render_frame(self):
         frame = self.sim.render(self.video_width, self.video_height, camera_name='frontview')
@@ -833,22 +835,33 @@ class BaselineEvalRevoluteEnv(SingleArmEnv):
         return available_objects 
     
     def modify_scene(self, scene):
-        rgba = np.array([0.5, 0.5, 0.5, 1.0])
-        if self.get_grasp_proposals_flag:
-            grasp_pos = self.calculate_grasp_pos_absolute()
-        # grasp_pos = self.final_grasp_pose
-        # point1 = body_xpos
-            grasp_quat = self.calculate_grasp_quat_absolute()
-        else:
-            grasp_pos = np.array([0,0,0])
-            grasp_quat = np.array([1,0,0,0])
-        grasp_rot = R.from_quat(grasp_quat).as_matrix()
-        point1 = grasp_pos
-        point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
+        # rgba = np.array([0.5, 0.5, 0.5, 1.0])
+
+        # a yellow color
+        rgb = np.array([223, 201, 66])
+        # normalize the rgb value
+        rgb = rgb / 255
+        rgba = np.concatenate([rgb, [1.0]])
+
+        # arrow is from gripper to the action direction
+        point1 = self._get_observations()["gripper_pos"]
+        point2 = self.render_arrow_end
+
+        # if self.get_grasp_proposals_flag:
+        #     grasp_pos = self.calculate_grasp_pos_absolute()
+        # # grasp_pos = self.final_grasp_pose
+        # # point1 = body_xpos
+        #     grasp_quat = self.calculate_grasp_quat_absolute()
+        # else:
+        #     grasp_pos = np.array([0,0,0])
+        #     grasp_quat = np.array([1,0,0,0])
+        # grasp_rot = R.from_quat(grasp_quat).as_matrix()
+        # point1 = grasp_pos
+        # point2 = grasp_pos + grasp_rot @ np.array([1,0,0])
         # point1 = self.hinge_position
         # point2 = self.hinge_position + self.hinge_direction 
 
-        radius = 0.05
+        radius = 0.02
 
         if scene.ngeom >= scene.maxgeom:
             return
