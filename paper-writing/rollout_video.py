@@ -31,7 +31,7 @@ with open(controller_cfg_path, 'r') as f:
 env_kwargs = dict(
     # robots="Panda",
     robots="UR5e",
-    object_name = "dishwasher-1",
+    object_name = "microwave-3",
     # obj_rotation=(-np.pi/2, -np.pi/2),
     # obj_rotation=(0, 0),
     obj_rotation=(-np.pi / 2, -np.pi / 2),
@@ -82,7 +82,7 @@ success_list = []
 joint_pose_selected = None
 joint_direction_selected = None
 
-video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"dishwasher_opening.mp4")
+video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"microwave_opening.mp4")
 
 # randomly select a joint
 # use ground truth joint parameters
@@ -140,7 +140,7 @@ for i in range(990):
         break
     if done:
         print("Failed!")
-        # env.save_video(video_path)
+        env.save_video(video_path)
         success_list.append(0)
         break
     # env.render()
