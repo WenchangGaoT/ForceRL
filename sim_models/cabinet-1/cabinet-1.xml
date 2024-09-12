@@ -107,7 +107,7 @@
         <geom quat="0.5 0.5 -0.5 -0.5" type="mesh" group="0" mesh="original-16" contype="0" conaffinity="0"/>
         <body name="link_0" pos="-0.566181 -0.115112 0.581887" quat="0.5 0.5 -0.5 -0.5">
             <inertial pos="-0.117737 -0.0285003 -0.368492" quat="0.707003 -0.00668771 0.00767931 0.707137" mass="30.2182" diaginertia="5.09684 3.26936 2.01892" />
-            <joint name="joint_0" pos="0 0 0" axis="0 0 1" type="slide" limited="true" range="0 0.8" />
+            <joint name="joint_0" pos="0 0 0" axis="0 0 1" type="slide" limited="true" range="0 0.8" frictionloss="3"/>
             <geom pos="-0.115112 -0.581887 -0.566181" type="mesh" group="0" mesh="original-95" />
             <geom pos="-0.115112 -0.581887 -0.566181" type="mesh" group="0" mesh="original-86" />
             <geom pos="-0.115112 -0.581887 -0.566181" type="mesh" group="0" mesh="original-89" />

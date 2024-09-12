@@ -81,8 +81,10 @@ def translate_joint_param_camera_to_world(joint_translations, joint_directions, 
     joint_translations_world = []
     joint_directions_world = []
     for joint_translation, joint_direction in zip(joint_translations, joint_directions):
-        joint_translation_world = np.dot(extrinsic[:3, :3], joint_translation)
-        joint_direction_world = np.dot(extrinsic[:3, :3], joint_direction)
+        # joint_translation_world = np.dot(extrinsic[:3, :3], joint_translation)
+        joint_translation_world = extrinsic[:3, :3].T @ joint_translation + extrinsic[:3, 3]
+        # joint_direction_world = np.dot(extrinsic[:3, :3], joint_direction)
+        joint_direction_world = extrinsic[:3, :3].T @ joint_direction
         joint_translations_world.append(joint_translation_world)
         joint_directions_world.append(joint_direction_world)
     return joint_translations_world, joint_directions_world

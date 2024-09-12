@@ -71,7 +71,7 @@
         </body>
         <body name="link_0" pos="0.1955125 -0.0004457825 0.2619375" quat="0.5 0.5 -0.5 -0.5">
             <inertial pos="-0.00144747 0.00822325 0.2758325" quat="0.507874 0.491888 0.509314 0.490621" mass="27.7887" diaginertia="3.30203 1.86235 1.63622" />
-            <joint name="joint_0" pos="0.0 0.0 0.0" axis="0 0 1" type="slide" limited="true" range="0.0 0.26" />
+            <joint name="joint_0" pos="0.0 0.0 0.0" axis="0 0 1" type="slide" limited="true" range="0.0 0.26" frictionloss="3" />
             <geom pos="-0.0004457825 -0.2619375 0.1955125" type="mesh" group="0" mesh="original-34" />
             <geom pos="-0.0004457825 -0.2619375 0.1955125" type="mesh" group="0" mesh="original-26" />
             <geom pos="-0.0004457825 -0.2619375 0.1955125" type="mesh" group="0" mesh="original-25" />
