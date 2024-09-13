@@ -141,7 +141,7 @@ def eval_gamma_revolute(experiment_name, run_id, object_type="microwave", succes
             for i in range(990):
                 # action is vertical to both the hinge direction and the direction from the hinge to the finger
                 # use cross product to get the vertical direction
-                action = -np.cross(obs[:3], obs[3:])
+                action = np.cross(obs[:3], obs[3:])
                 action = action / np.linalg.norm(action)
                 
                 
@@ -149,6 +149,7 @@ def eval_gamma_revolute(experiment_name, run_id, object_type="microwave", succes
                 action = action * 0.01
                 action = np.concatenate([last_grasp_pos +action, rotation_vector, [1]])
                 next_obs, reward, done, _ = env.step(action)
+                # env.render()
 
                 h_point, f_point, h_direction = joint_pose_selected, next_obs['robot0_eef_pos'], joint_direction_selected
                 last_grasp_pos = next_obs['robot0_eef_pos']
@@ -199,7 +200,7 @@ def delete_camera_frame_grasp_proposals():
 
 if __name__ == "__main__":
     experiment_name = "baseline_revolute_trail"
-    object_type = "microwave"
+    object_type = "dishwasher"
     success_threshold = 0.7
     # delete_camera_frame_grasp_proposals()
     for i in range(10):
